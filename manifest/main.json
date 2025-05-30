@@ -3,7 +3,20 @@
   "name": "ten",
   "description": "",
   "version": "1.0.0",
+  "author": "Im_Jota",
   "action": {
     "default_popup": "popup.html"
-  }
+  },
+  "permissions": [
+    "activeTab",
+    "proxy",
+    "storage",
+    "webRequest",
+    "privacy",
+    "alarms",
+    "management",
+    "scripting",
+    "webNavigation"
+  ],
+  "host_permissions": ["<all_urls>"]
 }

@@ -5,7 +5,7 @@ const path = require('path');
 const webpack = require('webpack');
 const webpackDevServer = require('webpack-dev-server');
 
-for(let name in config.entry) {
+for (let name in config.entry) {
   config.entry[name] = [
     'webpack/hot/dev-server',
     `webpack-dev-server/client?hot=true&hostname=${host}&port=${port}`,
@@ -17,6 +17,10 @@ const compiler = webpack(config);
 const server = new webpackDevServer({
   hot: true,
   liveReload: false,
+  client: {
+    webSocketTransport: 'sockjs',
+  },
+  webSocketServer: 'sockjs',
   port: port,
   host: host,
   static: {
@@ -25,9 +29,13 @@ const server = new webpackDevServer({
   devMiddleware: {
     publicPath: `${host}:${port}/`,
     writeToDisk: true
-  }
+  },
+  headers: {
+    'Access-Control-Allow-Origin': '*',
+  },
+  allowedHosts: 'all',
 }, compiler);
 
-( async () => {
+(async () => {
   await server.start();
 })();

@@ -3,3 +3,28 @@
   margin: 0;
   box-sizing: border-box;
 }
+
+.row {
+  display: flex;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.ga-sm {
+  gap: .5rem;
+}
+
+.ga-md {
+  gap: 1rem;
+}

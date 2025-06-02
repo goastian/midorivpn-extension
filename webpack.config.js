@@ -18,10 +18,16 @@ const config = {
   mode: app_env,
   entry: {
     popup: './src/main.js',
+    background: path.join(__dirname, 'src', 'background', 'index.js'),
   },
   output: {
-    filename: '[name].[contenthash].js',
     path: path.join(__dirname, 'dist'),
+    filename: ({chunk}) => {
+      if (chunk.name == 'background') {
+        return '[name].js'; 
+      }
+      return '[name].[contenthash].js';
+    },
     publicPath: '/',
     clean: true,
   },
@@ -68,15 +74,21 @@ const config = {
               )
             )
           }
+        },
+        {
+          from: path.join(__dirname, 'public', 'icons'),
+          to: path.join(__dirname, 'dist', 'icons')
         }
       ]
     })
   ],
   optimization: {
     splitChunks: {
-      chunks: 'all',
-      minSize: 30000,  // Tamaño mínimo para dividir los chunks
-      maxSize: 200000, // Limita el tamaño máximo del chunk
+      chunks: (chunk) => {
+        return chunk.name !== 'background';
+      },
+      minSize: 30000,
+      maxSize: 200000,
     },
   },
 }

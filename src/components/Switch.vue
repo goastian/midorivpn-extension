@@ -1,7 +1,13 @@
 <template>
-    <button @click="enableproxy" class="control row items-center justify-center" :class="{'active' : storage.state}">
-        <span>⏻</span>
-    </button>
+    <div class="container-control">
+        <span v-if="storage.state" class="tag active">Conected</span>
+        <span v-else class="tag">Disconnected</span>
+        <div class="control">
+            <button @click="enableproxy" class="btn-control row items-center justify-center" :class="{'active' : storage.state}">
+                <span>⏻</span>
+            </button>
+        </div>
+    </div>
 </template>
 
 <script>
@@ -20,7 +26,7 @@ export default {
             if(!this.storage.state) {
                 const result = enableProxy();
                 if(result) {
-                    this.storage.changeState();
+                    await this.storage.changeState();
                     enableBadge();
                 }
             } else {
@@ -36,20 +42,34 @@ export default {
 </script>
 
 <style scoped>
-.control {
+.container-control {
     position: absolute;
     bottom: -60px;
     left: 0;
     right: 0;
     margin: auto;
-    width: 120px;
-    height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.control {
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
-    border: 10px solid #F1F5F9;
+    background-color: #F1F5F9;
+    padding: 1rem;
+}
+
+.btn-control {
+    width: 100%;
+    height: 100%;
     background-color: #E67B7B;
+    border-radius: 50%;
+    border: none;
+    box-shadow: rgba(0, 0, 0, 0.35) 0px -50px 36px -28px inset;
     color: white;
     font-size: 2rem;
-    box-shadow: rgba(0, 0, 0, 0.35) 0px -50px 36px -28px inset;
     cursor: pointer;
 }
 
@@ -57,14 +77,13 @@ export default {
     line-height: 2rem;
 }
 
-.control::after {
-    content: 'Disconnected';
+.tag {
     position: absolute;
-    width: 100%;
+    width: 50%;
     background-color: #FFE6E6;
     color: #E67B7B;
     border: 1px solid #E67B7B;
-    top: -45px;
+    top: -25px;
     border-radius: 1rem;
     padding: .3rem 1rem;
     font-size: .8rem;
@@ -77,8 +96,7 @@ export default {
     background-color: #4AC176;
 }
 
-.active::after {
-    content: 'Conected';
+.tag.active {
     color: #4AC176;
     border-color: #4AC176;
     background-color: #CBFFDE;

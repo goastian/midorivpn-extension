@@ -16,7 +16,10 @@
     "alarms",
     "management",
     "scripting",
-    "webNavigation"
+    "webNavigation",
+    "identity",
+    "webRequestBlocking",
+    "browsingData"
   ],
   "host_permissions": ["<all_urls>"]
 }

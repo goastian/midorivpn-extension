@@ -6,13 +6,15 @@ const useStore = defineStore('store', {
     }),
 
     actions: {
-        changeState() {
+        async changeState() {
             this.state = !this.state;
         }
     },
 
     getters: {
-
+        persistFields() {
+            return ['state'];
+        },
     },
 })
 

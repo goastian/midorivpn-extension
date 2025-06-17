@@ -1,7 +1,6 @@
 function badge() {
     chrome.storage.local.get(['store'], (storage) => {
-        console.log(storage)
-        if(storage.store.state) {
+        if (storage.store?.state) {
             enableBadge();
         } else {
             disableBadge();
@@ -10,9 +9,12 @@ function badge() {
 }
 
 export const enableBadge = () => {
-    chrome.action.setBadgeText({ text: "US" });
+    chrome.runtime.sendMessage({ type: "loadServers" }, (response) => {
+        if (response?.success) {
+            chrome.action.setBadgeText({ text: response.data.active.data.country_code });
+        }
+    });
     chrome.action.setBadgeBackgroundColor({ color: "green" });
-
 };
 
 export const disableBadge = () => {

@@ -19,12 +19,19 @@
   },
   "homepage": "https://github.com/Im-Jota/ten-vpn-extension#readme",
   "dependencies": {
+    "@fontsource/inter": "^5.2.6",
+    "@iconify/vue": "^5.0.0",
+    "axios": "^1.10.0",
     "pinia": "^3.0.2",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "webextension-polyfill": "^0.12.0"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
     "@babel/preset-env": "^7.27.2",
+    "@babel/preset-typescript": "^7.27.1",
+    "@types/chrome": "^0.0.326",
+    "@types/webextension-polyfill": "^0.12.3",
     "babel-loader": "^10.0.0",
     "copy-webpack-plugin": "^13.0.0",
     "css-loader": "^7.1.2",

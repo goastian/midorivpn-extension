@@ -1,5 +1,12 @@
-import badge from "./badge";
 import { isFirefox } from "./vars";
+import Token from '../utils/token.ts';
+import serverManager from '../service/servers.js';
+
+const handlers = {
+    loadServers: () => serverManager.getServers(),
+    getServers: () => serverManager.getServers(),
+};
+let customHeaders = '';
 
 export const handleProxy = (details) => {
     return new Promise((resolve, reject) => {
@@ -12,40 +19,75 @@ export const handleProxy = (details) => {
             resolve({ type: 'direct' })
             return
         }
-
-        chrome.storage.local.get(['store'], (storage) => {
-            if (storage.store.state) {
-                resolve({
-                    type: 'https',
-                    host: process.env.PROXY_HOST,
-                    port: process.env.PROXY_PORT,
-                })
-                return;
+        chrome.storage.local.get(['store'], async (storage) => {
+            if (storage.store?.state) {
+                const handler = handlers['getServers'];
+                if (handler) {
+                    const res = handler('getServers');
+                    resolve({
+                        type: 'https',
+                        host: res.active.ip,
+                        port: res.active.port,
+                    })
+                }
             } else {
                 resolve({ type: 'direct' })
-                return;
             }
         })
     })
 };
 
-export const enableProxy = async () => {
+export const handleHeader = (details) => {
+    return new Promise((resolve) => {
+        const validated = new Token();
+        chrome.storage.local.get(['store', 'server'], async (storage) => {
+            if (storage.store?.state) {
+                const token = await validated.getDecryptedToken();
+                customHeaders = {
+                    "Proxy-Authorization": `Bearer ${token}|${storage.server.id}`
+                };
+                for (let name in customHeaders) {
+                    details.requestHeaders.push({ name, value: customHeaders[name] });
+                }
+                resolve({ requestHeaders: details.requestHeaders });
+            } else {
+                resolve({});
+            }
+        });
+    })
+};
+
+export const enableProxy = () => {
     if (!isFirefox) {
+        //chrome.action.setBadgeText({ text: response.data.active.data.country_code });
         const config = {
             mode: "fixed_servers",
             rules: {
                 singleProxy: {
                     scheme: "http",
-                    host: process.env.PROXY_HOST,
-                    port: process.env.PROXY_PORT,
+                    host: '72.144.125.232',
+                    port: 1080,
                 },
-                bypassList: ["<local>"]
+                bypassList: ["<all_urls>"]
             }
         };
-        await chrome.proxy.settings.set({ value: config, scope: "regular" });
-    };
+        chrome.proxy.settings.set({ value: config, scope: "regular" });
+        console.log('asadsad')
+        // Añade cabeceras personalizadas
+        browser.webRequest.onBeforeSendHeaders.addListener(
+            function (details) {
+                for (let name in customHeaders) {
+                    details.requestHeaders.push({ name, value: customHeaders[name] });
+                }
+                return { requestHeaders: details.requestHeaders };
+            },
+            { urls: ["<all_urls>"] },
+            ["blocking", "requestHeaders"]
+        );
+        return true;
+    }
     return true;
-};
+}
 
 export const disableProxy = async () => {
     await chrome.proxy.settings.clear({ scope: "regular" });

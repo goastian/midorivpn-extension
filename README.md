@@ -2,7 +2,7 @@
     <img src="./public/icons/icon128.png" />
 </div>
 
-<h1 style="text-align: center;">Ten-VPN-Extension</h1>
+<h1 style="text-align: center;">Midorivpn-extension</h1>
 
 <p style="text-align: center">
   <img alt="Chrome" src="https://img.shields.io/badge/Chrome-Supported-brightgreen?logo=googlechrome" />
@@ -32,7 +32,11 @@ It provides traffic redirection through configurable HTTP/S proxy servers and al
 ## 🖥️ Demo / Preview
 
 <p align="center">
-  <img src="./public/Ten-Extension.png" alt="Extension Preview" width="100%" />
+  <img src="./public/midori-extension.png" alt="Extension Preview" width="100%" />
+  <video width="100%" height="560" controls>
+    <source src="./public/video.mp4" type="video/mp4">
+    Tu navegador no soporta el elemento de video.
+  </video>
 </p>
 
 ---
@@ -64,8 +68,8 @@ This section explains how to clone the repository and run the project in local d
 
 ## 📥 Clone the repository
 ```bash
-git clone https://github.com/Im-Jota/ten-vpn-extension.git
-cd ten-vpn-extension
+git clone https://github.com/goastian/midorivpn-extension
+cd midorivpn-extension
 ```
 
 ## 📦 Install dependencies

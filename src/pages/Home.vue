@@ -1,7 +1,7 @@
 <template>
     <div class="container">
         <div class="header">
-            <h1>{{ app_name }}</h1>
+            <img src="/icons/title.png" class="logo-title" width="80" />
         </div>
         <div class="main">
             <img src="/icons/icon128.png" class="logo" width="80" />
@@ -69,6 +69,10 @@ export default {
     width: 100%;
     display: flex;
     justify-content: center;
+}
+
+.logo-title {
+    width: 120px;
 }
 
 .main {

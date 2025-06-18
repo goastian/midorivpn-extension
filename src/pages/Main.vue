@@ -2,7 +2,7 @@
   <div class="container column">
     <div class="header">
       <div class="row items-center ga-sm">
-        <img src="/icons/icon128.png" class="logo" />
+        <img src="/icons/logo.png" class="logo" />
         <h1 class="title">{{ app_name }}</h1>
       </div>
       <Options />
@@ -76,8 +76,7 @@ export default {
 }
 
 .logo {
-  width: 25px;
-  height: 25px;
+  width: 180px;
 }
 
 .center {

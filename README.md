@@ -33,9 +33,9 @@ It provides traffic redirection through configurable HTTP/S proxy servers and al
 
 <p align="center">
   <img src="./public/midori-extension.png" alt="Extension Preview" width="100%" />
-  <iframe width="100%" height="500" src="https://www.youtube.com/embed/83VCygYjnVE?si=lTGSfOZFGnyZ4y3T" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
-  </iframe>
 </p>
+
+[watch demo on YouTube](https://www.youtube.com/embed/83VCygYjnVE?si=lTGSfOZFGnyZ4y3T)
 
 ---
 

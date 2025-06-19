@@ -7,7 +7,7 @@
         <div v-if="show" class="dialog column">
             <div class="dialog-top column">
                 <h2>{{ user.name }}</h2>
-                <span class="text-secondary">{{ user.email }}</span>
+                <span class="text-secondary email">{{ user.email }}</span>
                 <!--<span class="text-secondary">Plan</span>-->
             </div>
 
@@ -121,6 +121,13 @@ h2 {
 
 .text-secondary {
     color: #6E6E6E;
+}
+
+.email {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 135px;
 }
 
 .dialog-main {

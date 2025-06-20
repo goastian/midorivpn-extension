@@ -32,8 +32,7 @@ const useServerStore = defineStore('server', {
                     this.id = res.data.data.id;
                 }
             } catch (error) {
-                // En caso de error, guardamos el error en el estado
-                console.log(error.response)
+                return error.response.data.message
             }
         },
     },

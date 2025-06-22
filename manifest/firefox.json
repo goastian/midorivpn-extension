@@ -3,7 +3,6 @@
     "scripts": ["background.js"],
     "type": "module"
   },
-  "permissions": ["webRequestBlocking", "browsingData"],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

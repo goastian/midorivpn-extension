@@ -1,35 +1,23 @@
 <template>
-    <select v-model="servers.active">
-        <option v-for="item in servers.servers" :key="item.ip" :value="item">{{ item.data.country }}</option>
+    <select v-model="vpn.active">
+        <option v-for="item in vpn.servers" :key="item.ip" :value="item">{{ item.data.country }}</option>
     </select>
 </template>
 
 <script>
+import badge from '../utils/badge.js';
+import useVpnStore from '../stores/useVpnStore.js';
 export default {
     data() {
         return {
-            servers: {},
+            vpn: useVpnStore(),
         }
     },
 
-    created() {
-        chrome.storage.local.get('encryptedToken', async (storage) => {
-            if (storage.encryptedToken) {
-                this.loadServers();
-            }
-        });
-    },
-
-    methods: {
-        loadServers() {
-            chrome.runtime.sendMessage({ type: 'loadServers' }, (response) => {
-                if (response?.success) {
-                    this.servers = response.data;
-                } else {
-                    console.error('Error al obtener servidores:', response?.error);
-                }
-            });
-        },
+    watch: {
+        "vpn.active"() {
+            badge();
+        }
     }
 }
 </script>

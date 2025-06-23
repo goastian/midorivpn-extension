@@ -19,15 +19,13 @@ export const handleProxy = (details) => {
             resolve({ type: 'direct' })
             return
         }
-        chrome.storage.local.get(['store'], async (storage) => {
+        chrome.storage.local.get(['store', 'server'], async (storage) => {
             if (storage.store?.state) {
-                const handler = handlers['getServers'];
-                if (handler) {
-                    const res = handler('getServers');
+                if (storage.server?.active) {
                     resolve({
                         type: 'https',
-                        host: res.active.ip,
-                        port: res.active.port,
+                        host: storage.server.active.url,
+                        port: storage.server.active.port,
                     })
                 }
             } else {

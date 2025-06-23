@@ -34,6 +34,7 @@ export default {
       if (storage.encryptedToken) {
         this.isLoggedIn = !!storage.encryptedToken;
         const men = await this.vpn.createDevice();
+        await this.vpn.loadServers();
         if(men) {
           this.notifications.add({
             title: "Device",

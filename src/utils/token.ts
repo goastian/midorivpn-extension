@@ -1,4 +1,5 @@
 import { encryptToken, decryptToken } from './crypto-utils';
+import Authentification from './authentification';
 
 interface TokenStorage {
   encryptedToken?: string;
@@ -23,6 +24,10 @@ class Token {
     }
   }
 
+  /**
+   * 
+   * @returns 
+   */
   async getDecryptedToken(): Promise<string | null> {
     try {
       const data = await chrome.storage.local.get(['encryptedToken', 'tokenExpiry']) as TokenStorage;
@@ -64,19 +69,23 @@ class Token {
         },
       });
 
-      if (res.ok) {
+      if (res.status == 200) {
         //const data = await res.json();
         return true;
-      } else {
-        console.log('Error response:', res);
+      }
+      if(res.status == 401){
+        const authentification = new Authentification();
+        this.clearToken();
+        await authentification.logout();
+        return false;
       }
     } catch (error) {
-      console.error('Fetch error:', error);
+      return false;
     }
   }
 
   async ngOnInit(url: string) {
-    
+
     chrome.storage.local.get(['state', 'code_verifier'], async (storage) => {
       //Get state
       const state: string | null = storage.state;
@@ -87,7 +96,7 @@ class Token {
       //Get current URL
       const urlObj = new URL(url);
       const query: URLSearchParams = new URLSearchParams(urlObj.search);
-      
+
       //Checking state
       if (state && state === query.get('state')) {
         const body = new URLSearchParams({

@@ -1,6 +1,5 @@
 import axios from 'axios';
 import Token from '../utils/token';
-import Authentification from '../utils/authentification';
 
 class User {
     __user;
@@ -38,10 +37,6 @@ class User {
                     this.__lastFetch = now;
                     return this.__user;
                 }
-            } else {
-                const authentification = new Authentification();
-                await authentification.signIn();
-                validated.clearToken();
             }
         } catch (error) {
             console.log(error)

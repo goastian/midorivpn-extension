@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "midorivpn",
   "description": "",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Astian Inc",
   "action": {
     "default_popup": "popup.html"

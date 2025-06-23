@@ -71,7 +71,7 @@ class Authentification {
     // Generate the state code and store it in session
     const state = this.generateCode(40);
     //localStorage.setItem('state', state);
-    chrome.storage.local.set({state: state})
+    chrome.storage.local.set({ state: state })
 
     // Generate code_challenge
     const code_challenge = await this.codeChallenge();
@@ -91,25 +91,42 @@ class Authentification {
     // Redirect to OAuth2 authorization server
     const url = `${process.env.PASSPORT_PROXY_SERVER}/oauth?${queryParams.toString()}`;
     chrome.tabs.create({ url: url }, function () {
-        window.close();
-      });
+      window.close();
+    });
     //window.open(url);
   }
 
   async logout() {
     const tokenClass = new Token();
     const token = await tokenClass.getDecryptedToken();
-    const response = await fetch(`${process.env.PASSPORT_SERVER}/api/gateway/logout`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`
+    chrome.storage.local.get(['server'], async (storage) => {
+      if (storage?.server) {
+        const res = await fetch(`${process.env.PASSPORT_DOMAIN_SERVER}/api/v1/users/vpn/devices/${storage.server.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+        });
+
+        if (res) {
+          chrome.storage.local.remove(['server', 'store']);
+          const response = await fetch(`${process.env.PASSPORT_SERVER}/api/gateway/logout`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${token}`
+            }
+          })
+          if (response.ok) {
+            tokenClass.clearToken();
+            chrome.storage.local.clear();
+            window.close();
+          }
+        }
       }
     })
-    if(response.ok) {
-      tokenClass.clearToken();
-      window.close();
-    }
   }
 }
 

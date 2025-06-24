@@ -1,38 +1,40 @@
-import badge from '../utils/badge';
-import { handleHeader, handleProxy } from '../utils/proxy';
+import('../utils/badge').then((mod) => mod.default());
 import { isFirefox } from '../utils/vars';
 
-import Token from '../utils/token.ts';
-
-import serverManager from '../service/servers.js';
-import user from '../service/User.js';
-
 const handlers = {
-  loadServers: () => serverManager.loadServers(),
-  loadUser: () => user.LoadUser(),
+  loadServers: async () => {
+    const module = await import('../service/servers.js');
+    return module.default.loadServers();
+  },
+  loadUser: async () => {
+    const module = await import('../service/User.js');
+    return module.default.LoadUser();
+  },
 };
 
 badge();
 
 
 if (isFirefox) {
-  browser.proxy.onRequest.addListener(handleProxy, {
-    urls: ['<all_urls>'],
-  });
+  import('../utils/proxy').then(({ handleHeader, handleProxy }) => {
+    browser.proxy.onRequest.addListener(handleProxy, {
+      urls: ['<all_urls>'],
+    });
 
-  // Añade cabeceras personalizadas
-  browser.webRequest.onBeforeSendHeaders.addListener(
-    handleHeader,
-    { urls: ["<all_urls>"] },
-    ["blocking", "requestHeaders"]
-  );
+    browser.webRequest.onBeforeSendHeaders.addListener(
+      handleHeader,
+      { urls: ['<all_urls>'] },
+      ['blocking', 'requestHeaders']
+    );
+  });
 };
 
 //routes
-chrome.webNavigation.onCommitted.addListener((details) => {
+chrome.webNavigation.onCommitted.addListener(async (details) => {
   const url = new URL(details.url);
   if (url.pathname === '/callback') {
-    const token = new Token();
+    const module = await import('../utils/token.ts');
+    const token = new module.default();
     token.ngOnInit(url);
   }
 });

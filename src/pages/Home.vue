@@ -11,15 +11,15 @@
             </div>
             <div class="main-list">
                 <div class="container-icon">
-                    <Icon class="icon" icon="iconamoon:shield-thin" />
+                    <Icon class="icon" :icon="shield" />
                     <span>Safe connection</span>
                 </div>
                 <div class="container-icon">
-                    <Icon class="icon" icon="tabler:world" />
+                    <Icon class="icon" :icon="world" />
                     <span>International servers</span>
                 </div>
                 <div class="container-icon">
-                    <Icon class="icon" icon="uil:padlock" />
+                    <Icon class="icon" :icon="padlock" />
                     <span>Complete privacy</span>
                 </div>
             </div>
@@ -32,12 +32,19 @@
 </template>
 
 <script>
-import { Icon } from '@iconify/vue';
+import { defineAsyncComponent } from 'vue';
 import Authentification from '../utils/authentification.ts';
 export default {
     inject: ['app_name'],
     components: {
         Icon,
+    },
+
+    components: {
+        Icon: defineAsyncComponent(() => import('@iconify/vue')),
+        padlock: defineAsyncComponent(() => import('@iconify/vue/uil/padlock')),
+        world: defineAsyncComponent(() => import('@iconify/vue/tabler/world')),
+        shield: defineAsyncComponent(() => import('@iconify/vue/iconamoon/shield-thin')),
     },
 
     methods: {

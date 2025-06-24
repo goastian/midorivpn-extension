@@ -1,7 +1,7 @@
 <template>
     <div class="container-options">
         <button @click="show = !show">
-            <Icon icon="ri:more-2-line" />
+            <Icon :icon="more" />
         </button>
 
         <div v-if="show" class="dialog column">
@@ -15,7 +15,7 @@
 
             <div class="dialog-main">
                 <a @click="account" class="account row items-center ga-sm">
-                    <Icon icon="ion:open-outline" />Manage Account
+                    <Icon :icon="open" />Manage Account
                 </a>
             </div>
 
@@ -23,7 +23,7 @@
 
             <div class="dialog-footer">
                 <a @click="logout" class="signup row items-center ga-sm">
-                    <Icon icon="mingcute:exit-line" />Log out
+                    <Icon :icon="exit" />Log out
                 </a>
             </div>
         </div>
@@ -31,7 +31,6 @@
 </template>
 
 <script>
-import { Icon } from '@iconify/vue';
 import Authentification from '../utils/authentification.ts';
 export default {
     data() {
@@ -46,7 +45,10 @@ export default {
     },
 
     components: {
-        Icon,
+        Icon: defineAsyncComponent(() => import('@iconify/vue')),
+        exit: defineAsyncComponent(() => import('@iconify/vue/mingcute/exit-line')),
+        open: defineAsyncComponent(() => import('@iconify/vue/ion/open-outline')),
+        more: defineAsyncComponent(() => import('@iconify/vue/ri/more-2-line')),
     },
 
     methods: {

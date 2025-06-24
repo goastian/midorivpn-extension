@@ -1,7 +1,7 @@
 <template>
     <div class="container-options">
         <button @click="show = !show">
-            <Icon :icon="more" />
+            ︙
         </button>
 
         <div v-if="show" class="dialog column">
@@ -15,7 +15,7 @@
 
             <div class="dialog-main">
                 <a @click="account" class="account row items-center ga-sm">
-                    <Icon :icon="open" />Manage Account
+                    🛠️ Manage Account
                 </a>
             </div>
 
@@ -23,7 +23,7 @@
 
             <div class="dialog-footer">
                 <a @click="logout" class="signup row items-center ga-sm">
-                    <Icon :icon="exit" />Log out
+                    👋 Log out
                 </a>
             </div>
         </div>
@@ -42,13 +42,6 @@ export default {
 
     created() {
         this.loadUser();
-    },
-
-    components: {
-        Icon: defineAsyncComponent(() => import('@iconify/vue')),
-        exit: defineAsyncComponent(() => import('@iconify/vue/mingcute/exit-line')),
-        open: defineAsyncComponent(() => import('@iconify/vue/ion/open-outline')),
-        more: defineAsyncComponent(() => import('@iconify/vue/ri/more-2-line')),
     },
 
     methods: {

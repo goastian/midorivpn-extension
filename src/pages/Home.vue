@@ -11,15 +11,15 @@
             </div>
             <div class="main-list">
                 <div class="container-icon">
-                    <Icon class="icon" :icon="shield" />
+                    <span class="icon">🛡️</span>
                     <span>Safe connection</span>
                 </div>
                 <div class="container-icon">
-                    <Icon class="icon" :icon="world" />
+                    <span class="icon">🌍</span>
                     <span>International servers</span>
                 </div>
                 <div class="container-icon">
-                    <Icon class="icon" :icon="padlock" />
+                    <span class="icon">🔒</span>
                     <span>Complete privacy</span>
                 </div>
             </div>
@@ -36,22 +36,16 @@ import { defineAsyncComponent } from 'vue';
 import Authentification from '../utils/authentification.ts';
 export default {
     inject: ['app_name'],
-    components: {
-        Icon,
-    },
 
-    components: {
-        Icon: defineAsyncComponent(() => import('@iconify/vue')),
-        padlock: defineAsyncComponent(() => import('@iconify/vue/uil/padlock')),
-        world: defineAsyncComponent(() => import('@iconify/vue/tabler/world')),
-        shield: defineAsyncComponent(() => import('@iconify/vue/iconamoon/shield-thin')),
+    async mounted() {
+        await this.loadIcons();
     },
 
     methods: {
         openLink() {
             const authentification = new Authentification();
             authentification.signIn();
-        }
+        },
     }
 }
 </script>
@@ -136,7 +130,7 @@ export default {
     align-items: center;
 }
 
-.footer > button {
+.footer>button {
     width: 100%;
     background-color: #0EA5E9;
     color: white;
@@ -147,7 +141,7 @@ export default {
     cursor: pointer;
 }
 
-.footer > span {
+.footer>span {
     color: gray;
     font-size: .7rem;
 }

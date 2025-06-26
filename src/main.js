@@ -1,7 +1,7 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
-import '@fontsource/inter';
+import '@fontsource/inter/400.css';
 
 import { chromeStoragePlugin } from './plugins/chromeStoragePlugin';
 import App from './App.vue';

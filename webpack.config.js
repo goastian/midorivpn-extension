@@ -5,6 +5,7 @@ const Dotenv = require('dotenv-webpack');
 const { VueLoaderPlugin } = require('vue-loader');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const { app_env, browser } = require('./config/config.js');
 
@@ -22,9 +23,9 @@ const config = {
   },
   output: {
     path: path.join(__dirname, 'dist'),
-    filename: ({chunk}) => {
+    filename: ({ chunk }) => {
       if (chunk.name == 'background') {
-        return '[name].js'; 
+        return '[name].js';
       }
       return '[name].[contenthash].js';
     },
@@ -36,8 +37,8 @@ const config = {
       {
         test: /\.css$/,
         use: [
-          { loader: 'style-loader'},
-          { loader: 'css-loader'},
+          MiniCssExtractPlugin.loader,
+          { loader: 'css-loader' },
         ]
       },
       {
@@ -48,6 +49,15 @@ const config = {
         test: /\.(js|ts)$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
+      },
+      {
+        test: /\.(jpe?g|png)$/,
+        loader: 'responsive-loader',
+        options: {
+          adapter: require('responsive-loader/sharp'),
+          sizes: [480, 768, 1024],
+          quality: 85,
+        },
       },
     ],
   },
@@ -79,24 +89,27 @@ const config = {
           }
         },
         {
-          from: path.join(__dirname, 'public', 'icons'),
+          from: path.join(__dirname, 'compressed-assets'),
           to: path.join(__dirname, 'dist', 'icons')
         }
       ]
-    })
+    }),
+    new MiniCssExtractPlugin({
+        filename: '[name].[contenthash].css',
+    }),
   ],
   optimization: {
     splitChunks: {
       chunks: (chunk) => {
         return chunk.name !== 'background';
       },
-      minSize: 30000,
-      maxSize: 200000,
+      minSize: 10000,
+      maxSize: 50000,
     },
   },
 }
 
-if(config.mode == 'development') {
+if (config.mode == 'development') {
   config.devtool = 'cheap-module-source-map'
 }
 

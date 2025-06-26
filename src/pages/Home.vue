@@ -32,14 +32,9 @@
 </template>
 
 <script>
-import { defineAsyncComponent } from 'vue';
 import Authentification from '../utils/authentification.ts';
 export default {
     inject: ['app_name'],
-
-    async mounted() {
-        await this.loadIcons();
-    },
 
     methods: {
         openLink() {

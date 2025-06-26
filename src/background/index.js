@@ -1,4 +1,4 @@
-import('../utils/badge').then((mod) => mod.default());
+import badge from '../utils/badge.js';
 import { isFirefox } from '../utils/vars';
 
 const handlers = {

@@ -1,4 +1,6 @@
 import Token from './token';
+// @ts-ignore
+import { disableBadge } from './badge';
 
 class Authentification {
   /**
@@ -122,6 +124,7 @@ class Authentification {
           if (response.ok) {
             tokenClass.clearToken();
             chrome.storage.local.clear();
+            disableBadge();
             window.close();
           }
         }

@@ -70,7 +70,6 @@ export const enableProxy = () => {
             }
         };
         chrome.proxy.settings.set({ value: config, scope: "regular" });
-        console.log('asadsad')
         // Añade cabeceras personalizadas
         browser.webRequest.onBeforeSendHeaders.addListener(
             function (details) {
@@ -88,6 +87,9 @@ export const enableProxy = () => {
 }
 
 export const disableProxy = async () => {
-    await chrome.proxy.settings.clear({ scope: "regular" });
+    if(!isFirefox) {
+        await chrome.proxy.settings.clear({ scope: "regular" });
+        return true;
+    }
     return true;
 }

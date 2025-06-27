@@ -21,5 +21,5 @@
     "webRequestBlocking",
     "browsingData"
   ],
-  "host_permissions": ["<all_urls>"]
+  "host_permissions": ["https://*.vpn.astian.org/*", "https://*.astian.org/*"]
 }

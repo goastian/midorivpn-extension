@@ -3,7 +3,7 @@
   "name": "MidoriVPN",
   "short_name": "MidoriVPN",
   "description": "Powerful VPN for Midori Browser & Browsers based Chromium",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Astian Inc",
   "action": {
     "default_popup": "popup.html"

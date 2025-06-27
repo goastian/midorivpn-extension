@@ -17,7 +17,6 @@ const useServerStore = defineStore('server', {
             const isValidated = await validated.verificate();
             if (isValidated) {
                 const ser = serverManager.getServers();
-                console.log(ser);
                 const res = await axios.get(`${process.env.PASSPORT_DOMAIN_SERVER}/api/v1/users/vpn/servers`, {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -26,7 +25,6 @@ const useServerStore = defineStore('server', {
                     },
                 });
                 if (res.status === 200) {
-                    console.log(res.data.data)
                     this.servers = { ...res.data.data };
                     if (!this.active) {
                         this.active = { ...res.data.data[0] }

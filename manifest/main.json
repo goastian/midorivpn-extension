@@ -8,7 +8,6 @@
     "default_popup": "popup.html"
   },
   "permissions": [
-    "activeTab",
     "proxy",
     "storage",
     "webRequest",

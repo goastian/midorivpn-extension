@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import Token from './token';
 // @ts-ignore
 import { disableBadge } from './badge';
@@ -13,9 +14,13 @@ class Authentification {
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
     let result = '';
     const charactersLength = characters.length;
+    const randomValues = new Uint8Array(length);
+    window.crypto.getRandomValues(randomValues);
     for (let i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+      const index = randomValues[i] % charactersLength;
+      result += characters.charAt(index);
     }
+    
     return result;
   }
 

@@ -87,7 +87,7 @@ class Authentification {
       state: state,
       code_challenge: code_challenge,
       code_challenge_method: 'S256',
-      prompt: 'none',
+      prompt: process.env.PASSPORT_PROMPT_MODE || '',
     });
 
     // Redirect to OAuth2 authorization server

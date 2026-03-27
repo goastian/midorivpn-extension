@@ -24,7 +24,7 @@ export default {
     methods: {
         async enableproxy() {
             if(!this.storage.state) {
-                const result = enableProxy();
+                const result = await enableProxy();
                 if(result) {
                     await this.storage.changeState();
                     enableBadge();

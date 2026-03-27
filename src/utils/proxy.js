@@ -8,6 +8,28 @@ const handlers = {
 };
 let customHeaders = '';
 
+const getLocalStorage = (keys) => new Promise((resolve) => {
+    chrome.storage.local.get(keys, (storage) => resolve(storage || {}));
+});
+
+const resolveProxyServer = (activeServer) => {
+    if (!activeServer) return null;
+
+    const host = activeServer.host || activeServer.url || activeServer.ip || '';
+    const rawPort = activeServer.port || activeServer.proxy_port;
+    const port = Number(rawPort);
+
+    if (!host || !Number.isFinite(port) || port <= 0) {
+        return null;
+    }
+
+    return {
+        host,
+        port,
+        id: activeServer.id,
+    };
+};
+
 export const handleProxy = (details) => {
     return new Promise((resolve, reject) => {
         const url = new URL(details.url)
@@ -21,12 +43,15 @@ export const handleProxy = (details) => {
         }
         chrome.storage.local.get(['store', 'server'], async (storage) => {
             if (storage.store?.state) {
-                if (storage.server?.active) {
+                const proxyServer = resolveProxyServer(storage.server?.active);
+                if (proxyServer) {
                     resolve({
                         type: 'https',
-                        host: storage.server.active.url,
-                        port: storage.server.active.port,
+                        host: proxyServer.host,
+                        port: proxyServer.port,
                     })
+                } else {
+                    resolve({ type: 'direct' })
                 }
             } else {
                 resolve({ type: 'direct' })
@@ -41,8 +66,9 @@ export const handleHeader = (details) => {
         chrome.storage.local.get(['store', 'server'], async (storage) => {
             if (storage.store?.state) {
                 const token = await validated.getDecryptedToken();
+                const serverID = storage.server?.active?.id || storage.server?.id;
                 customHeaders = {
-                    "Proxy-Authorization": `Bearer ${token}|${storage.server.id}`
+                    "Proxy-Authorization": `Bearer ${token}|${serverID}`
                 };
                 for (let name in customHeaders) {
                     details.requestHeaders.push({ name, value: customHeaders[name] });
@@ -55,16 +81,22 @@ export const handleHeader = (details) => {
     })
 };
 
-export const enableProxy = () => {
+export const enableProxy = async () => {
     if (!isFirefox) {
+        const storage = await getLocalStorage(['server']);
+        const proxyServer = resolveProxyServer(storage.server?.active);
+        if (!proxyServer) {
+            return false;
+        }
+
         //chrome.action.setBadgeText({ text: response.data.active.data.country_code });
         const config = {
             mode: "fixed_servers",
             rules: {
                 singleProxy: {
                     scheme: "http",
-                    host: '72.144.125.232',
-                    port: 1080,
+                    host: proxyServer.host,
+                    port: proxyServer.port,
                 },
                 bypassList: ["<all_urls>"]
             }

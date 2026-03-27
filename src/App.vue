@@ -30,6 +30,10 @@ export default {
   },
 
   async created() {
+    const tokenModule = await import('./utils/token.ts');
+    const token = new tokenModule.default();
+    await token.migrateTokenSalt();
+
     chrome.storage.local.get('encryptedToken', async (storage) => {
       if (storage.encryptedToken) {
         this.isLoggedIn = !!storage.encryptedToken;

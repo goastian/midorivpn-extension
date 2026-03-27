@@ -6,35 +6,51 @@ interface EncryptedData {
 }
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+const SALT_STORAGE_KEY = 'encryptionSalt';
+const LEGACY_SALT = new TextEncoder().encode("fixed_salt_123");
+
+/**
+ * Returns a per-installation random salt (16 bytes).
+ * Generated once on first use and persisted in chrome.storage.local.
+ */
+async function getOrCreateSalt(): Promise<Uint8Array> {
+  const stored = await chrome.storage.local.get(SALT_STORAGE_KEY);
+  if (stored[SALT_STORAGE_KEY]) {
+    return base64ToBuffer(stored[SALT_STORAGE_KEY]);
+  }
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  await chrome.storage.local.set({ [SALT_STORAGE_KEY]: bufferToBase64(salt) });
+  return salt;
+}
+
+async function deriveKey(salt: Uint8Array, usages: KeyUsage[]): Promise<CryptoKey> {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(ENCRYPTION_KEY),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    usages
+  );
+}
 
 export async function encryptToken(token: string): Promise<EncryptedData> {
   try {
-    // 1. Generar IV (Initialization Vector)
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    
-    // 2. Preparar clave derivada (PBKDF2 para mayor seguridad)
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(ENCRYPTION_KEY),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-    
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: new TextEncoder().encode("fixed_salt_123"), // Usa un salt único
-        iterations: 100000,
-        hash: "SHA-256"
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"]
-    );
+    const salt = await getOrCreateSalt();
+    const key = await deriveKey(salt, ["encrypt", "decrypt"]);
 
-    // 3. Encriptar
     const encrypted = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
@@ -53,33 +69,11 @@ export async function encryptToken(token: string): Promise<EncryptedData> {
 
 export async function decryptToken(encryptedData: EncryptedData): Promise<string> {
   try {
-    // 1. Convertir IV y ciphertext de Base64 a Uint8Array
     const iv = base64ToBuffer(encryptedData.iv);
     const ciphertext = base64ToBuffer(encryptedData.ciphertext);
+    const salt = await getOrCreateSalt();
+    const key = await deriveKey(salt, ["decrypt"]);
 
-    // 2. Derivar la clave (igual que en encryptToken)
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(ENCRYPTION_KEY),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    );
-
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: new TextEncoder().encode("fixed_salt_123"), // ¡Mismo salt que en encryptToken!
-        iterations: 100000,
-        hash: "SHA-256"
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["decrypt"] // Solo necesitamos descifrar aquí
-    );
-
-    // 3. Desencriptar
     const decrypted = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
@@ -91,4 +85,19 @@ export async function decryptToken(encryptedData: EncryptedData): Promise<string
     console.error("Decryption error:", error);
     throw new Error("Failed to decrypt token");
   }
+}
+
+/** @deprecated Legacy helper — decrypts tokens encrypted with the old hardcoded salt. Remove after migration period. */
+export async function decryptTokenWithLegacySalt(encryptedData: EncryptedData): Promise<string> {
+  const iv = base64ToBuffer(encryptedData.iv);
+  const ciphertext = base64ToBuffer(encryptedData.ciphertext);
+  const key = await deriveKey(LEGACY_SALT, ["decrypt"]);
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ciphertext
+  );
+
+  return new TextDecoder().decode(decrypted);
 }

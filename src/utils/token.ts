@@ -1,4 +1,4 @@
-import { encryptToken, decryptToken } from './crypto-utils';
+import { encryptToken, decryptToken, decryptTokenWithLegacySalt } from './crypto-utils';
 import Authentification from './authentification';
 
 interface TokenStorage {
@@ -8,6 +8,34 @@ interface TokenStorage {
 
 class Token {
   private static readonly DEFAULT_EXPIRATION = 3_600_000;
+
+  /**
+   * Migrates tokens encrypted with the old hardcoded salt to the new per-installation salt.
+   * Safe to call multiple times — no-ops after first successful migration.
+   */
+  async migrateTokenSalt(): Promise<void> {
+    const { saltMigrated } = await chrome.storage.local.get('saltMigrated');
+    if (saltMigrated) return;
+
+    const data = await chrome.storage.local.get(['encryptedToken', 'tokenExpiry']) as TokenStorage;
+    if (data.encryptedToken) {
+      try {
+        const encrypted = JSON.parse(data.encryptedToken);
+        const plaintext = await decryptTokenWithLegacySalt(encrypted);
+        const reEncrypted = await encryptToken(plaintext);
+        await chrome.storage.local.set({
+          encryptedToken: JSON.stringify(reEncrypted),
+          saltMigrated: true
+        });
+      } catch {
+        // Token corrupted or already using new salt — clear and force re-login
+        await this.clearToken();
+        await chrome.storage.local.set({ saltMigrated: true });
+      }
+    } else {
+      await chrome.storage.local.set({ saltMigrated: true });
+    }
+  }
 
   async saveEncryptedToken(token: string, expiresIn: number = 2_592_000_000): Promise<void> {
     try {

@@ -14,6 +14,12 @@ const handlers = {
 
 badge();
 
+// Migrate tokens from legacy hardcoded salt to per-installation random salt
+chrome.runtime.onInstalled.addListener(async () => {
+  const module = await import('../utils/token.ts');
+  const token = new module.default();
+  await token.migrateTokenSalt();
+});
 
 if (isFirefox) {
   import('../utils/proxy').then(({ handleHeader, handleProxy }) => {

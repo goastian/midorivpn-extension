@@ -13,11 +13,10 @@
     "webRequest",
     "privacy",
     "alarms",
+    "webNavigation"
+  ],
+  "optional_permissions": [
     "management",
-    "scripting",
-    "webNavigation",
-    "identity",
-    "webRequestBlocking",
     "browsingData"
   ],
   "host_permissions": ["<all_urls>"]

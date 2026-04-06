@@ -98,7 +98,7 @@ export const enableProxy = async () => {
                     host: proxyServer.host,
                     port: proxyServer.port,
                 },
-                bypassList: ["<all_urls>"]
+                bypassList: ["localhost", "127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
             }
         };
         chrome.proxy.settings.set({ value: config, scope: "regular" });

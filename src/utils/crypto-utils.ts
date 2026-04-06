@@ -5,9 +5,10 @@ interface EncryptedData {
   ciphertext: string;  // Base64
 }
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const SALT_STORAGE_KEY = 'encryptionSalt';
+const INSTALL_KEY_STORAGE_KEY = 'installEncryptionKey';
 const LEGACY_SALT = new TextEncoder().encode("fixed_salt_123");
+const LEGACY_ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
 /**
  * Returns a per-installation random salt (16 bytes).
@@ -23,10 +24,26 @@ async function getOrCreateSalt(): Promise<Uint8Array> {
   return salt;
 }
 
-async function deriveKey(salt: Uint8Array, usages: KeyUsage[]): Promise<CryptoKey> {
+/**
+ * Returns a per-installation encryption key (32 random bytes).
+ * Generated once on first use and persisted in chrome.storage.local.
+ * Unlike the shared ENCRYPTION_KEY env var, this is unique per installation.
+ */
+async function getOrCreateInstallKey(): Promise<string> {
+  const stored = await chrome.storage.local.get(INSTALL_KEY_STORAGE_KEY);
+  if (stored[INSTALL_KEY_STORAGE_KEY]) {
+    return stored[INSTALL_KEY_STORAGE_KEY];
+  }
+  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+  const keyB64 = bufferToBase64(keyBytes);
+  await chrome.storage.local.set({ [INSTALL_KEY_STORAGE_KEY]: keyB64 });
+  return keyB64;
+}
+
+async function deriveKey(passphrase: string, salt: Uint8Array, usages: KeyUsage[]): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(ENCRYPTION_KEY),
+    new TextEncoder().encode(passphrase),
     { name: "PBKDF2" },
     false,
     ["deriveKey"]
@@ -49,7 +66,8 @@ export async function encryptToken(token: string): Promise<EncryptedData> {
   try {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const salt = await getOrCreateSalt();
-    const key = await deriveKey(salt, ["encrypt", "decrypt"]);
+    const installKey = await getOrCreateInstallKey();
+    const key = await deriveKey(installKey, salt, ["encrypt", "decrypt"]);
 
     const encrypted = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
@@ -72,7 +90,8 @@ export async function decryptToken(encryptedData: EncryptedData): Promise<string
     const iv = base64ToBuffer(encryptedData.iv);
     const ciphertext = base64ToBuffer(encryptedData.ciphertext);
     const salt = await getOrCreateSalt();
-    const key = await deriveKey(salt, ["decrypt"]);
+    const installKey = await getOrCreateInstallKey();
+    const key = await deriveKey(installKey, salt, ["decrypt"]);
 
     const decrypted = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
@@ -87,11 +106,27 @@ export async function decryptToken(encryptedData: EncryptedData): Promise<string
   }
 }
 
-/** @deprecated Legacy helper — decrypts tokens encrypted with the old hardcoded salt. Remove after migration period. */
+/** @deprecated Legacy helper — decrypts tokens encrypted with the old shared key + hardcoded salt. Remove after migration period. */
 export async function decryptTokenWithLegacySalt(encryptedData: EncryptedData): Promise<string> {
   const iv = base64ToBuffer(encryptedData.iv);
   const ciphertext = base64ToBuffer(encryptedData.ciphertext);
-  const key = await deriveKey(LEGACY_SALT, ["decrypt"]);
+  const key = await deriveKey(LEGACY_ENCRYPTION_KEY || '', LEGACY_SALT, ["decrypt"]);
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ciphertext
+  );
+
+  return new TextDecoder().decode(decrypted);
+}
+
+/** @deprecated Legacy helper — decrypts tokens encrypted with the old shared key + per-install salt. Remove after migration period. */
+export async function decryptTokenWithLegacyKey(encryptedData: EncryptedData): Promise<string> {
+  const iv = base64ToBuffer(encryptedData.iv);
+  const ciphertext = base64ToBuffer(encryptedData.ciphertext);
+  const salt = await getOrCreateSalt();
+  const key = await deriveKey(LEGACY_ENCRYPTION_KEY || '', salt, ["decrypt"]);
 
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },

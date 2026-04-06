@@ -46,6 +46,9 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  // Only accept messages from our own extension
+  if (sender.id !== chrome.runtime.id) return;
+
   const handler = handlers[msg.type];
   if (handler) {
     Promise.resolve(handler(msg, sender))

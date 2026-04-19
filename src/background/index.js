@@ -4,6 +4,7 @@ import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimesta
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
+import log from '../utils/logger.js';
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
 // Throttle how often we force a token refresh in response to a 407 so a burst
@@ -126,8 +127,9 @@ const handlers = {
 
 badge();
 
+log.info('boot', 'background loaded, initializing token session');
 syncTokenSession().catch((error) => {
-  console.error('Failed to initialize token session:', error);
+  log.error('boot', 'Failed to initialize token session:', error);
 });
 
 // Firefox: proxy.onRequest handles all proxy routing and auth.
@@ -137,33 +139,52 @@ browser.proxy.onRequest.addListener(handleProxy, {
 
 // Log proxy errors so they are visible in the browser console.
 browser.proxy.onError.addListener((error) => {
-  console.error('[proxy] Error:', error);
+  log.error('proxy-error', error);
 });
 
 // Firefox fires onAuthRequired when the proxy replies with 407.
-// Credentials are already provided via proxy.onRequest (handleProxy),
-// so if we get here it means the proxy rejected them — always cancel
-// to suppress the native username/password dialog, and proactively
-// refresh the access token so subsequent requests stop failing.
+// Returning `authCredentials` asynchronously (Promise-based blocking listener)
+// makes Firefox retry the request with fresh credentials AND suppresses the
+// native username/password dialog. Returning `cancel` alone is not enough:
+// in some Firefox versions the proxy-auth dialog still appears briefly.
 browser.webRequest.onAuthRequired.addListener(
-  (details) => {
+  async (details) => {
     if (!details.isProxy) return {};
-    console.warn('[auth] onAuthRequired: proxy rejected credentials, cancelling', details.url);
+    log.warn('auth', '407 from proxy for', details.url, '- refreshing token and retrying');
 
-    const now = Date.now();
-    if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
-      lastProxyTriggeredRefresh = now;
-      refreshAccessToken()
-        .then(() => scheduleTokenRefresh())
-        .catch(async (err) => {
-          console.warn('[auth] Forced refresh after 407 failed:', err?.message || err);
-          if (err && err.shouldClear) {
-            await markSessionExpired();
-          }
-        });
+    try {
+      // Throttle force-refresh so a burst of 407s does not hammer Authentik.
+      const now = Date.now();
+      let token;
+      if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
+        lastProxyTriggeredRefresh = now;
+        token = await refreshAccessToken();
+        log.info('auth', 'forced refresh after 407 OK, retrying with new token');
+        scheduleTokenRefresh().catch(() => {});
+      } else {
+        // Within the throttle window — reuse whatever we have.
+        token = await ensureValidAccessToken();
+      }
+
+      if (!token) {
+        log.warn('auth', 'no token available after 407, cancelling');
+        await markSessionExpired();
+        return { cancel: true };
+      }
+
+      return {
+        authCredentials: {
+          username: 'midorivpn',
+          password: token,
+        },
+      };
+    } catch (err) {
+      log.warn('auth', 'refresh after 407 failed:', err?.message || err);
+      if (err && err.shouldClear) {
+        await markSessionExpired();
+      }
+      return { cancel: true };
     }
-
-    return { cancel: true };
   },
   { urls: ['<all_urls>'] },
   ['blocking']
@@ -191,7 +212,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 if (chrome.runtime?.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
     syncTokenSession().catch((error) => {
-      console.error('Failed to restore token session on startup:', error);
+      log.error('boot', 'Failed to restore token session on startup:', error);
     });
   });
 }
@@ -199,7 +220,7 @@ if (chrome.runtime?.onStartup) {
 if (chrome.runtime?.onInstalled) {
   chrome.runtime.onInstalled.addListener(() => {
     syncTokenSession().catch((error) => {
-      console.error('Failed to sync token session after install/update:', error);
+      log.error('boot', 'Failed to sync token session after install/update:', error);
     });
   });
 }
@@ -207,9 +228,9 @@ if (chrome.runtime?.onInstalled) {
 if (chrome.alarms?.onAlarm) {
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name !== TOKEN_REFRESH_ALARM) return;
-
+    log.info('alarm', 'token refresh alarm fired');
     syncTokenSession(true).catch((error) => {
-      console.error('Scheduled token refresh failed:', error);
+      log.error('alarm', 'Scheduled token refresh failed:', error);
     });
   });
 }
@@ -219,7 +240,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (!changes.access_token && !changes.refresh_token && !changes.token_expires_at) return;
 
   scheduleTokenRefresh().catch((error) => {
-    console.error('Failed to reschedule token refresh:', error);
+    log.error('alarm', 'Failed to reschedule token refresh:', error);
   });
 });
 

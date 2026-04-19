@@ -48,9 +48,12 @@ class ServerManager {
     };
 
     setActive(server) {
-        this.__serversCache.active = server;
+        // Deep-clone before persisting: `server` is often a Vue reactive Proxy
+        // that cannot be structured-cloned into chrome.storage (DataCloneError).
+        const plain = server ? JSON.parse(JSON.stringify(server)) : null;
+        this.__serversCache.active = plain;
         chrome.storage.local.set({
-            server: { active: server }
+            server: { active: plain }
         });
     };
 };

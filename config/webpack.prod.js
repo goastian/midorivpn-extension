@@ -18,7 +18,10 @@ config.optimization = {
             extractComments: false,
             terserOptions: {
                 compress: {
-                    drop_console: true,
+                    // Keep console.* in production so proxy/auth issues can be
+                    // diagnosed from the extension DevTools. Only strip debug().
+                    drop_console: false,
+                    pure_funcs: ['console.debug'],
                 },
                 format: {
                     comments: false,

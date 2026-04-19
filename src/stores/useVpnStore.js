@@ -56,8 +56,12 @@ const useServerStore = defineStore('server', {
         },
 
         setActive(server) {
-            this.active = server;
-            serverManager.setActive(server);
+            // Deep-clone to strip Vue reactive Proxy wrappers; otherwise the
+            // object cannot be passed to chrome.storage / chrome.runtime
+            // (DataCloneError: Proxy object could not be cloned).
+            const plain = server ? JSON.parse(JSON.stringify(server)) : null;
+            this.active = plain;
+            serverManager.setActive(plain);
         },
 
         async provisionConnection() {
@@ -72,9 +76,10 @@ const useServerStore = defineStore('server', {
                 this.connectionId = connection.id;
 
                 // Store connection config for proxy use
+                const plainActive = JSON.parse(JSON.stringify(this.active));
                 await chrome.storage.local.set({
                     connection: connection,
-                    server: { active: this.active },
+                    server: { active: plainActive },
                 });
 
                 return null; // success

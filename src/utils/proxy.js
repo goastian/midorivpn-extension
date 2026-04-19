@@ -1,4 +1,5 @@
 import { ensureValidAccessToken } from '../lib/api';
+import log from './logger.js';
 
 const API_URL = process.env.API_URL || '';
 const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
@@ -41,12 +42,13 @@ export const handleProxy = async (details) => {
         const storage = await getLocalStorage(['store', 'server']);
 
         if (!storage.store?.state) {
+            log.info('proxy', 'VPN toggle OFF, direct ->', hostname);
             return { type: 'direct' };
         }
 
         const proxyServer = resolveProxyServer(storage.server?.active);
         if (!proxyServer) {
-            console.warn('[proxy] No proxy server resolved from storage:', storage.server?.active);
+            log.warn('proxy', 'No proxy server resolved from storage:', storage.server?.active);
             return { type: 'direct' };
         }
 
@@ -57,14 +59,15 @@ export const handleProxy = async (details) => {
         };
 
         let token;
+        let tokenErr;
         try {
             token = await ensureValidAccessToken();
         } catch (e) {
-            console.warn('[proxy] Token error:', e.message);
+            tokenErr = e;
         }
 
         if (!token) {
-            console.warn('[proxy] No access token, falling back to direct for', hostname);
+            log.warn('proxy', 'No access token for', hostname, '— fallback direct', tokenErr?.message || '');
             return { type: 'direct' };
         }
 
@@ -74,10 +77,10 @@ export const handleProxy = async (details) => {
         // proxyAuthorizationHeader → Firefox 128+ sends custom header value
         proxyInfo.proxyAuthorizationHeader = `Bearer ${token}`;
 
-        console.log('[proxy] Routing', hostname, '->', proxyServer.host + ':' + proxyServer.port);
+        log.info('proxy', 'route', hostname, '->', `${proxyServer.host}:${proxyServer.port}`, 'tokenTail=…' + token.slice(-8));
         return proxyInfo;
     } catch (e) {
-        console.error('[proxy] handleProxy error:', e);
+        log.error('proxy', 'handleProxy error:', e);
         return { type: 'direct' };
     }
 };

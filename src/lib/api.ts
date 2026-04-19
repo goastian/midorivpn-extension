@@ -80,6 +80,8 @@ async function tryRefreshToken(): Promise<string> {
     const { refresh_token } = await getTokens();
     if (!refresh_token) throw new RefreshTokenError('No refresh token', true);
 
+    console.log('[MidoriVPN] api', 'refreshing access token…');
+
     let res: Response;
     try {
         res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
@@ -87,20 +89,26 @@ async function tryRefreshToken(): Promise<string> {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refresh_token }),
         });
-    } catch {
+    } catch (e) {
+        console.warn('[MidoriVPN] api', 'refresh network error:', (e as Error)?.message || e);
         throw new RefreshTokenError('Token refresh failed');
     }
 
     if (!res.ok) {
-        throw new RefreshTokenError(`Token refresh failed: ${res.status}`, [400, 401, 403].includes(res.status));
+        const shouldClear = [400, 401, 403].includes(res.status);
+        console.warn('[MidoriVPN] api', 'refresh HTTP', res.status, 'shouldClear=', shouldClear);
+        throw new RefreshTokenError(`Token refresh failed: ${res.status}`, shouldClear);
     }
 
     const json: ApiResponse<{ access_token: string; refresh_token?: string; expires_in?: number }> = await res.json();
     if (!json.ok || !json.data?.access_token) {
+        console.warn('[MidoriVPN] api', 'refresh response invalid:', json);
         throw new RefreshTokenError('Invalid refresh response');
     }
 
     await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
+    const expires = json.data.expires_in ? `${json.data.expires_in}s` : 'unknown';
+    console.log('[MidoriVPN] api', 'refresh OK, expires_in=', expires);
     return json.data.access_token;
 }
 

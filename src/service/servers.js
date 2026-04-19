@@ -1,6 +1,4 @@
-import axios from 'axios';
-import Token from '../utils/token';
-import Authentification from '../utils/authentification';
+import { api } from '../lib/api';
 
 class ServerManager {
     __serversCache;
@@ -22,41 +20,40 @@ class ServerManager {
             return this.__serversCache;
         }
 
-        const validated = new Token();
-        const token = await validated.getDecryptedToken();
-        const isValidated = await validated.verificate();
-
         try {
-            if (isValidated) {
-                const res = await axios.get(`${process.env.PASSPORT_DOMAIN_SERVER}/api/v1/users/vpn/servers`, {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        Accept: 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                });
+            const servers = await api.get('/api/v1/control/servers');
 
-                if (res.status === 200) {
-                    this.__serversCache.servers = { ...res.data.data };
-                    this.__serversCache.active = { ...res.data.data[0] };
-                    this.__lastFetch = now;
-                    return this.__serversCache;
+            if (Array.isArray(servers) && servers.length > 0) {
+                this.__serversCache.servers = servers;
+                if (!this.__serversCache.active) {
+                    this.__serversCache.active = servers[0];
                 }
-            } else {
-                const authentification = new Authentification();
-                await authentification.signIn();
-                validated.clearToken();
+                this.__lastFetch = now;
+
+                // Persist active server for proxy usage
+                await chrome.storage.local.set({
+                    server: { active: this.__serversCache.active }
+                });
             }
+
+            return this.__serversCache;
         } catch (error) {
             console.error('Error loading servers:', error);
+            return this.__serversCache;
         }
     };
 
     getServers() {
         return this.__serversCache;
     };
+
+    setActive(server) {
+        this.__serversCache.active = server;
+        chrome.storage.local.set({
+            server: { active: server }
+        });
+    };
 };
 
-// Export singleton instance
 const serverManager = new ServerManager();
 export default serverManager;

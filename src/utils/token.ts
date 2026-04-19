@@ -1,164 +1,109 @@
-import { encryptToken, decryptToken, decryptTokenWithLegacySalt } from './crypto-utils';
-import Authentification from './authentification';
-
-interface TokenStorage {
-  encryptedToken?: string;
-  tokenExpiry?: number;
-}
+import { API_URL, REDIRECT_URI } from './authentification';
+import { saveTokens, getTokens, clearTokens } from '../lib/api';
 
 class Token {
-  private static readonly DEFAULT_EXPIRATION = 3_600_000;
-
-  /**
-   * Migrates tokens encrypted with the old hardcoded salt to the new per-installation salt.
-   * Safe to call multiple times — no-ops after first successful migration.
-   */
-  async migrateTokenSalt(): Promise<void> {
-    const { saltMigrated } = await chrome.storage.local.get('saltMigrated');
-    if (saltMigrated) return;
-
-    const data = await chrome.storage.local.get(['encryptedToken', 'tokenExpiry']) as TokenStorage;
-    if (data.encryptedToken) {
-      try {
-        const encrypted = JSON.parse(data.encryptedToken);
-        const plaintext = await decryptTokenWithLegacySalt(encrypted);
-        const reEncrypted = await encryptToken(plaintext);
-        await chrome.storage.local.set({
-          encryptedToken: JSON.stringify(reEncrypted),
-          saltMigrated: true
-        });
-      } catch {
-        // Token corrupted or already using new salt — clear and force re-login
-        await this.clearToken();
-        await chrome.storage.local.set({ saltMigrated: true });
-      }
-    } else {
-      await chrome.storage.local.set({ saltMigrated: true });
-    }
-  }
-
-  async saveEncryptedToken(token: string, expiresIn: number = 2_592_000_000): Promise<void> {
-    try {
-      const encrypted = await encryptToken(token);
-      const storageData: TokenStorage = {
-        encryptedToken: JSON.stringify(encrypted),
-        tokenExpiry: Date.now() + expiresIn
-      };
-
-      await chrome.storage.local.set(storageData);
-    } catch (error) {
-      console.error('Error saving encrypted token:', error);
-      throw new Error('Failed to save encrypted token');
-    }
-  }
-
-  /**
-   * 
-   * @returns 
-   */
   async getDecryptedToken(): Promise<string | null> {
-    try {
-      const data = await chrome.storage.local.get(['encryptedToken', 'tokenExpiry']) as TokenStorage;
+    const { access_token, token_expires_at } = await getTokens();
+    if (!access_token) return null;
 
-      if (!Token.isTokenValid(data)) {
+    // If token is expired, attempt refresh
+    if (token_expires_at && token_expires_at < Date.now()) {
+      try {
+        const refreshed = await this.refreshToken();
+        return refreshed;
+      } catch {
+        await this.clearToken();
         return null;
       }
-
-      // Parseamos y validamos la estructura
-      const encrypted = JSON.parse(data.encryptedToken!);
-      return await decryptToken(encrypted);
-    } catch (error) {
-      console.error("Error getting token:", error);
-      await this.clearToken(); // Limpiamos token inválido
-      return null;
     }
+
+    return access_token;
+  }
+
+  async saveToken(accessToken: string, refreshToken?: string, expiresIn?: number): Promise<void> {
+    await saveTokens(accessToken, refreshToken, expiresIn);
   }
 
   async clearToken(): Promise<void> {
-    await chrome.storage.local.remove(['encryptedToken', 'tokenExpiry']);
+    await clearTokens();
   }
 
-  // Método estático privado para validación
-  private static isTokenValid(data: TokenStorage): boolean {
-    return !!data.encryptedToken &&
-      !!data.tokenExpiry &&
-      data.tokenExpiry > Date.now();
-  }
-
-  async verificate() {
+  async isValid(): Promise<boolean> {
     const token = await this.getDecryptedToken();
-    try {
-      const res = await fetch(`${process.env.PASSPORT_SERVER}/api/gateway/check-authentication`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-      });
+    return !!token;
+  }
 
-      if (res.status == 200) {
-        //const data = await res.json();
-        return true;
-      }
-      if(res.status == 401){
-        const authentification = new Authentification();
-        this.clearToken();
-        await authentification.logout();
-        return false;
-      }
-    } catch (error) {
+  async refreshToken(): Promise<string> {
+    const { refresh_token } = await getTokens();
+    if (!refresh_token) throw new Error('No refresh token');
+
+    const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token }),
+    });
+
+    if (!res.ok) throw new Error('Token refresh failed');
+
+    const json = await res.json();
+    if (!json.data?.access_token) throw new Error('Invalid refresh response');
+
+    await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
+    return json.data.access_token;
+  }
+
+  /**
+   * Exchange authorization code for tokens via vpn-core backend.
+   */
+  async exchangeCode(url: string): Promise<boolean> {
+    const { pkce_state, pkce_verifier } = await chrome.storage.session.get(['pkce_state', 'pkce_verifier']);
+
+    const urlObj = new URL(url);
+    const params = new URLSearchParams(urlObj.search);
+
+    const state = params.get('state');
+    const code = params.get('code');
+
+    if (!state || !pkce_state || state !== pkce_state) {
+      console.error('State mismatch');
       return false;
     }
-  }
 
-  async ngOnInit(url: string) {
+    if (!code) {
+      console.error('No authorization code');
+      return false;
+    }
 
-    chrome.storage.local.get(['state', 'code_verifier'], async (storage) => {
-      //Get state
-      const state: string | null = storage.state;
+    // Clear PKCE state immediately
+    await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
 
-      //get code verifier
-      const code_verifier: string | null = storage.code_verifier;
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          redirect_uri: REDIRECT_URI,
+          code_verifier: pkce_verifier || '',
+        }),
+      });
 
-      //Get current URL
-      const urlObj = new URL(url);
-      const query: URLSearchParams = new URLSearchParams(urlObj.search);
-
-      //Checking state
-      if (state && state === query.get('state')) {
-        const body = new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: process.env.PASSPORT_SERVER_ID || '',
-          redirect_uri: `${process.env.PASSPORT_PROXY_SERVER}/callback`,
-          code_verifier: code_verifier || '',
-          code: query.get('code') || '',
-        });
-
-        //Make request to the Aouth2 server to get access token and refresh token
-        try {
-          const res = await fetch(`${process.env.PASSPORT_SERVER}/api/oauth/token`, {
-            method: 'POST',
-            body: body.toString(),
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              Accept: 'application/json',
-            },
-          });
-
-
-          if (res.ok) {
-            const data = await res.json();
-            this.saveEncryptedToken(data.access_token);
-          } else {
-            console.log('Error response:', res);
-          }
-
-        } catch (error) {
-          console.error('Fetch error:', error);
-        }
+      if (!res.ok) {
+        console.error('Token exchange failed:', res.status);
+        return false;
       }
-    })
+
+      const json = await res.json();
+      if (json.data?.access_token) {
+        await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Token exchange error:', error);
+      return false;
+    }
   }
 }
 

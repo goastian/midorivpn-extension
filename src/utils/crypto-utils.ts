@@ -7,8 +7,6 @@ interface EncryptedData {
 
 const SALT_STORAGE_KEY = 'encryptionSalt';
 const INSTALL_KEY_STORAGE_KEY = 'installEncryptionKey';
-const LEGACY_SALT = new TextEncoder().encode("fixed_salt_123");
-const LEGACY_ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
 /**
  * Returns a per-installation random salt (16 bytes).
@@ -27,7 +25,6 @@ async function getOrCreateSalt(): Promise<Uint8Array> {
 /**
  * Returns a per-installation encryption key (32 random bytes).
  * Generated once on first use and persisted in chrome.storage.local.
- * Unlike the shared ENCRYPTION_KEY env var, this is unique per installation.
  */
 async function getOrCreateInstallKey(): Promise<string> {
   const stored = await chrome.storage.local.get(INSTALL_KEY_STORAGE_KEY);
@@ -104,35 +101,4 @@ export async function decryptToken(encryptedData: EncryptedData): Promise<string
     console.error("Decryption error:", error);
     throw new Error("Failed to decrypt token");
   }
-}
-
-/** @deprecated Legacy helper — decrypts tokens encrypted with the old shared key + hardcoded salt. Remove after migration period. */
-export async function decryptTokenWithLegacySalt(encryptedData: EncryptedData): Promise<string> {
-  const iv = base64ToBuffer(encryptedData.iv);
-  const ciphertext = base64ToBuffer(encryptedData.ciphertext);
-  const key = await deriveKey(LEGACY_ENCRYPTION_KEY || '', LEGACY_SALT, ["decrypt"]);
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    key,
-    ciphertext
-  );
-
-  return new TextDecoder().decode(decrypted);
-}
-
-/** @deprecated Legacy helper — decrypts tokens encrypted with the old shared key + per-install salt. Remove after migration period. */
-export async function decryptTokenWithLegacyKey(encryptedData: EncryptedData): Promise<string> {
-  const iv = base64ToBuffer(encryptedData.iv);
-  const ciphertext = base64ToBuffer(encryptedData.ciphertext);
-  const salt = await getOrCreateSalt();
-  const key = await deriveKey(LEGACY_ENCRYPTION_KEY || '', salt, ["decrypt"]);
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    key,
-    ciphertext
-  );
-
-  return new TextDecoder().decode(decrypted);
 }

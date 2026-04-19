@@ -31,7 +31,7 @@
 </template>
 
 <script>
-import Authentification from '../utils/authentification.ts';
+import Auth from '../utils/authentification.ts';
 export default {
     data() {
         return {
@@ -50,20 +50,21 @@ export default {
                 if (response?.success) {
                     this.user = response.data;
                 } else {
-                    console.error('Error al obtener servidores:', response?.error);
+                    console.error('Error loading user:', response?.error);
                 }
             });
         },
 
         account() {
-            chrome.tabs.create({ url: `${process.env.PASSPORT_SERVER}` }, function () {
+            const issuer = process.env.AUTHENTIK_ISSUER || '';
+            chrome.tabs.create({ url: issuer }, function () {
                 window.close();
             });
         },
 
         logout() {
-            const authentification = new Authentification();
-            authentification.logout();
+            const auth = new Auth();
+            auth.logout();
         }
     }
 }

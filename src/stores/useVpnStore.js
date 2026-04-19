@@ -1,70 +1,67 @@
 import { defineStore } from "pinia";
-import axios from 'axios';
-import Token from '../utils/token';
+import { api } from '../lib/api';
 import serverManager from '../service/servers.js';
 
 const useServerStore = defineStore('server', {
     state: () => ({
         servers: [],
         active: null,
-        id: null,
+        connectionId: null,
     }),
 
     actions: {
         async loadServers() {
-            const validated = new Token();
-            const token = await validated.getDecryptedToken();
-            const isValidated = await validated.verificate();
-            if (isValidated) {
-                const ser = serverManager.getServers();
-                const res = await axios.get(`${process.env.PASSPORT_DOMAIN_SERVER}/api/v1/users/vpn/servers`, {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        Accept: 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                });
-                if (res.status === 200) {
-                    this.servers = { ...res.data.data };
-                    if (!this.active) {
-                        this.active = { ...res.data.data[0] }
+            try {
+                const result = await serverManager.loadServers();
+                if (result?.servers) {
+                    this.servers = result.servers;
+                    if (!this.active && result.active) {
+                        this.active = result.active;
                     }
                 }
+            } catch (error) {
+                console.error('Error loading servers:', error);
             }
         },
 
-        async createDevice() {
-            const validated = new Token();
-            const token = await validated.getDecryptedToken();
+        setActive(server) {
+            this.active = server;
+            serverManager.setActive(server);
+        },
+
+        async provisionConnection() {
+            if (!this.active) return 'No server selected';
+
             try {
-                const params = {
-                    name: 'extension'
-                }
+                // Generate keypair via backend
+                const keypair = await api.post('/api/v1/control/keypair');
 
-                if (this.id) {
-                    params.id = this.id;
-                }
-
-                const res = await axios.post(`${process.env.PASSPORT_DOMAIN_SERVER}/api/v1/users/vpn/devices`, params, {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        Accept: 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
+                // Create connection on the selected server
+                const connection = await api.post('/api/v1/control/connections', {
+                    server_id: this.active.id,
+                    public_key: keypair.public_key,
+                    device_name: 'extension',
                 });
 
-                if (res.status == 201) {
-                    this.id = res.data.data.id;
-                }
+                this.connectionId = connection.id;
+
+                // Store connection config for proxy use
+                await chrome.storage.local.set({
+                    connection: connection,
+                    server: { active: this.active },
+                });
+
+                return null; // success
             } catch (error) {
-                return error.response.data.message
+                console.error('Error provisioning connection:', error);
+                return error.message || 'Failed to create connection';
             }
         },
     },
 
     getters: {
         persistFields() {
-            return ['id', 'active', 'servers'];
+            return ['connectionId', 'active', 'servers'];
         },
     },
 });

@@ -1,4 +1,3 @@
-import serverManager from '../service/servers.js';
 function badge() {
     chrome.storage.local.get(['store'], (storage) => {
         if (storage.store?.state) {
@@ -11,8 +10,8 @@ function badge() {
 
 export const enableBadge = async () => {
     chrome.storage.local.get(['server'], (storage) => {
-        if (storage?.server.active) {
-            chrome.action.setBadgeText({ text: storage.server.active.data.country_code });
+        if (storage?.server?.active) {
+            chrome.action.setBadgeText({ text: storage.server.active.country_code || 'ON' });
         }
     });
     chrome.action.setBadgeBackgroundColor({ color: "green" });

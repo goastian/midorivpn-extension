@@ -14,13 +14,6 @@ const handlers = {
 
 badge();
 
-// Migrate tokens from legacy hardcoded salt to per-installation random salt
-chrome.runtime.onInstalled.addListener(async () => {
-  const module = await import('../utils/token.ts');
-  const token = new module.default();
-  await token.migrateTokenSalt();
-});
-
 if (isFirefox) {
   import('../utils/proxy').then(({ handleHeader, handleProxy }) => {
     browser.proxy.onRequest.addListener(handleProxy, {
@@ -35,13 +28,20 @@ if (isFirefox) {
   });
 };
 
-//routes
+// Handle OAuth callback route
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   const url = new URL(details.url);
-  if (url.pathname === '/callback') {
+  const redirectUri = process.env.AUTHENTIK_REDIRECT_URI || '';
+
+  // Match the callback URL
+  if (redirectUri && details.url.startsWith(redirectUri)) {
     const module = await import('../utils/token.ts');
     const token = new module.default();
-    token.ngOnInit(url);
+    const success = await token.exchangeCode(details.url);
+    if (success) {
+      // Close the callback tab
+      chrome.tabs.remove(details.tabId);
+    }
   }
 });
 
@@ -54,21 +54,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     Promise.resolve(handler(msg, sender))
       .then((result) => sendResponse({ success: true, data: result }))
       .catch((error) =>
-        sendResponse({ success: false, error: error.message || 'Error desconocido' })
+        sendResponse({ success: false, error: error.message || 'Unknown error' })
       );
-    return true; // respuesta asíncrona
+    return true;
   } else {
-    sendResponse({ success: false, error: 'Comando no reconocido' });
+    sendResponse({ success: false, error: 'Unknown command' });
   }
 });
-
-function storageGet(keys) {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get(keys, (result) => {
-      if (chrome.runtime.lastError) {
-        return reject(chrome.runtime.lastError);
-      }
-      resolve(result);
-    });
-  });
-}

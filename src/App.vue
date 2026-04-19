@@ -14,6 +14,7 @@
 import useNotificationStore from "./stores/useNotificationStore.js";
 import { defineAsyncComponent } from 'vue';
 import useVpnStore from './stores/useVpnStore';
+import Token from './utils/token.ts';
 export default {
   data() {
     return {
@@ -30,23 +31,23 @@ export default {
   },
 
   async created() {
-    const tokenModule = await import('./utils/token.ts');
-    const token = new tokenModule.default();
-    await token.migrateTokenSalt();
+    const token = new Token();
+    const accessToken = await token.getDecryptedToken();
 
-    chrome.storage.local.get('encryptedToken', async (storage) => {
-      if (storage.encryptedToken) {
-        this.isLoggedIn = !!storage.encryptedToken;
-        const men = await this.vpn.createDevice();
-        await this.vpn.loadServers();
-        if(men) {
+    if (accessToken) {
+      this.isLoggedIn = true;
+      await this.vpn.loadServers();
+
+      if (!this.vpn.connectionId) {
+        const err = await this.vpn.provisionConnection();
+        if (err) {
           this.notifications.add({
-            title: "Device",
-            description: men
-          }, false, true)
+            title: "Connection",
+            description: err
+          }, false, true);
         }
       }
-    });
+    }
   },
 
   provide() {

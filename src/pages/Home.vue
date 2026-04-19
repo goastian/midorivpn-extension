@@ -32,14 +32,14 @@
 </template>
 
 <script>
-import Authentification from '../utils/authentification.ts';
+import Auth from '../utils/authentification.ts';
 export default {
     inject: ['app_name'],
 
     methods: {
         openLink() {
-            const authentification = new Authentification();
-            authentification.signIn();
+            const auth = new Auth();
+            auth.signIn();
         },
     }
 }

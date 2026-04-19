@@ -41,8 +41,9 @@ export default {
 
   methods: {
     openLink() {
-      chrome.tabs.create({ url: `${process.env.PASSPORT_SERVER}/plans` }, function () {
-        window.close(); // Cierra el popup de la extensión
+      const apiUrl = process.env.API_URL || '';
+      chrome.tabs.create({ url: `${apiUrl}/plans` }, function () {
+        window.close();
       });
     }
   }

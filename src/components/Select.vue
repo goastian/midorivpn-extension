@@ -1,6 +1,6 @@
 <template>
-    <select v-model="vpn.active">
-        <option v-for="item in vpn.servers" :key="item.ip" :value="item">{{ item.data.country }}</option>
+    <select v-model="selected">
+        <option v-for="server in vpn.servers" :key="server.id" :value="server">{{ server.name || server.country_code }}</option>
     </select>
 </template>
 
@@ -14,8 +14,15 @@ export default {
         }
     },
 
+    computed: {
+        selected: {
+            get() { return this.vpn.active; },
+            set(server) { this.vpn.setActive(server); }
+        }
+    },
+
     watch: {
-        "vpn.active"() {
+        selected() {
             badge();
         }
     }

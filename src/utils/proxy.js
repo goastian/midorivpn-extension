@@ -1,12 +1,16 @@
 import { isFirefox } from "./vars";
-import Token from '../utils/token.ts';
-import serverManager from '../service/servers.js';
+import { getTokens } from '../lib/api';
 
-const handlers = {
-    loadServers: () => serverManager.getServers(),
-    getServers: () => serverManager.getServers(),
-};
-let customHeaders = '';
+const API_URL = process.env.API_URL || '';
+const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
+
+// Domains that must bypass the proxy to avoid circular auth dependencies
+const bypassDomains = [
+    'localhost',
+    '127.0.0.1',
+    ...(API_URL ? [new URL(API_URL).hostname] : []),
+    ...(AUTHENTIK_ISSUER ? [new URL(AUTHENTIK_ISSUER).hostname] : []),
+];
 
 const getLocalStorage = (keys) => new Promise((resolve) => {
     chrome.storage.local.get(keys, (storage) => resolve(storage || {}));
@@ -15,32 +19,27 @@ const getLocalStorage = (keys) => new Promise((resolve) => {
 const resolveProxyServer = (activeServer) => {
     if (!activeServer) return null;
 
-    const host = activeServer.host || activeServer.url || activeServer.ip || '';
-    const rawPort = activeServer.port || activeServer.proxy_port;
+    const host = activeServer.host || activeServer.endpoint || activeServer.ip || '';
+    const rawPort = activeServer.port || activeServer.proxy_port || 3128;
     const port = Number(rawPort);
 
     if (!host || !Number.isFinite(port) || port <= 0) {
         return null;
     }
 
-    return {
-        host,
-        port,
-        id: activeServer.id,
-    };
+    return { host, port };
 };
 
 export const handleProxy = (details) => {
-    return new Promise((resolve, reject) => {
-        const url = new URL(details.url)
-        const hostname = url.hostname
+    return new Promise((resolve) => {
+        const url = new URL(details.url);
+        const hostname = url.hostname;
 
-        const whitelistDomains = ['localhost', '127.0.0.1']
-
-        if (whitelistDomains.includes(hostname)) {
-            resolve({ type: 'direct' })
-            return
+        if (bypassDomains.includes(hostname)) {
+            resolve({ type: 'direct' });
+            return;
         }
+
         chrome.storage.local.get(['store', 'server'], async (storage) => {
             if (storage.store?.state) {
                 const proxyServer = resolveProxyServer(storage.server?.active);
@@ -49,36 +48,34 @@ export const handleProxy = (details) => {
                         type: 'https',
                         host: proxyServer.host,
                         port: proxyServer.port,
-                    })
+                    });
                 } else {
-                    resolve({ type: 'direct' })
+                    resolve({ type: 'direct' });
                 }
             } else {
-                resolve({ type: 'direct' })
+                resolve({ type: 'direct' });
             }
-        })
-    })
+        });
+    });
 };
 
 export const handleHeader = (details) => {
     return new Promise((resolve) => {
-        const validated = new Token();
-        chrome.storage.local.get(['store', 'server'], async (storage) => {
+        chrome.storage.local.get(['store'], async (storage) => {
             if (storage.store?.state) {
-                const token = await validated.getDecryptedToken();
-                const serverID = storage.server?.active?.id || storage.server?.id;
-                customHeaders = {
-                    "Proxy-Authorization": `Bearer ${token}|${serverID}`
-                };
-                for (let name in customHeaders) {
-                    details.requestHeaders.push({ name, value: customHeaders[name] });
+                const { access_token } = await getTokens();
+                if (access_token) {
+                    details.requestHeaders.push({
+                        name: 'Proxy-Authorization',
+                        value: `Bearer ${access_token}`
+                    });
                 }
                 resolve({ requestHeaders: details.requestHeaders });
             } else {
                 resolve({});
             }
         });
-    })
+    });
 };
 
 export const enableProxy = async () => {
@@ -89,7 +86,6 @@ export const enableProxy = async () => {
             return false;
         }
 
-        //chrome.action.setBadgeText({ text: response.data.active.data.country_code });
         const config = {
             mode: "fixed_servers",
             rules: {
@@ -98,30 +94,46 @@ export const enableProxy = async () => {
                     host: proxyServer.host,
                     port: proxyServer.port,
                 },
-                bypassList: ["localhost", "127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+                bypassList: [
+                    "localhost",
+                    "127.0.0.1",
+                    "::1",
+                    "10.0.0.0/8",
+                    "172.16.0.0/12",
+                    "192.168.0.0/16",
+                    ...(API_URL ? [new URL(API_URL).hostname] : []),
+                    ...(AUTHENTIK_ISSUER ? [new URL(AUTHENTIK_ISSUER).hostname] : []),
+                ]
             }
         };
         chrome.proxy.settings.set({ value: config, scope: "regular" });
-        // Añade cabeceras personalizadas
-        browser.webRequest.onBeforeSendHeaders.addListener(
-            function (details) {
-                for (let name in customHeaders) {
-                    details.requestHeaders.push({ name, value: customHeaders[name] });
-                }
-                return { requestHeaders: details.requestHeaders };
-            },
-            { urls: ["<all_urls>"] },
-            ["blocking", "requestHeaders"]
-        );
+
+        // Add auth headers for Chrome
+        if (typeof browser !== 'undefined' && browser.webRequest) {
+            browser.webRequest.onBeforeSendHeaders.addListener(
+                async function (details) {
+                    const { access_token } = await getTokens();
+                    if (access_token) {
+                        details.requestHeaders.push({
+                            name: 'Proxy-Authorization',
+                            value: `Bearer ${access_token}`
+                        });
+                    }
+                    return { requestHeaders: details.requestHeaders };
+                },
+                { urls: ["<all_urls>"] },
+                ["blocking", "requestHeaders"]
+            );
+        }
         return true;
     }
     return true;
-}
+};
 
 export const disableProxy = async () => {
-    if(!isFirefox) {
+    if (!isFirefox) {
         await chrome.proxy.settings.clear({ scope: "regular" });
         return true;
     }
     return true;
-}
+};

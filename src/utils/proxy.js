@@ -19,8 +19,8 @@ const getLocalStorage = (keys) => new Promise((resolve) => {
 const resolveProxyServer = (activeServer) => {
     if (!activeServer) return null;
 
-    const host = activeServer.host || activeServer.endpoint || activeServer.ip || '';
-    const rawPort = activeServer.port || activeServer.proxy_port || 3128;
+    const host = activeServer.endpoint || activeServer.host || '';
+    const rawPort = activeServer.proxy_port || 8888;
     const port = Number(rawPort);
 
     if (!host || !Number.isFinite(port) || port <= 0) {
@@ -45,7 +45,7 @@ export const handleProxy = (details) => {
                 const proxyServer = resolveProxyServer(storage.server?.active);
                 if (proxyServer) {
                     resolve({
-                        type: 'https',
+                        type: 'http',
                         host: proxyServer.host,
                         port: proxyServer.port,
                     });

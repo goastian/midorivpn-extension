@@ -3,7 +3,6 @@
     <div class="header">
       <div class="row items-center ga-sm">
         <img src="/icons/logo.png" class="logo" />
-        <h1 class="title">{{ app_name }}</h1>
       </div>
       <Options />
     </div>

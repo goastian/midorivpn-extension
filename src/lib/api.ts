@@ -17,8 +17,20 @@ interface StoredTokens {
     token_expires_at?: number;
 }
 
+class RefreshTokenError extends Error {
+    shouldClear: boolean;
+
+    constructor(message: string, shouldClear = false) {
+        super(message);
+        this.name = 'RefreshTokenError';
+        this.shouldClear = shouldClear;
+    }
+}
+
 let isRefreshing = false;
 let refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: Error) => void }> = [];
+
+const TOKEN_REFRESH_LEEWAY_MS = 60 * 1000;
 
 function processRefreshQueue(error: Error | null, token: string | null) {
     refreshQueue.forEach(({ resolve, reject }) => {
@@ -63,25 +75,108 @@ async function clearTokens(): Promise<void> {
 
 async function tryRefreshToken(): Promise<string> {
     const { refresh_token } = await getTokens();
-    if (!refresh_token) throw new Error('No refresh token');
+    if (!refresh_token) throw new RefreshTokenError('No refresh token', true);
 
-    const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token }),
-    });
+    let res: Response;
+    try {
+        res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token }),
+        });
+    } catch {
+        throw new RefreshTokenError('Token refresh failed');
+    }
 
-    if (!res.ok) throw new Error('Token refresh failed');
+    if (!res.ok) {
+        throw new RefreshTokenError(`Token refresh failed: ${res.status}`, [400, 401, 403].includes(res.status));
+    }
 
     const json: ApiResponse<{ access_token: string; refresh_token?: string; expires_in?: number }> = await res.json();
-    if (!json.ok || !json.data?.access_token) throw new Error('Invalid refresh response');
+    if (!json.ok || !json.data?.access_token) {
+        throw new RefreshTokenError('Invalid refresh response');
+    }
 
     await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
     return json.data.access_token;
 }
 
+function isTokenExpiringSoon(tokenExpiresAt?: number): boolean {
+    if (!tokenExpiresAt) {
+        return false;
+    }
+
+    return tokenExpiresAt - Date.now() <= TOKEN_REFRESH_LEEWAY_MS;
+}
+
+async function refreshAccessToken(): Promise<string> {
+    if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+            const newToken = await tryRefreshToken();
+            processRefreshQueue(null, newToken);
+            return newToken;
+        } catch (err) {
+            processRefreshQueue(err as Error, null);
+            throw err;
+        } finally {
+            isRefreshing = false;
+        }
+    }
+
+    return new Promise<string>((resolve, reject) => {
+        refreshQueue.push({ resolve, reject });
+    });
+}
+
+async function ensureValidAccessToken(forceRefresh = false): Promise<string | null> {
+    const { access_token, refresh_token, token_expires_at } = await getTokens();
+
+    if (!forceRefresh) {
+        if (access_token && !isTokenExpiringSoon(token_expires_at)) {
+            return access_token;
+        }
+
+        if (!access_token && !refresh_token) {
+            return null;
+        }
+    }
+
+    if (!refresh_token) {
+        if (access_token && (!token_expires_at || token_expires_at > Date.now())) {
+            return access_token;
+        }
+
+        return null;
+    }
+
+    try {
+        return await refreshAccessToken();
+    } catch (err) {
+        if ((err as RefreshTokenError).shouldClear) {
+            await clearTokens();
+        }
+
+        if (access_token && token_expires_at && token_expires_at > Date.now()) {
+            return access_token;
+        }
+
+        return null;
+    }
+}
+
+async function getRefreshAlarmTimestamp(): Promise<number | null> {
+    const { refresh_token, token_expires_at } = await getTokens();
+
+    if (!refresh_token || !token_expires_at) {
+        return null;
+    }
+
+    return token_expires_at - TOKEN_REFRESH_LEEWAY_MS;
+}
+
 async function request<T>(path: string, options: RequestInit = {}, _isRetry = false): Promise<T> {
-    const { access_token } = await getTokens();
+    const access_token = await ensureValidAccessToken();
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -95,26 +190,22 @@ async function request<T>(path: string, options: RequestInit = {}, _isRetry = fa
     const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
     if (res.status === 401 && !_isRetry) {
-        if (!isRefreshing) {
-            isRefreshing = true;
-            try {
-                const newToken = await tryRefreshToken();
-                isRefreshing = false;
-                processRefreshQueue(null, newToken);
-                return request<T>(path, options, true);
-            } catch (err) {
-                isRefreshing = false;
-                processRefreshQueue(err as Error, null);
+        try {
+            const newToken = await refreshAccessToken();
+
+            return request<T>(path, {
+                ...options,
+                headers: {
+                    ...headers,
+                    Authorization: `Bearer ${newToken}`,
+                },
+            }, true);
+        } catch (err) {
+            if ((err as RefreshTokenError).shouldClear) {
                 await clearTokens();
-                throw new Error('Unauthorized');
             }
-        } else {
-            return new Promise<T>((resolve, reject) => {
-                refreshQueue.push({
-                    resolve: () => resolve(request<T>(path, options, true)),
-                    reject,
-                });
-            });
+
+            throw new Error('Unauthorized');
         }
     }
 
@@ -141,4 +232,16 @@ export const api = {
     delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 
-export { API_URL, getTokens, saveTokens, clearTokens, storageGet, storageSet, storageRemove };
+export {
+    API_URL,
+    TOKEN_REFRESH_LEEWAY_MS,
+    clearTokens,
+    ensureValidAccessToken,
+    getRefreshAlarmTimestamp,
+    getTokens,
+    refreshAccessToken,
+    saveTokens,
+    storageGet,
+    storageRemove,
+    storageSet,
+};

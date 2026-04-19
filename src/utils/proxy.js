@@ -1,5 +1,5 @@
 import { isFirefox } from "./vars";
-import { getTokens } from '../lib/api';
+import { ensureValidAccessToken } from '../lib/api';
 
 const API_URL = process.env.API_URL || '';
 const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
@@ -63,7 +63,7 @@ export const handleHeader = (details) => {
     return new Promise((resolve) => {
         chrome.storage.local.get(['store'], async (storage) => {
             if (storage.store?.state) {
-                const { access_token } = await getTokens();
+                const access_token = await ensureValidAccessToken();
                 if (access_token) {
                     details.requestHeaders.push({
                         name: 'Proxy-Authorization',
@@ -112,7 +112,7 @@ export const enableProxy = async () => {
         if (typeof browser !== 'undefined' && browser.webRequest) {
             browser.webRequest.onBeforeSendHeaders.addListener(
                 async function (details) {
-                    const { access_token } = await getTokens();
+                    const access_token = await ensureValidAccessToken();
                     if (access_token) {
                         details.requestHeaders.push({
                             name: 'Proxy-Authorization',

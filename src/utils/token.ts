@@ -1,23 +1,11 @@
 import { API_URL, REDIRECT_URI } from './authentification';
-import { saveTokens, getTokens, clearTokens } from '../lib/api';
+import { saveTokens, getTokens, clearTokens, ensureValidAccessToken, refreshAccessToken } from '../lib/api';
+
+declare const chrome: any;
 
 class Token {
   async getDecryptedToken(): Promise<string | null> {
-    const { access_token, token_expires_at } = await getTokens();
-    if (!access_token) return null;
-
-    // If token is expired, attempt refresh
-    if (token_expires_at && token_expires_at < Date.now()) {
-      try {
-        const refreshed = await this.refreshToken();
-        return refreshed;
-      } catch {
-        await this.clearToken();
-        return null;
-      }
-    }
-
-    return access_token;
+    return ensureValidAccessToken();
   }
 
   async saveToken(accessToken: string, refreshToken?: string, expiresIn?: number): Promise<void> {
@@ -34,23 +22,9 @@ class Token {
   }
 
   async refreshToken(): Promise<string> {
-    const { refresh_token } = await getTokens();
-    if (!refresh_token) throw new Error('No refresh token');
-
-    const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'omit',
-      body: JSON.stringify({ refresh_token }),
-    });
-
-    if (!res.ok) throw new Error('Token refresh failed');
-
-    const json = await res.json();
-    if (!json.data?.access_token) throw new Error('Invalid refresh response');
-
-    await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
-    return json.data.access_token;
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) throw new Error('Token refresh failed');
+    return refreshed;
   }
 
   /**

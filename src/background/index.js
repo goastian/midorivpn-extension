@@ -1,5 +1,36 @@
 import badge from '../utils/badge.js';
 import { isFirefox } from '../utils/vars';
+import { ensureValidAccessToken, getRefreshAlarmTimestamp } from '../lib/api';
+
+const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
+
+async function clearRefreshAlarm() {
+  if (!chrome.alarms?.clear) return;
+  await chrome.alarms.clear(TOKEN_REFRESH_ALARM);
+}
+
+async function scheduleTokenRefresh() {
+  if (!chrome.alarms?.create) return;
+
+  const alarmAt = await getRefreshAlarmTimestamp();
+  if (!alarmAt) {
+    await clearRefreshAlarm();
+    return;
+  }
+
+  const now = Date.now();
+  if (alarmAt <= now) {
+    await ensureValidAccessToken();
+    return scheduleTokenRefresh();
+  }
+
+  chrome.alarms.create(TOKEN_REFRESH_ALARM, { when: alarmAt });
+}
+
+async function syncTokenSession(forceRefresh = false) {
+  await ensureValidAccessToken(forceRefresh);
+  await scheduleTokenRefresh();
+}
 
 const handlers = {
   loadServers: async () => {
@@ -13,6 +44,10 @@ const handlers = {
 };
 
 badge();
+
+syncTokenSession().catch((error) => {
+  console.error('Failed to initialize token session:', error);
+});
 
 if (isFirefox) {
   import('../utils/proxy').then(({ handleHeader, handleProxy }) => {
@@ -63,10 +98,46 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
     const token = new module.default();
     const success = await token.exchangeCode(details.url);
     if (success) {
+      await syncTokenSession();
       // Close the callback tab
       chrome.tabs.remove(details.tabId);
     }
   }
+});
+
+if (chrome.runtime?.onStartup) {
+  chrome.runtime.onStartup.addListener(() => {
+    syncTokenSession().catch((error) => {
+      console.error('Failed to restore token session on startup:', error);
+    });
+  });
+}
+
+if (chrome.runtime?.onInstalled) {
+  chrome.runtime.onInstalled.addListener(() => {
+    syncTokenSession().catch((error) => {
+      console.error('Failed to sync token session after install/update:', error);
+    });
+  });
+}
+
+if (chrome.alarms?.onAlarm) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name !== TOKEN_REFRESH_ALARM) return;
+
+    syncTokenSession(true).catch((error) => {
+      console.error('Scheduled token refresh failed:', error);
+    });
+  });
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local') return;
+  if (!changes.access_token && !changes.refresh_token && !changes.token_expires_at) return;
+
+  scheduleTokenRefresh().catch((error) => {
+    console.error('Failed to reschedule token refresh:', error);
+  });
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

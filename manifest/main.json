@@ -8,6 +8,7 @@
     "default_popup": "popup.html"
   },
   "permissions": [
+    "alarms",
     "proxy",
     "storage",
     "tabs",

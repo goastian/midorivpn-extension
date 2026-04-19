@@ -61,6 +61,13 @@ export const handleProxy = (details) => {
 
 export const handleHeader = (details) => {
     return new Promise((resolve) => {
+        // Never modify headers for bypass domains (API / auth endpoints)
+        const url = new URL(details.url);
+        if (bypassDomains.includes(url.hostname)) {
+            resolve({});
+            return;
+        }
+
         chrome.storage.local.get(['store'], async (storage) => {
             if (storage.store?.state) {
                 const access_token = await ensureValidAccessToken();

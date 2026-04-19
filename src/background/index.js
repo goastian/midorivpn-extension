@@ -20,16 +20,40 @@ if (isFirefox) {
       urls: ['<all_urls>'],
     });
 
-    browser.webRequest.onBeforeSendHeaders.addListener(
-      handleHeader,
-      { urls: ['<all_urls>'] },
-      ['blocking', 'requestHeaders']
-    );
+    const registerHeaderListener = (withBlocking) => {
+      const extraInfoSpec = withBlocking ? ['blocking', 'requestHeaders'] : ['requestHeaders'];
+      browser.webRequest.onBeforeSendHeaders.addListener(
+        handleHeader,
+        { urls: ['<all_urls>'] },
+        extraInfoSpec
+      );
+    };
+
+    if (chrome.permissions?.contains) {
+      chrome.permissions.contains({ permissions: ['webRequestBlocking'] }, (granted) => {
+        try {
+          registerHeaderListener(Boolean(granted));
+          if (!granted) {
+            console.warn('webRequestBlocking permission missing; registered non-blocking header listener.');
+          }
+        } catch (error) {
+          console.error('Failed to register Firefox header listener:', error);
+        }
+      });
+    } else {
+      try {
+        registerHeaderListener(true);
+      } catch (error) {
+        console.error('Failed to register Firefox blocking header listener:', error);
+      }
+    }
   });
 };
 
-// Handle OAuth callback route
+// Handle OAuth callback route — only fire on the main frame
 chrome.webNavigation.onCommitted.addListener(async (details) => {
+  if (details.frameId !== 0) return;
+
   const url = new URL(details.url);
   const redirectUri = process.env.AUTHENTIK_REDIRECT_URI || '';
 

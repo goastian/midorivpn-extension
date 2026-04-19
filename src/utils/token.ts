@@ -40,6 +40,7 @@ class Token {
     const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'omit',
       body: JSON.stringify({ refresh_token }),
     });
 
@@ -81,6 +82,7 @@ class Token {
       const res = await fetch(`${API_URL}/api/v1/auth/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'omit',
         body: JSON.stringify({
           code,
           redirect_uri: REDIRECT_URI,

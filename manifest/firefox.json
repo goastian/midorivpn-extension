@@ -19,6 +19,9 @@
       "128": "icons/icon128.png"
     }
   },
+  "permissions": [
+    "webRequestBlocking"
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "midorivpn@astian.org",

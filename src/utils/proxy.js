@@ -1,4 +1,3 @@
-import { isFirefox } from "./vars";
 import { ensureValidAccessToken } from '../lib/api';
 
 const API_URL = process.env.API_URL || '';
@@ -30,117 +29,60 @@ const resolveProxyServer = (activeServer) => {
     return { host, port };
 };
 
-export const handleProxy = (details) => {
-    return new Promise((resolve) => {
+export const handleProxy = async (details) => {
+    try {
         const url = new URL(details.url);
         const hostname = url.hostname;
 
         if (bypassDomains.includes(hostname)) {
-            resolve({ type: 'direct' });
-            return;
+            return { type: 'direct' };
         }
 
-        chrome.storage.local.get(['store', 'server'], async (storage) => {
-            if (storage.store?.state) {
-                const proxyServer = resolveProxyServer(storage.server?.active);
-                if (proxyServer) {
-                    resolve({
-                        type: 'http',
-                        host: proxyServer.host,
-                        port: proxyServer.port,
-                    });
-                } else {
-                    resolve({ type: 'direct' });
-                }
-            } else {
-                resolve({ type: 'direct' });
-            }
-        });
-    });
-};
+        const storage = await getLocalStorage(['store', 'server']);
 
-export const handleHeader = (details) => {
-    return new Promise((resolve) => {
-        // Never modify headers for bypass domains (API / auth endpoints)
-        const url = new URL(details.url);
-        if (bypassDomains.includes(url.hostname)) {
-            resolve({});
-            return;
+        if (!storage.store?.state) {
+            return { type: 'direct' };
         }
 
-        chrome.storage.local.get(['store'], async (storage) => {
-            if (storage.store?.state) {
-                const access_token = await ensureValidAccessToken();
-                if (access_token) {
-                    details.requestHeaders.push({
-                        name: 'Proxy-Authorization',
-                        value: `Bearer ${access_token}`
-                    });
-                }
-                resolve({ requestHeaders: details.requestHeaders });
-            } else {
-                resolve({});
-            }
-        });
-    });
-};
-
-export const enableProxy = async () => {
-    if (!isFirefox) {
-        const storage = await getLocalStorage(['server']);
         const proxyServer = resolveProxyServer(storage.server?.active);
         if (!proxyServer) {
-            return false;
+            console.warn('[proxy] No proxy server resolved from storage:', storage.server?.active);
+            return { type: 'direct' };
         }
 
-        const config = {
-            mode: "fixed_servers",
-            rules: {
-                singleProxy: {
-                    scheme: "http",
-                    host: proxyServer.host,
-                    port: proxyServer.port,
-                },
-                bypassList: [
-                    "localhost",
-                    "127.0.0.1",
-                    "::1",
-                    "10.0.0.0/8",
-                    "172.16.0.0/12",
-                    "192.168.0.0/16",
-                    ...(API_URL ? [new URL(API_URL).hostname] : []),
-                    ...(AUTHENTIK_ISSUER ? [new URL(AUTHENTIK_ISSUER).hostname] : []),
-                ]
-            }
+        const proxyInfo = {
+            type: 'http',
+            host: proxyServer.host,
+            port: proxyServer.port,
         };
-        chrome.proxy.settings.set({ value: config, scope: "regular" });
 
-        // Add auth headers for Chrome
-        if (typeof browser !== 'undefined' && browser.webRequest) {
-            browser.webRequest.onBeforeSendHeaders.addListener(
-                async function (details) {
-                    const access_token = await ensureValidAccessToken();
-                    if (access_token) {
-                        details.requestHeaders.push({
-                            name: 'Proxy-Authorization',
-                            value: `Bearer ${access_token}`
-                        });
-                    }
-                    return { requestHeaders: details.requestHeaders };
-                },
-                { urls: ["<all_urls>"] },
-                ["blocking", "requestHeaders"]
-            );
+        let token;
+        try {
+            token = await ensureValidAccessToken();
+        } catch (e) {
+            console.warn('[proxy] Token error:', e.message);
         }
-        return true;
+
+        if (!token) {
+            console.warn('[proxy] No access token, falling back to direct for', hostname);
+            return { type: 'direct' };
+        }
+
+        // username/password → Firefox sends Proxy-Authorization: Basic
+        proxyInfo.username = 'midorivpn';
+        proxyInfo.password = token;
+        // proxyAuthorizationHeader → Firefox 128+ sends custom header value
+        proxyInfo.proxyAuthorizationHeader = `Bearer ${token}`;
+
+        console.log('[proxy] Routing', hostname, '->', proxyServer.host + ':' + proxyServer.port);
+        return proxyInfo;
+    } catch (e) {
+        console.error('[proxy] handleProxy error:', e);
+        return { type: 'direct' };
     }
-    return true;
 };
 
-export const disableProxy = async () => {
-    if (!isFirefox) {
-        await chrome.proxy.settings.clear({ scope: "regular" });
-        return true;
-    }
-    return true;
-};
+// Firefox: proxy.onRequest handles routing. enableProxy/disableProxy
+// only toggle the store state — the actual proxy decision is in handleProxy.
+export const enableProxy = async () => true;
+export const disableProxy = async () => true;

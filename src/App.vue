@@ -38,14 +38,14 @@ export default {
       this.isLoggedIn = true;
       await this.vpn.loadServers();
 
+      // Provision connection in background — don't block the UI.
+      // The proxy works with just the JWT; a WireGuard peer is optional.
       if (!this.vpn.connectionId) {
-        const err = await this.vpn.provisionConnection();
-        if (err) {
-          this.notifications.add({
-            title: "Connection",
-            description: err
-          }, false, true);
-        }
+        this.vpn.provisionConnection().then(err => {
+          if (err) {
+            console.warn('provisionConnection:', err);
+          }
+        });
       }
     }
   },

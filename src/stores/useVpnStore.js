@@ -1,6 +1,25 @@
 import { defineStore } from "pinia";
-import { api } from '../lib/api';
 import serverManager from '../service/servers.js';
+
+function sendBackgroundMessage(message) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+            if (chrome.runtime?.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            if (!response?.success) {
+                reject(new Error(response?.error || 'Background request failed'));
+                return;
+            }
+            resolve(response.data);
+        });
+    });
+}
+
+function loadServersFromBackground() {
+    return sendBackgroundMessage({ type: 'loadServers' });
+}
 
 const useServerStore = defineStore('server', {
     state: () => ({
@@ -12,7 +31,8 @@ const useServerStore = defineStore('server', {
     actions: {
         async loadServers() {
             try {
-                const result = await serverManager.loadServers();
+                // Keep network calls in background so popup lifecycle does not cancel requests.
+                const result = await loadServersFromBackground();
                 if (result?.servers) {
                     this.servers = result.servers;
                     if (!this.active && result.active) {
@@ -20,7 +40,18 @@ const useServerStore = defineStore('server', {
                     }
                 }
             } catch (error) {
-                console.error('Error loading servers:', error);
+                // Fallback to direct request in case background messaging is temporarily unavailable.
+                try {
+                    const result = await serverManager.loadServers();
+                    if (result?.servers) {
+                        this.servers = result.servers;
+                        if (!this.active && result.active) {
+                            this.active = result.active;
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.error('Error loading servers:', fallbackError || error);
+                }
             }
         },
 
@@ -33,14 +64,9 @@ const useServerStore = defineStore('server', {
             if (!this.active) return 'No server selected';
 
             try {
-                // Generate keypair via backend
-                const keypair = await api.post('/api/v1/control/keypair');
-
-                // Create connection on the selected server
-                const connection = await api.post('/api/v1/control/connections', {
-                    server_id: this.active.id,
-                    public_key: keypair.public_key,
-                    device_name: 'extension',
+                const connection = await sendBackgroundMessage({
+                    type: 'provisionConnection',
+                    serverId: this.active.id,
                 });
 
                 this.connectionId = connection.id;

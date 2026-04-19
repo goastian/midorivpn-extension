@@ -1,6 +1,9 @@
 import badge from '../utils/badge.js';
-import { isFirefox } from '../utils/vars';
-import { ensureValidAccessToken, getRefreshAlarmTimestamp } from '../lib/api';
+import { handleProxy } from '../utils/proxy';
+import { api, ensureValidAccessToken, getRefreshAlarmTimestamp } from '../lib/api';
+import serverManager from '../service/servers.js';
+import user from '../service/User.js';
+import Token from '../utils/token.ts';
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
 
@@ -34,12 +37,51 @@ async function syncTokenSession(forceRefresh = false) {
 
 const handlers = {
   loadServers: async () => {
-    const module = await import('../service/servers.js');
-    return module.default.loadServers();
+    return serverManager.loadServers();
   },
   loadUser: async () => {
-    const module = await import('../service/User.js');
-    return module.default.LoadUser();
+    return user.LoadUser();
+  },
+  provisionConnection: async (msg) => {
+    const serverId = msg.serverId;
+    if (!serverId) throw new Error('No server selected');
+
+    // First try to reuse an existing connection for this server
+    try {
+      const existing = await api.get('/api/v1/control/connections');
+      if (Array.isArray(existing)) {
+        const match = existing.find(c => c.server_id === serverId && c.is_active);
+        if (match) {
+          await chrome.storage.local.set({ connection: match });
+          return match;
+        }
+      }
+    } catch (_) {
+      // Ignore — proceed to create
+    }
+
+    try {
+      const keypair = await api.post('/api/v1/control/keypair');
+      const connection = await api.post('/api/v1/control/connections', {
+        server_id: serverId,
+        public_key: keypair.public_key,
+        device_name: 'extension',
+      });
+
+      await chrome.storage.local.set({ connection });
+      return connection;
+    } catch (err) {
+      // 409 = device limit — try to reuse any existing connection
+      if (err.message && err.message.includes('device limit')) {
+        const existing = await api.get('/api/v1/control/connections');
+        if (Array.isArray(existing) && existing.length > 0) {
+          const active = existing.find(c => c.is_active) || existing[0];
+          await chrome.storage.local.set({ connection: active });
+          return active;
+        }
+      }
+      throw err;
+    }
   },
 };
 
@@ -49,41 +91,29 @@ syncTokenSession().catch((error) => {
   console.error('Failed to initialize token session:', error);
 });
 
-if (isFirefox) {
-  import('../utils/proxy').then(({ handleHeader, handleProxy }) => {
-    browser.proxy.onRequest.addListener(handleProxy, {
-      urls: ['<all_urls>'],
-    });
+// Firefox: proxy.onRequest handles all proxy routing and auth.
+browser.proxy.onRequest.addListener(handleProxy, {
+  urls: ['<all_urls>'],
+});
 
-    const registerHeaderListener = (withBlocking) => {
-      const extraInfoSpec = withBlocking ? ['blocking', 'requestHeaders'] : ['requestHeaders'];
-      browser.webRequest.onBeforeSendHeaders.addListener(
-        handleHeader,
-        { urls: ['<all_urls>'] },
-        extraInfoSpec
-      );
-    };
+// Log proxy errors so they are visible in the browser console.
+browser.proxy.onError.addListener((error) => {
+  console.error('[proxy] Error:', error);
+});
 
-    if (chrome.permissions?.contains) {
-      chrome.permissions.contains({ permissions: ['webRequestBlocking'] }, (granted) => {
-        try {
-          registerHeaderListener(Boolean(granted));
-          if (!granted) {
-            console.warn('webRequestBlocking permission missing; registered non-blocking header listener.');
-          }
-        } catch (error) {
-          console.error('Failed to register Firefox header listener:', error);
-        }
-      });
-    } else {
-      try {
-        registerHeaderListener(true);
-      } catch (error) {
-        console.error('Failed to register Firefox blocking header listener:', error);
-      }
-    }
-  });
-};
+// Firefox fires onAuthRequired when the proxy replies with 407.
+// Credentials are already provided via proxy.onRequest (handleProxy),
+// so if we get here it means the proxy rejected them — always cancel
+// to suppress the native username/password dialog.
+browser.webRequest.onAuthRequired.addListener(
+  (details) => {
+    if (!details.isProxy) return {};
+    console.warn('[auth] onAuthRequired: proxy rejected credentials, cancelling', details.url);
+    return { cancel: true };
+  },
+  { urls: ['<all_urls>'] },
+  ['blocking']
+);
 
 // Handle OAuth callback route — only fire on the main frame
 chrome.webNavigation.onCommitted.addListener(async (details) => {
@@ -94,8 +124,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
   // Match the callback URL
   if (redirectUri && details.url.startsWith(redirectUri)) {
-    const module = await import('../utils/token.ts');
-    const token = new module.default();
+    const token = new Token();
     const success = await token.exchangeCode(details.url);
     if (success) {
       await syncTokenSession();

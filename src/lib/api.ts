@@ -30,7 +30,10 @@ class RefreshTokenError extends Error {
 let isRefreshing = false;
 let refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: Error) => void }> = [];
 
-const TOKEN_REFRESH_LEEWAY_MS = 60 * 1000;
+// Refresh 3 minutes before exp so that bursts of concurrent proxy requests do
+// not race a token that is seconds away from expiration. Proxy CONNECTs happen
+// many times per page load and each one re-checks the token validity.
+const TOKEN_REFRESH_LEEWAY_MS = 3 * 60 * 1000;
 
 function processRefreshQueue(error: Error | null, token: string | null) {
     refreshQueue.forEach(({ resolve, reject }) => {

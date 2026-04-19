@@ -1,11 +1,43 @@
 import badge from '../utils/badge.js';
 import { handleProxy } from '../utils/proxy';
-import { api, ensureValidAccessToken, getRefreshAlarmTimestamp } from '../lib/api';
+import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
+// Throttle how often we force a token refresh in response to a 407 so a burst
+// of rejections does not hammer Authentik.
+const PROXY_REFRESH_MIN_INTERVAL_MS = 15 * 1000;
+let lastProxyTriggeredRefresh = 0;
+
+async function markSessionExpired() {
+  try {
+    await clearTokens();
+  } catch (_) {
+    // ignore
+  }
+  try {
+    // Flip the user-facing "connected" toggle off so handleProxy routes direct
+    // and the popup no longer lies about being connected.
+    const { store } = await new Promise((resolve) =>
+      chrome.storage.local.get(['store'], resolve)
+    );
+    if (store?.state) {
+      await chrome.storage.local.set({ store: { ...store, state: false } });
+    }
+  } catch (_) {
+    // ignore
+  }
+  try {
+    if (chrome.action?.setBadgeText) {
+      chrome.action.setBadgeText({ text: '!' });
+      chrome.action.setBadgeBackgroundColor({ color: '#E67B7B' });
+    }
+  } catch (_) {
+    // ignore
+  }
+}
 
 async function clearRefreshAlarm() {
   if (!chrome.alarms?.clear) return;
@@ -31,8 +63,15 @@ async function scheduleTokenRefresh() {
 }
 
 async function syncTokenSession(forceRefresh = false) {
-  await ensureValidAccessToken(forceRefresh);
+  const token = await ensureValidAccessToken(forceRefresh);
   await scheduleTokenRefresh();
+  // If we have no access token left (refresh failed definitively) but the
+  // user still thinks they are connected, flip the VPN off so traffic stops
+  // silently leaking through "direct" and the popup shows the real state.
+  if (!token) {
+    await markSessionExpired();
+  }
+  return token;
 }
 
 const handlers = {
@@ -104,11 +143,26 @@ browser.proxy.onError.addListener((error) => {
 // Firefox fires onAuthRequired when the proxy replies with 407.
 // Credentials are already provided via proxy.onRequest (handleProxy),
 // so if we get here it means the proxy rejected them — always cancel
-// to suppress the native username/password dialog.
+// to suppress the native username/password dialog, and proactively
+// refresh the access token so subsequent requests stop failing.
 browser.webRequest.onAuthRequired.addListener(
   (details) => {
     if (!details.isProxy) return {};
     console.warn('[auth] onAuthRequired: proxy rejected credentials, cancelling', details.url);
+
+    const now = Date.now();
+    if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
+      lastProxyTriggeredRefresh = now;
+      refreshAccessToken()
+        .then(() => scheduleTokenRefresh())
+        .catch(async (err) => {
+          console.warn('[auth] Forced refresh after 407 failed:', err?.message || err);
+          if (err && err.shouldClear) {
+            await markSessionExpired();
+          }
+        });
+    }
+
     return { cancel: true };
   },
   { urls: ['<all_urls>'] },

@@ -2,7 +2,7 @@
   <div class="container column">
     <div class="header">
       <div class="row items-center ga-sm">
-        <img src="/icons/logo.png" class="logo" />
+        <img src="/icons/logo.png" />
       </div>
       <Options />
     </div>

@@ -57,8 +57,6 @@
 <script>
 import Auth from '../utils/authentification.ts';
 export default {
-    emits: ['open-settings'],
-
     data() {
         return {
             show: false,

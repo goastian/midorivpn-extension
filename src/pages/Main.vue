@@ -13,7 +13,13 @@
         </div>
         <div class="row items-center ga-sm">
           <button v-if="settings.meshEnabled" class="btn btn-mesh" @click="showMesh = true" title="Mesh Networks">🌐</button>
-          <Options @open-settings="showSettings = true" />
+          <button class="btn btn-settings" @click="showSettings = true" title="Settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="m19.4 15-.7-.4a7.5 7.5 0 0 0 0-5.2l.7-.4a1 1 0 0 0 .4-1.4l-1-1.7a1 1 0 0 0-1.4-.4l-.7.4a7.5 7.5 0 0 0-4.5-2.6V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v.7a7.5 7.5 0 0 0-4.5 2.6l-.7-.4a1 1 0 0 0-1.4.4l-1 1.7a1 1 0 0 0 .4 1.4l.7.4a7.5 7.5 0 0 0 0 5.2l-.7.4a1 1 0 0 0-.4 1.4l1 1.7a1 1 0 0 0 1.4.4l.7-.4a7.5 7.5 0 0 0 4.5 2.6V21a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7a7.5 7.5 0 0 0 4.5-2.6l.7.4a1 1 0 0 0 1.4-.4l1-1.7a1 1 0 0 0-.4-1.4Z" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </button>
+          <Options />
         </div>
       </div>
       <div class="center">
@@ -60,6 +66,13 @@ export default {
     };
   },
 
+  watch: {
+    // When mesh gets disabled, close the mesh panel if open
+    'settings.meshEnabled'(val) {
+      if (!val) this.showMesh = false;
+    },
+  },
+
   methods: {
     openLink() {
       const apiUrl = process.env.API_URL || '';
@@ -88,17 +101,18 @@ export default {
   background-color: white;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: .4rem .8rem;
   border-radius: .4rem;
-  height: 10%;
+  height: 48px;
+  overflow: hidden;
 }
 
-.title {
-  font-size: 1.4rem;
-}
-
-.logo {
-  width: 180px;
+.header img {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .center {
@@ -111,6 +125,23 @@ export default {
   border: none;
   background-color: transparent;
   cursor: pointer;
+}
+
+.btn-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #64748b;
+  padding: 2px;
+  border-radius: 0.3rem;
+  transition: color 0.15s;
+}
+
+.btn-settings:hover {
+  color: #49B9FF;
 }
 
 .text-md {

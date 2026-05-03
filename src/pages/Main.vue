@@ -1,38 +1,30 @@
 <template>
   <div class="container column">
-    <!-- Mesh page overlay -->
-    <MeshPage v-if="showMesh" @close="showMesh = false" />
-
-    <template v-else>
-      <div class="header">
-        <div class="row items-center ga-sm">
-          <img src="/icons/logo.png" />
-        </div>
-        <div class="row items-center ga-sm">
-          <button class="btn btn-mesh" @click="showMesh = true" title="Mesh Networks">🌐</button>
-          <Options />
-        </div>
+    <div class="header">
+      <div class="row items-center ga-sm">
+        <img src="/icons/logo.png" class="logo" />
       </div>
-      <div class="center">
-        <v-switch />
+      <Options />
+    </div>
+    <div class="center">
+      <v-switch />
+    </div>
+    <div class="main column ga-md">
+      <div class="column ga-sm">
+        <span class="subtitle">Select Server</span>
+        <v-select />
       </div>
-      <div class="main column ga-md">
-        <div class="column ga-sm">
-          <span class="subtitle">Select Server</span>
-          <v-select />
-        </div>
-        <div class="main-footer column ga-sm">
-          <div class="row ga-sm">
-            <span>💎</span>
-            <div class="column ga-sm">
-              <h3 class="primary-text">VPN Premium</h3>
-              <span class="description">Get unlimited data, more servers, and faster speeds.</span>
-            </div>
+      <div class="main-footer column ga-sm">
+        <div class="row ga-sm">
+          <span>💎</span>
+          <div class="column ga-sm">
+            <h3 class="primary-text">VPN Premium</h3>
+            <span class="description">Get unlimited data, more servers, and faster speeds.</span>
           </div>
-          <button class="btn update" @click="openLink">Upgrade to Premium</button>
         </div>
+        <button class="btn update" @click="openLink">Upgrade to Premium</button>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -44,13 +36,6 @@ export default {
     VSelect: defineAsyncComponent(() => import('../components/Select.vue')),
     VSwitch: defineAsyncComponent(() => import('../components/Switch.vue')),
     Options: defineAsyncComponent(() => import('../components/Options.vue')),
-    MeshPage: defineAsyncComponent(() => import('./Mesh.vue')),
-  },
-
-  data() {
-    return {
-      showMesh: false,
-    };
   },
 
   methods: {
@@ -142,21 +127,4 @@ export default {
   padding: .4rem 0;
   border-radius: .4rem;
 }
-
-.btn-mesh {
-  font-size: 1rem;
-  padding: .2rem .4rem;
-  border-radius: .35rem;
-  background-color: #f1f5f9;
-  border: 1px solid rgba(0,0,0,0.08);
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-.btn-mesh:hover {
-  background-color: #e2e8f0;
-}
-
-.row { display: flex; flex-direction: row; }
-.items-center { align-items: center; }
-.ga-sm { gap: 0.4rem; }
 </style>

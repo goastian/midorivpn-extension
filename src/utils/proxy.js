@@ -77,7 +77,7 @@ export const handleProxy = async (details) => {
         // proxyAuthorizationHeader → Firefox 128+ sends custom header value
         proxyInfo.proxyAuthorizationHeader = `Bearer ${token}`;
 
-        log.info('proxy', 'route', hostname, '->', `${proxyServer.host}:${proxyServer.port}`, 'tokenTail=…' + token.slice(-8));
+        log.info('proxy', 'route', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
         return proxyInfo;
     } catch (e) {
         log.error('proxy', 'handleProxy error:', e);

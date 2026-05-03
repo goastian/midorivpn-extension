@@ -320,6 +320,21 @@ export const meshApi = {
     /** Deactivate mesh node (leaves / deletes all meshes) */
     deactivateNode: (): Promise<MeshNodeStatus> =>
         request<MeshNodeStatus>('/api/v1/control/mesh/node', { method: 'DELETE' }),
+
+    /** Regenerate the invite code for a mesh the user owns.
+     *  Pass expiresInHours = 0 (or omit) for a non-expiring code. */
+    createInvite: (meshId: string, expiresInHours = 0): Promise<{ invite_code: string; invite_expires_at?: string }> =>
+        request<{ invite_code: string; invite_expires_at?: string }>(
+            `/api/v1/control/mesh/${encodeURIComponent(meshId)}/invite`,
+            {
+                method: 'POST',
+                body: JSON.stringify(
+                    expiresInHours > 0
+                        ? { expires_in_hours: expiresInHours }
+                        : {}
+                ),
+            }
+        ),
 };
 
 export {

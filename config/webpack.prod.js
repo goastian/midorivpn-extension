@@ -67,7 +67,7 @@ webpack(config, (err, stats) => {
     }
 
     if (stats.hasWarnings()) {
-        console.warn('Webpack warnings:', info.warnings);
+        info.warnings.forEach(w => console.warn('⚠️ ', w.message));
     }
 
     console.log('✅ Build & ZIP completado correctamente.');

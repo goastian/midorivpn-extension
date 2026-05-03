@@ -57,6 +57,8 @@
 <script>
 import Auth from '../utils/authentification.ts';
 export default {
+    emits: ['open-settings'],
+
     data() {
         return {
             show: false,
@@ -87,11 +89,8 @@ export default {
         },
 
         openSettings() {
-            const apiUrl = process.env.API_URL || '';
-            const url = apiUrl ? `${apiUrl}/settings` : 'about:blank';
-            chrome.tabs.create({ url }, function () {
-                window.close();
-            });
+            this.show = false;
+            this.$emit('open-settings');
         },
 
         openAbout() {

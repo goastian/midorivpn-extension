@@ -1,7 +1,10 @@
 <template>
   <div class="container column">
+    <!-- Settings overlay -->
+    <SettingsPage v-if="showSettings" @close="showSettings = false" />
+
     <!-- Mesh page overlay -->
-    <MeshPage v-if="showMesh" @close="showMesh = false" />
+    <MeshPage v-else-if="showMesh" @close="showMesh = false" />
 
     <template v-else>
       <div class="header">
@@ -9,8 +12,8 @@
           <img src="/icons/logo.png" />
         </div>
         <div class="row items-center ga-sm">
-          <button class="btn btn-mesh" @click="showMesh = true" title="Mesh Networks">🌐</button>
-          <Options />
+          <button v-if="settings.meshEnabled" class="btn btn-mesh" @click="showMesh = true" title="Mesh Networks">🌐</button>
+          <Options @open-settings="showSettings = true" />
         </div>
       </div>
       <div class="center">
@@ -38,6 +41,7 @@
 
 <script>
 import { defineAsyncComponent } from 'vue';
+import useSettingsStore from '../stores/useSettingsStore';
 export default {
   inject: ['app_name'],
   components: {
@@ -45,11 +49,14 @@ export default {
     VSwitch: defineAsyncComponent(() => import('../components/Switch.vue')),
     Options: defineAsyncComponent(() => import('../components/Options.vue')),
     MeshPage: defineAsyncComponent(() => import('./Mesh.vue')),
+    SettingsPage: defineAsyncComponent(() => import('./Settings.vue')),
   },
 
   data() {
     return {
       showMesh: false,
+      showSettings: false,
+      settings: useSettingsStore(),
     };
   },
 

@@ -16,7 +16,11 @@
       </div>
       <div class="main-footer column ga-sm">
         <div class="row ga-sm">
-          <span>💎</span>
+          <!-- Lucide gem icon (MIT) -->
+          <svg class="icon-gem" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="m2 9 3.5-5h13L22 9 12 22 2 9z" stroke="#49B9FF" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M2 9h20M9 4 7 9l5 13 5-13-2-5" stroke="#49B9FF" stroke-width="1.6" stroke-linejoin="round"/>
+          </svg>
           <div class="column ga-sm">
             <h3 class="primary-text">VPN Premium</h3>
             <span class="description">Get unlimited data, more servers, and faster speeds.</span>
@@ -71,7 +75,9 @@ export default {
   padding: .4rem .8rem;
   border-radius: .4rem;
   height: 48px;
-  overflow: hidden;
+  /* position + z-index ensure the Options dropdown renders above .center and .main */
+  position: relative;
+  z-index: 100;
 }
 
 .header img,
@@ -147,5 +153,11 @@ export default {
   color: white;
   padding: .4rem 0;
   border-radius: .4rem;
+}
+
+.icon-gem {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
 }
 </style>

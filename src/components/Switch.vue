@@ -1,11 +1,22 @@
 <template>
     <div class="container-control">
+        <div v-if="storage.state && meshIp" class="mesh-ip-badge">
+            <!-- Lucide globe icon (MIT) -->
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+            {{ meshIp }}
+        </div>
         <span v-if="storage.state" class="tag active">Connected</span>
         <span v-else class="tag">Disconnected</span>
-        <div v-if="storage.state && meshIp" class="mesh-ip-badge">🌐 {{ meshIp }}</div>
         <div class="control">
-            <button @click="enableproxy" class="btn-control row items-center justify-center" :class="{'active' : storage.state}">
-                <span>⏻</span>
+            <button @click="enableproxy" class="btn-control row items-center justify-center" :class="{'active' : storage.state}" :aria-label="storage.state ? 'Disconnect' : 'Connect'">
+                <!-- Lucide power icon (MIT) -->
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M6.5 5.5a8 8 0 1 0 11 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
             </button>
         </div>
     </div>
@@ -88,31 +99,34 @@ export default {
     border: none;
     box-shadow: rgba(0, 0, 0, 0.35) 0px -50px 36px -28px inset;
     color: white;
-    font-size: 2rem;
     cursor: pointer;
+    transition: background-color .2s ease;
 }
 
-.control>span {
-    line-height: 2rem;
+.btn-control.active {
+    background-color: #4AC176;
+}
+
+.btn-control:hover {
+    filter: brightness(1.08);
 }
 
 .tag {
     position: absolute;
-    width: 50%;
+    /* explicit centering — avoids relying on flex static-position */
+    left: 50%;
+    transform: translateX(-50%);
+    top: -28px;
+    white-space: nowrap;
     background-color: #FFE6E6;
     color: #E67B7B;
     border: 1px solid #E67B7B;
-    top: -25px;
     border-radius: 1rem;
-    padding: .3rem 1rem;
-    font-size: .8rem;
+    padding: .28rem 1rem;
+    font-size: .78rem;
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.active {
-    background-color: #4AC176;
 }
 
 .tag.active {
@@ -123,13 +137,18 @@ export default {
 
 .mesh-ip-badge {
     position: absolute;
-    top: -48px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: -52px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: .28rem;
     font-size: .72rem;
     color: #0369a1;
     background: #e0f2fe;
     border: 1px solid #7dd3fc;
     border-radius: 1rem;
-    padding: .15rem .7rem;
-    white-space: nowrap;
+    padding: .15rem .6rem;
 }
 </style>

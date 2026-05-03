@@ -44,7 +44,7 @@ config.plugins = (config.plugins || []).concat(
         filename: `${packageInfo.name}-${packageInfo.version}.zip`,
         path: path.join(__dirname, '../', 'zip'),
     }),
-    new BundleAnalyzerPlugin(),
+    new BundleAnalyzerPlugin({ analyzerMode: 'disabled' }),
 );
 
 config.resolve = {

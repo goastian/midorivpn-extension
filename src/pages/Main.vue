@@ -8,8 +8,8 @@
 
     <template v-else>
       <div class="header">
-        <div class="row items-center ga-sm">
-          <img src="/icons/logo.png" />
+        <div class="row items-center ga-sm" style="flex:1; min-width:0">
+          <img src="/icons/title.png" class="header-logo" />
         </div>
         <div class="row items-center ga-sm">
           <button v-if="settings.meshEnabled" class="btn btn-mesh" @click="showMesh = true" title="Mesh Networks">🌐</button>
@@ -108,9 +108,11 @@ export default {
   overflow: hidden;
 }
 
-.header img {
-  height: 32px;
+.header img,
+.header-logo {
+  height: 28px;
   width: auto;
+  max-width: 130px;
   object-fit: contain;
   display: block;
 }

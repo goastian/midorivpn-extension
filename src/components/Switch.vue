@@ -1,12 +1,12 @@
 <template>
     <div class="container-control">
-        <div v-if="storage.state && meshIp" class="mesh-ip-badge">
-            <!-- Lucide globe icon (MIT) -->
+        <!-- VPN assigned IP badge (shown only when connected) -->
+        <div v-if="storage.state && assignedIp" class="ip-badge">
+            <!-- Lucide shield icon (MIT) -->
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
-                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 2 3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6l-9-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
             </svg>
-            {{ meshIp }}
+            {{ assignedIp }}
         </div>
         <span v-if="storage.state" class="tag active">Connected</span>
         <span v-else class="tag">Disconnected</span>
@@ -34,6 +34,7 @@ export default {
             storage: useStore(),
             mesh: useMeshStore(),
             settingsStore: useSettingsStore(),
+            assignedIp: null,
         }
     },
 
@@ -49,9 +50,39 @@ export default {
         if (this.settingsStore.meshEnabled) {
             await this.mesh.loadNodeStatus();
         }
+        await this.loadAssignedIp();
+    },
+
+    watch: {
+        // Refresh IP badge whenever the VPN connects or disconnects
+        'storage.state'(newVal) {
+            if (newVal) {
+                this.loadAssignedIp();
+            } else {
+                this.assignedIp = null;
+            }
+        }
     },
 
     methods: {
+        async loadAssignedIp() {
+            if (!this.storage.state) {
+                this.assignedIp = null;
+                return;
+            }
+            try {
+                const data = await new Promise((resolve) =>
+                    chrome.storage.local.get(['connection'], resolve)
+                );
+                // `assigned_ip` comes from the Peer model returned by the backend
+                // (e.g. "10.8.0.5/32" — strip the CIDR suffix for display).
+                const raw = data?.connection?.assigned_ip || null;
+                this.assignedIp = raw ? raw.split('/')[0] : null;
+            } catch {
+                this.assignedIp = null;
+            }
+        },
+
         async enableproxy() {
             if(!this.storage.state) {
                 const result = await enableProxy();
@@ -136,6 +167,10 @@ export default {
 }
 
 .mesh-ip-badge {
+    display: none; /* reserved for future use */
+}
+
+.ip-badge {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
@@ -150,5 +185,6 @@ export default {
     border: 1px solid #7dd3fc;
     border-radius: 1rem;
     padding: .15rem .6rem;
+    font-weight: 500;
 }
 </style>

@@ -30,13 +30,7 @@
                     </svg>
                     Settings
                 </a>
-                <a @click="openAbout" class="menu-item row items-center ga-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
-                        <path d="M12 8h.01M11 11h1v5h1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                    </svg>
-                    About
-                </a>
+
             </div>
 
             <div class="divider"></div>
@@ -57,6 +51,7 @@
 <script>
 import Auth from '../utils/authentification.ts';
 export default {
+    emits: ['open-settings'],
     data() {
         return {
             show: false,

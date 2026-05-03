@@ -1,46 +1,64 @@
 <template>
   <div class="container column">
-    <div class="header">
-      <div class="row items-center ga-sm">
-        <img src="/icons/logo.png" class="logo" />
-      </div>
-      <Options />
-    </div>
-    <div class="center">
-      <v-switch />
-    </div>
-    <div class="main column ga-md">
-      <div class="column ga-sm">
-        <span class="subtitle">Select Server</span>
-        <v-select />
-      </div>
-      <div class="main-footer column ga-sm">
-        <div class="row ga-sm">
-          <!-- Lucide gem icon (MIT) -->
-          <svg class="icon-gem" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="m2 9 3.5-5h13L22 9 12 22 2 9z" stroke="#49B9FF" stroke-width="1.6" stroke-linejoin="round"/>
-            <path d="M2 9h20M9 4 7 9l5 13 5-13-2-5" stroke="#49B9FF" stroke-width="1.6" stroke-linejoin="round"/>
-          </svg>
-          <div class="column ga-sm">
-            <h3 class="primary-text">VPN Premium</h3>
-            <span class="description">Get unlimited data, more servers, and faster speeds.</span>
-          </div>
+
+    <!-- ── Settings overlay (full-popup) ─────────────────────────────────── -->
+    <SettingsPage
+      v-if="showSettings"
+      class="settings-overlay"
+      @close="showSettings = false"
+    />
+
+    <!-- ── Main popup ────────────────────────────────────────────────────── -->
+    <template v-else>
+      <div class="header">
+        <div class="row items-center ga-sm">
+          <img src="/icons/logo.png" class="logo" />
         </div>
-        <button class="btn update" @click="openLink">Upgrade to Premium</button>
+        <Options @open-settings="showSettings = true" />
       </div>
-    </div>
+      <div class="center">
+        <v-switch />
+      </div>
+      <div class="main column ga-md">
+        <div class="column ga-sm">
+          <span class="subtitle">Select Server</span>
+          <v-select />
+        </div>
+        <div class="main-footer column ga-sm">
+          <div class="row ga-sm">
+            <!-- Lucide gem icon (MIT) -->
+            <svg class="icon-gem" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="m2 9 3.5-5h13L22 9 12 22 2 9z" stroke="#49B9FF" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M2 9h20M9 4 7 9l5 13 5-13-2-5" stroke="#49B9FF" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <div class="column ga-sm">
+              <h3 class="primary-text">VPN Premium</h3>
+              <span class="description">Get unlimited data, more servers, and faster speeds.</span>
+            </div>
+          </div>
+          <button class="btn update" @click="openLink">Upgrade to Premium</button>
+        </div>
+      </div>
+    </template>
+
   </div>
 </template>
 
 <script>
 import { defineAsyncComponent } from 'vue';
-import useSettingsStore from '../stores/useSettingsStore';
 export default {
   inject: ['app_name'],
   components: {
     VSelect: defineAsyncComponent(() => import('../components/Select.vue')),
     VSwitch: defineAsyncComponent(() => import('../components/Switch.vue')),
     Options: defineAsyncComponent(() => import('../components/Options.vue')),
+    SettingsPage: defineAsyncComponent(() => import('./Settings.vue')),
+  },
+
+  data() {
+    return {
+      showSettings: false,
+    };
   },
 
   methods: {
@@ -65,6 +83,7 @@ export default {
   box-shadow: none;
   color: #202020;
   font-family: 'Inter', sans-serif;
+  position: relative;
 }
 
 .header {
@@ -159,5 +178,12 @@ export default {
   flex-shrink: 0;
   align-self: flex-start;
   margin-top: 2px;
+}
+
+/* Settings overlay: fills same container dimensions as the main popup */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
 }
 </style>

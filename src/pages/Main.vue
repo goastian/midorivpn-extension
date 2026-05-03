@@ -30,6 +30,7 @@
 
 <script>
 import { defineAsyncComponent } from 'vue';
+import useSettingsStore from '../stores/useSettingsStore';
 export default {
   inject: ['app_name'],
   components: {
@@ -66,17 +67,20 @@ export default {
   background-color: white;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: .4rem .8rem;
   border-radius: .4rem;
-  height: 10%;
+  height: 48px;
+  overflow: hidden;
 }
 
-.title {
-  font-size: 1.4rem;
-}
-
-.logo {
-  width: 180px;
+.header img,
+.header-logo {
+  height: 28px;
+  width: auto;
+  max-width: 130px;
+  object-fit: contain;
+  display: block;
 }
 
 .center {
@@ -89,6 +93,23 @@ export default {
   border: none;
   background-color: transparent;
   cursor: pointer;
+}
+
+.btn-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #64748b;
+  padding: 2px;
+  border-radius: 0.3rem;
+  transition: color 0.15s;
+}
+
+.btn-settings:hover {
+  color: #49B9FF;
 }
 
 .text-md {

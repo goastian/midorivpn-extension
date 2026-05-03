@@ -44,7 +44,7 @@ config.plugins = (config.plugins || []).concat(
         filename: `${packageInfo.name}-${packageInfo.version}.zip`,
         path: path.join(__dirname, '../', 'zip'),
     }),
-    new BundleAnalyzerPlugin(),
+    new BundleAnalyzerPlugin({ analyzerMode: 'disabled' }),
 );
 
 config.resolve = {
@@ -67,7 +67,7 @@ webpack(config, (err, stats) => {
     }
 
     if (stats.hasWarnings()) {
-        console.warn('Webpack warnings:', info.warnings);
+        info.warnings.forEach(w => console.warn('⚠️ ', w.message));
     }
 
     console.log('✅ Build & ZIP completado correctamente.');

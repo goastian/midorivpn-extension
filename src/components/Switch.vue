@@ -14,6 +14,7 @@
 <script>
 import useStore from '../stores/useStore';
 import useMeshStore from '../stores/useMeshStore';
+import useSettingsStore from '../stores/useSettingsStore';
 import { enableBadge, disableBadge } from '../utils/badge';
 import { disableProxy, enableProxy } from '../utils/proxy';
 export default {
@@ -21,18 +22,22 @@ export default {
         return {
             storage: useStore(),
             mesh: useMeshStore(),
+            settingsStore: useSettingsStore(),
         }
     },
 
     computed: {
         meshIp() {
+            if (!this.settingsStore.meshEnabled) return null;
             if (!this.mesh.myMeshIp) return null;
             return this.mesh.myMeshIp;
         }
     },
 
     async created() {
-        await this.mesh.loadNodeStatus();
+        if (this.settingsStore.meshEnabled) {
+            await this.mesh.loadNodeStatus();
+        }
     },
 
     methods: {

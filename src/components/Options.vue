@@ -87,11 +87,8 @@ export default {
         },
 
         openSettings() {
-            const apiUrl = process.env.API_URL || '';
-            const url = apiUrl ? `${apiUrl}/settings` : 'about:blank';
-            chrome.tabs.create({ url }, function () {
-                window.close();
-            });
+            this.show = false;
+            this.$emit('open-settings');
         },
 
         openAbout() {

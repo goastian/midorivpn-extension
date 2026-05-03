@@ -91,6 +91,31 @@ const handlers = {
   deactivateNode: async () => {
     return meshApi.deactivateNode();
   },
+  // ── Mesh management handlers ──────────────────────────────────────────────
+  listMeshes: async () => {
+    return meshApi.list();
+  },
+  getMesh: async (msg) => {
+    if (!msg.meshId) throw new Error('meshId required');
+    return meshApi.get(msg.meshId);
+  },
+  createMesh: async (msg) => {
+    if (!msg.name?.trim()) throw new Error('Mesh name is required');
+    return meshApi.create(msg.name.trim(), msg.description ?? '', msg.maxMembers ?? 10);
+  },
+  joinMesh: async (msg) => {
+    if (!msg.inviteCode?.trim()) throw new Error('Invite code is required');
+    return meshApi.join(msg.inviteCode.trim());
+  },
+  leaveMesh: async (msg) => {
+    if (!msg.meshId) throw new Error('meshId required');
+    return meshApi.leave(msg.meshId);
+  },
+  createInvite: async (msg) => {
+    if (!msg.meshId) throw new Error('meshId required');
+    return meshApi.createInvite(msg.meshId, msg.expiresInHours ?? 0);
+  },
+  // ─────────────────────────────────────────────────────────────────────────
   provisionConnection: async (msg) => {
     const serverId = msg.serverId;
     if (!serverId) throw new Error('No server selected');
@@ -208,15 +233,21 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   const url = new URL(details.url);
   const redirectUri = process.env.AUTHENTIK_REDIRECT_URI || '';
 
-  // Match the callback URL
-  if (redirectUri && details.url.startsWith(redirectUri)) {
-    const token = new Token();
-    const success = await token.exchangeCode(details.url);
-    if (success) {
-      await syncTokenSession();
-      // Close the callback tab
-      chrome.tabs.remove(details.tabId);
-    }
+  // Match the callback URL — compare origin+pathname exactly to prevent open-redirect abuse.
+  if (redirectUri) {
+    try {
+      const callbackURL = new URL(details.url);
+      const expectedURL = new URL(redirectUri);
+      if (callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname) {
+        const token = new Token();
+        const success = await token.exchangeCode(details.url);
+        if (success) {
+          await syncTokenSession();
+          // Close the callback tab
+          chrome.tabs.remove(details.tabId);
+        }
+      }
+    } catch (_) { /* invalid URL — ignore */ }
   }
 });
 
@@ -312,7 +343,7 @@ async function connectMeshWS() {
       }
     };
 
-    ws.onerror = () => {}; // handled by onclose
+    ws.onerror = (err) => { log.warn('mesh-ws', 'WebSocket error:', err?.message || err); }; // detailed close follows in onclose
 
     ws.onclose = () => {
       _meshSocket = null;
@@ -332,15 +363,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Only accept messages from our own extension
   if (sender.id !== chrome.runtime.id) return;
 
-  const handler = handlers[msg.type];
-  if (handler) {
-    Promise.resolve(handler(msg, sender))
-      .then((result) => sendResponse({ success: true, data: result }))
-      .catch((error) =>
-        sendResponse({ success: false, error: error.message || 'Unknown error' })
-      );
-    return true;
-  } else {
+  const ALLOWED_TYPES = new Set(Object.keys(handlers));
+  if (!msg?.type || !ALLOWED_TYPES.has(msg.type)) {
     sendResponse({ success: false, error: 'Unknown command' });
+    return;
   }
+
+  const handler = handlers[msg.type];
+  Promise.resolve(handler(msg, sender))
+    .then((result) => sendResponse({ success: true, data: result }))
+    .catch((error) =>
+      sendResponse({ success: false, error: error.message || 'Unknown error' })
+    );
+  return true;
 });

@@ -185,6 +185,12 @@ const useMeshStore = defineStore('mesh', {
         clearError() {
             this.error = null;
         },
+
+        /** Remove all mesh entries immediately (called when mesh is disabled or VPN disconnects) */
+        clearList() {
+            this.meshList = [];
+            this.currentMesh = null;
+        },
     },
 });
 

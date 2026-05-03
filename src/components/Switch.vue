@@ -1,7 +1,8 @@
 <template>
     <div class="container-control">
-        <span v-if="storage.state" class="tag active">Conected</span>
+        <span v-if="storage.state" class="tag active">Connected</span>
         <span v-else class="tag">Disconnected</span>
+        <div v-if="storage.state && meshIp" class="mesh-ip-badge">🌐 {{ meshIp }}</div>
         <div class="control">
             <button @click="enableproxy" class="btn-control row items-center justify-center" :class="{'active' : storage.state}">
                 <span>⏻</span>
@@ -12,15 +13,28 @@
 
 <script>
 import useStore from '../stores/useStore';
+import useMeshStore from '../stores/useMeshStore';
 import { enableBadge, disableBadge } from '../utils/badge';
 import { disableProxy, enableProxy } from '../utils/proxy';
 export default {
     data() {
         return {
             storage: useStore(),
+            mesh: useMeshStore(),
         }
     },
-    
+
+    computed: {
+        meshIp() {
+            if (!this.mesh.myMeshIp) return null;
+            return this.mesh.myMeshIp;
+        }
+    },
+
+    async created() {
+        await this.mesh.loadNodeStatus();
+    },
+
     methods: {
         async enableproxy() {
             if(!this.storage.state) {
@@ -100,5 +114,17 @@ export default {
     color: #4AC176;
     border-color: #4AC176;
     background-color: #CBFFDE;
+}
+
+.mesh-ip-badge {
+    position: absolute;
+    top: -48px;
+    font-size: .72rem;
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #7dd3fc;
+    border-radius: 1rem;
+    padding: .15rem .7rem;
+    white-space: nowrap;
 }
 </style>

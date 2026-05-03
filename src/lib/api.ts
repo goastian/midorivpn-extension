@@ -243,6 +243,85 @@ export const api = {
     delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 
+// ─── Mesh networking types ────────────────────────────────────────────────────
+
+export interface MeshNetwork {
+    id: string;
+    name: string;
+    description: string;
+    owner_id: string;
+    subnet: string;
+    /** Only present for the owner of the network */
+    invite_code?: string;
+    max_members: number;
+    is_active: boolean;
+    member_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface MeshMember {
+    id: string;
+    mesh_id: string;
+    user_id: string;
+    peer_id?: string;
+    mesh_ip: string;
+    display_name?: string;
+    joined_at: string;
+}
+
+export interface MeshDetail extends MeshNetwork {
+    members: MeshMember[];
+}
+
+export interface MeshNodeStatus {
+    active: boolean;
+    mesh_ip?: string;
+    mesh_id?: string;
+    peers: Array<{ mesh_ip: string; display_name?: string }>;
+}
+
+export const meshApi = {
+    /** List all mesh networks the current user owns or belongs to */
+    list: (): Promise<MeshNetwork[]> =>
+        request<MeshNetwork[]>('/api/v1/control/mesh'),
+
+    /** Get a mesh network (with members) by id — caller must be a member */
+    get: (id: string): Promise<MeshDetail> =>
+        request<MeshDetail>(`/api/v1/control/mesh/${encodeURIComponent(id)}`),
+
+    /** Create a new mesh network */
+    create: (name: string, description = '', maxMembers = 10): Promise<MeshNetwork> =>
+        request<MeshNetwork>('/api/v1/control/mesh', {
+            method: 'POST',
+            body: JSON.stringify({ name, description, max_members: maxMembers }),
+        }),
+
+    /** Join a mesh network using an invite code */
+    join: (inviteCode: string): Promise<MeshMember> =>
+        request<MeshMember>('/api/v1/control/mesh/join', {
+            method: 'POST',
+            body: JSON.stringify({ invite_code: inviteCode }),
+        }),
+
+    /** Leave a mesh network (or delete it if you are the owner) */
+    leave: (id: string): Promise<{ left?: string; deleted?: string }> =>
+        request(`/api/v1/control/mesh/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+    // ── Simple node activation ─────────────────────────────────────────────
+    /** Get this user's mesh node status */
+    nodeStatus: (): Promise<MeshNodeStatus> =>
+        request<MeshNodeStatus>('/api/v1/control/mesh/node'),
+
+    /** Activate as a mesh node (auto-provisions personal mesh) */
+    activateNode: (): Promise<MeshNodeStatus> =>
+        request<MeshNodeStatus>('/api/v1/control/mesh/node', { method: 'POST' }),
+
+    /** Deactivate mesh node (leaves / deletes all meshes) */
+    deactivateNode: (): Promise<MeshNodeStatus> =>
+        request<MeshNodeStatus>('/api/v1/control/mesh/node', { method: 'DELETE' }),
+};
+
 export {
     API_URL,
     TOKEN_REFRESH_LEEWAY_MS,

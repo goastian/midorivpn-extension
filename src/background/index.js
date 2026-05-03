@@ -1,6 +1,6 @@
 import badge from '../utils/badge.js';
 import { handleProxy } from '../utils/proxy';
-import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
+import { api, meshApi, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
@@ -82,6 +82,15 @@ const handlers = {
   loadUser: async () => {
     return user.LoadUser();
   },
+  nodeStatus: async () => {
+    return meshApi.nodeStatus();
+  },
+  activateNode: async () => {
+    return meshApi.activateNode();
+  },
+  deactivateNode: async () => {
+    return meshApi.deactivateNode();
+  },
   provisionConnection: async (msg) => {
     const serverId = msg.serverId;
     if (!serverId) throw new Error('No server selected');
@@ -128,7 +137,9 @@ const handlers = {
 badge();
 
 log.info('boot', 'background loaded, initializing token session');
-syncTokenSession().catch((error) => {
+syncTokenSession().then(() => {
+  connectMeshWS().catch(() => {});
+}).catch((error) => {
   log.error('boot', 'Failed to initialize token session:', error);
 });
 
@@ -211,7 +222,9 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
 if (chrome.runtime?.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
-    syncTokenSession().catch((error) => {
+    syncTokenSession().then(() => {
+      connectMeshWS().catch(() => {});
+    }).catch((error) => {
       log.error('boot', 'Failed to restore token session on startup:', error);
     });
   });
@@ -242,7 +255,78 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   scheduleTokenRefresh().catch((error) => {
     log.error('alarm', 'Failed to reschedule token refresh:', error);
   });
+
+  // Reconnect mesh WebSocket when the access token changes (login / refresh).
+  if (changes.access_token) {
+    connectMeshWS().catch(() => {});
+  }
 });
+
+// ── Mesh WebSocket ────────────────────────────────────────────────────────────
+// Keeps a persistent WS connection to /ws so the extension can receive real-time
+// mesh membership events (mesh.member_joined, mesh.member_left, mesh.deleted)
+// without the popup needing to poll.
+
+let _meshSocket = null;
+let _meshWSRetryTimer = null;
+let _meshWSBackoff = 1000;
+const MESH_WS_MAX_BACKOFF_MS = 30_000;
+
+function getMeshWSUrl() {
+  const base = (process.env.API_URL || '').replace(/\/+$/, '');
+  if (!base) return null;
+  return base.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '/ws';
+}
+
+async function connectMeshWS() {
+  // Already open or connecting — nothing to do.
+  if (_meshSocket && _meshSocket.readyState < 2) return;
+
+  const url = getMeshWSUrl();
+  if (!url) return;
+
+  const token = await ensureValidAccessToken().catch(() => null);
+  if (!token) return;
+
+  try {
+    const ws = new WebSocket(url);
+    _meshSocket = ws;
+
+    ws.onopen = () => {
+      _meshWSBackoff = 1000; // reset backoff on success
+      ws.send(JSON.stringify({ token }));
+    };
+
+    ws.onmessage = (evt) => {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch (_) { return; }
+      if (!msg || !msg.type) return;
+      if (
+        msg.type === 'mesh.member_joined' ||
+        msg.type === 'mesh.member_left' ||
+        msg.type === 'mesh.deleted'
+      ) {
+        // Forward to any open extension page (popup / options).
+        // Errors are normal when no receiver is open — suppress them.
+        chrome.runtime.sendMessage({ type: 'meshEvent', event: msg }).catch(() => {});
+      }
+    };
+
+    ws.onerror = () => {}; // handled by onclose
+
+    ws.onclose = () => {
+      _meshSocket = null;
+      clearTimeout(_meshWSRetryTimer);
+      _meshWSRetryTimer = setTimeout(() => {
+        connectMeshWS().catch(() => {});
+      }, _meshWSBackoff);
+      _meshWSBackoff = Math.min(_meshWSBackoff * 2, MESH_WS_MAX_BACKOFF_MS);
+    };
+  } catch (_) {
+    // WebSocket constructor threw (e.g. invalid URL) — do not retry
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Only accept messages from our own extension

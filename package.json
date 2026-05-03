@@ -1,6 +1,6 @@
 {
   "name": "MidoriVPN",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Im-Jota/ten-vpn-extension.git"
+    "url": "git+https://github.com/goastian/midorivpn-extension.git"
   },
   "keywords": [],
-  "author": "Im-Jota",
-  "license": "ISC",
+  "author": "Astian Inc",
+  "license": "AGPL-3.0-only",
   "bugs": {
-    "url": "https://github.com/Im-Jota/ten-vpn-extension/issues"
+    "url": "https://github.com/goastian/midorivpn-extension/issues"
   },
-  "homepage": "https://github.com/Im-Jota/ten-vpn-extension#readme",
+  "homepage": "https://github.com/goastian/midorivpn-extension#readme",
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
     "pinia": "^3.0.2",

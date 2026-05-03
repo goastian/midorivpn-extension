@@ -1,43 +1,30 @@
 <template>
   <div class="container column">
-    <!-- Settings overlay -->
-    <SettingsPage v-if="showSettings" @close="showSettings = false" />
-
-    <template v-else>
-      <div class="header">
-        <div class="row items-center ga-sm" style="flex:1; min-width:0">
-          <img src="/icons/title.png" class="header-logo" />
-        </div>
-        <div class="row items-center ga-sm">
-          <button class="btn btn-settings" @click="showSettings = true" title="Settings">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="m19.4 15-.7-.4a7.5 7.5 0 0 0 0-5.2l.7-.4a1 1 0 0 0 .4-1.4l-1-1.7a1 1 0 0 0-1.4-.4l-.7.4a7.5 7.5 0 0 0-4.5-2.6V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v.7a7.5 7.5 0 0 0-4.5 2.6l-.7-.4a1 1 0 0 0-1.4.4l-1 1.7a1 1 0 0 0 .4 1.4l.7.4a7.5 7.5 0 0 0 0 5.2l-.7.4a1 1 0 0 0-.4 1.4l1 1.7a1 1 0 0 0 1.4.4l.7-.4a7.5 7.5 0 0 0 4.5 2.6V21a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7a7.5 7.5 0 0 0 4.5-2.6l.7.4a1 1 0 0 0 1.4-.4l1-1.7a1 1 0 0 0-.4-1.4Z" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-          </button>
-          <Options />
-        </div>
+    <div class="header">
+      <div class="row items-center ga-sm">
+        <img src="/icons/logo.png" class="logo" />
       </div>
-      <div class="center">
-        <v-switch />
+      <Options />
+    </div>
+    <div class="center">
+      <v-switch />
+    </div>
+    <div class="main column ga-md">
+      <div class="column ga-sm">
+        <span class="subtitle">Select Server</span>
+        <v-select />
       </div>
-      <div class="main column ga-md">
-        <div class="column ga-sm">
-          <span class="subtitle">Select Server</span>
-          <v-select />
-        </div>
-        <div class="main-footer column ga-sm">
-          <div class="row ga-sm">
-            <span>💎</span>
-            <div class="column ga-sm">
-              <h3 class="primary-text">VPN Premium</h3>
-              <span class="description">Get unlimited data, more servers, and faster speeds.</span>
-            </div>
+      <div class="main-footer column ga-sm">
+        <div class="row ga-sm">
+          <span>💎</span>
+          <div class="column ga-sm">
+            <h3 class="primary-text">VPN Premium</h3>
+            <span class="description">Get unlimited data, more servers, and faster speeds.</span>
           </div>
-          <button class="btn update" @click="openLink">Upgrade to Premium</button>
         </div>
+        <button class="btn update" @click="openLink">Upgrade to Premium</button>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -50,14 +37,6 @@ export default {
     VSelect: defineAsyncComponent(() => import('../components/Select.vue')),
     VSwitch: defineAsyncComponent(() => import('../components/Switch.vue')),
     Options: defineAsyncComponent(() => import('../components/Options.vue')),
-    SettingsPage: defineAsyncComponent(() => import('./Settings.vue')),
-  },
-
-  data() {
-    return {
-      showSettings: false,
-      settings: useSettingsStore(),
-    };
   },
 
   methods: {
@@ -169,21 +148,4 @@ export default {
   padding: .4rem 0;
   border-radius: .4rem;
 }
-
-.btn-mesh {
-  font-size: 1rem;
-  padding: .2rem .4rem;
-  border-radius: .35rem;
-  background-color: #f1f5f9;
-  border: 1px solid rgba(0,0,0,0.08);
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-.btn-mesh:hover {
-  background-color: #e2e8f0;
-}
-
-.row { display: flex; flex-direction: row; }
-.items-center { align-items: center; }
-.ga-sm { gap: 0.4rem; }
 </style>

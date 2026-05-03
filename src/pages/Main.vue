@@ -3,16 +3,12 @@
     <!-- Settings overlay -->
     <SettingsPage v-if="showSettings" @close="showSettings = false" />
 
-    <!-- Mesh page overlay -->
-    <MeshPage v-else-if="showMesh" @close="showMesh = false" />
-
     <template v-else>
       <div class="header">
         <div class="row items-center ga-sm" style="flex:1; min-width:0">
           <img src="/icons/title.png" class="header-logo" />
         </div>
         <div class="row items-center ga-sm">
-          <button v-if="settings.meshEnabled" class="btn btn-mesh" @click="showMesh = true" title="Mesh Networks">🌐</button>
           <button class="btn btn-settings" @click="showSettings = true" title="Settings">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="m19.4 15-.7-.4a7.5 7.5 0 0 0 0-5.2l.7-.4a1 1 0 0 0 .4-1.4l-1-1.7a1 1 0 0 0-1.4-.4l-.7.4a7.5 7.5 0 0 0-4.5-2.6V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v.7a7.5 7.5 0 0 0-4.5 2.6l-.7-.4a1 1 0 0 0-1.4.4l-1 1.7a1 1 0 0 0 .4 1.4l.7.4a7.5 7.5 0 0 0 0 5.2l-.7.4a1 1 0 0 0-.4 1.4l1 1.7a1 1 0 0 0 1.4.4l.7-.4a7.5 7.5 0 0 0 4.5 2.6V21a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7a7.5 7.5 0 0 0 4.5-2.6l.7.4a1 1 0 0 0 1.4-.4l1-1.7a1 1 0 0 0-.4-1.4Z" stroke="currentColor" stroke-width="1.5"/>
@@ -54,23 +50,14 @@ export default {
     VSelect: defineAsyncComponent(() => import('../components/Select.vue')),
     VSwitch: defineAsyncComponent(() => import('../components/Switch.vue')),
     Options: defineAsyncComponent(() => import('../components/Options.vue')),
-    MeshPage: defineAsyncComponent(() => import('./Mesh.vue')),
     SettingsPage: defineAsyncComponent(() => import('./Settings.vue')),
   },
 
   data() {
     return {
-      showMesh: false,
       showSettings: false,
       settings: useSettingsStore(),
     };
-  },
-
-  watch: {
-    // When mesh gets disabled, close the mesh panel if open
-    'settings.meshEnabled'(val) {
-      if (!val) this.showMesh = false;
-    },
   },
 
   methods: {

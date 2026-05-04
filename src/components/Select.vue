@@ -92,6 +92,10 @@ function meshDisplayName(mesh) {
     return `Servidor Random ${countryFlag(code)} [${code}]`;
 }
 
+function meshPublicIp(mesh) {
+    return String(mesh?.public_ip || '').trim();
+}
+
 export default {
     data() {
         return {
@@ -123,12 +127,7 @@ export default {
             if (!this.settings.meshEnabled || !this.mesh.publicMeshList.length) return [];
             return this.mesh.publicMeshList.map((m) => {
                 const code = meshCountryCode(m);
-                const matchedServer = this.vpn.servers.find(
-                    (s) => String(s.country_code || '').toUpperCase() === code
-                );
-                const ip = matchedServer
-                    ? stripPort(matchedServer.endpoint)
-                    : (code || '');
+                const ip = meshPublicIp(m) || (code ? `Country ${code}` : '');
                 return {
                     id: 'mesh-' + m.id,
                     label: meshDisplayName(m),
@@ -209,6 +208,7 @@ export default {
                 this.vpn.setActive({
                     id: opt.id,
                     name: opt.label,
+                    public_ip: opt.ip,
                     _isMesh: true,
                     _meshId: opt._meshRef.id,
                 });

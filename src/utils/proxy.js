@@ -75,9 +75,20 @@ export const handleProxy = async (details) => {
             tokenErr = e;
         }
 
+        // If token is temporarily unavailable (e.g. mid-refresh), retry briefly
+        // rather than falling back to direct — a direct request leaks the real IP.
         if (!token) {
-            log.warn('proxy', 'No access token for', hostname, '— fallback direct', tokenErr?.message || '');
-            return { type: 'direct' };
+            for (let i = 0; i < 3 && !token; i++) {
+                await new Promise(r => setTimeout(r, 300));
+                try { token = await ensureValidAccessToken(); } catch { }
+            }
+        }
+
+        if (!token) {
+            // VPN is ON but token is unavailable — BLOCK instead of going direct.
+            // Returning a connection that will be refused prevents IP leaks (kill switch).
+            log.warn('proxy', 'No access token for', hostname, '— blocking to prevent IP leak', tokenErr?.message || '');
+            return { type: 'http', host: '127.0.0.1', port: 1 };
         }
 
         log.warn('proxy:dbg', 'token OK, routing', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
@@ -92,7 +103,8 @@ export const handleProxy = async (details) => {
         return proxyInfo;
     } catch (e) {
         log.error('proxy', 'handleProxy error:', e);
-        return { type: 'direct' };
+        // On unexpected errors, block rather than leak the real IP.
+        return { type: 'http', host: '127.0.0.1', port: 1 };
     }
 };
 

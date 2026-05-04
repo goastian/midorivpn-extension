@@ -337,7 +337,7 @@ export default {
     radial-gradient(circle at 90% 4%, rgba(73, 185, 255, 0.3), transparent 30%),
     linear-gradient(165deg, #f8fbf8 0%, #e9f4f7 52%, #edf7ef 100%);
   color: var(--mesh-ink);
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   box-sizing: border-box;
   overflow: hidden;
 }

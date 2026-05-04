@@ -82,7 +82,7 @@ export default {
   padding: .5rem;
   box-shadow: none;
   color: #202020;
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   position: relative;
   gap: .5rem;
   overflow: hidden;

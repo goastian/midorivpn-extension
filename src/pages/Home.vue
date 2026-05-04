@@ -58,7 +58,7 @@ export default {
     flex-direction: column;
     gap: 1rem;
     justify-content: space-between;
-    font-family: 'Inter', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .header {

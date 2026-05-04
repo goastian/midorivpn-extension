@@ -10,7 +10,7 @@ body,
   width: 330px;
   height: 460px;
   overflow: hidden;
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {

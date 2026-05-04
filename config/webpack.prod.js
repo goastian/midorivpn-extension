@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 
 config.mode = 'production';
+config.devtool = false;
 
 var packageInfo = JSON.parse(fs.readFileSync('package.json', 'utf-8'))
 

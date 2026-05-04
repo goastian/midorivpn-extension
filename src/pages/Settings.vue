@@ -57,7 +57,7 @@ export default {
   min-height: 460px;
   background-color: #F1F5F9;
   color: #202020;
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   box-sizing: border-box;
   overflow-y: auto;
 }

@@ -7,6 +7,11 @@
 import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions.js';
 
 (function () {
+    const parsedCloseDelay = Number.parseInt(process.env.PERMISSIONS_CLOSE_DELAY_SECONDS || '5', 10);
+    const closeDelaySeconds = Number.isFinite(parsedCloseDelay) && parsedCloseDelay > 0
+        ? parsedCloseDelay
+        : 5;
+
     // ── i18n ────────────────────────────────────────────────────────────────
     const STRINGS = {
         es: {
@@ -89,7 +94,7 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
         hideStatuses();
 
         const granted = await requestRequiredVpnPermissions();
-        const confirmed = granted && await hasRequiredVpnPermissions();
+        const confirmed = granted || await hasRequiredVpnPermissions();
         if (confirmed) {
             showSuccess();
         } else {
@@ -106,7 +111,7 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
         btnSkip.style.display = 'none';
         statusErr.classList.remove('visible');
 
-        let seconds = 5;
+        let seconds = closeDelaySeconds;
         const renderCountdown = () => {
             const t = STRINGS[currentLang];
             statusOkText.textContent = `${t.statusOk} ${t.statusClosing.replace('{seconds}', seconds)}`;

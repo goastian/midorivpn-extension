@@ -12,6 +12,7 @@ import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permiss
 globalThis.debugProxy = debugProxyState;
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
+const REQUIRE_ALL_URLS_PERMISSION = process.env.REQUIRE_ALL_URLS_PERMISSION !== 'false';
 // Throttle how often we force a token refresh in response to a 407 so a burst
 // of rejections does not hammer Authentik.
 const PROXY_REFRESH_MIN_INTERVAL_MS = 15 * 1000;
@@ -66,7 +67,7 @@ async function turnOffVpnForMissingPermissions() {
   }
 }
 
-async function ensureRequiredVpnPermissions({ openPage = true } = {}) {
+async function ensureRequiredVpnPermissions({ openPage = !REQUIRE_ALL_URLS_PERMISSION } = {}) {
   const granted = await hasRequiredVpnPermissions();
   if (granted) return true;
 
@@ -345,7 +346,9 @@ if (chrome.runtime?.onInstalled) {
     // explicitly grant <all_urls> host access (Firefox MV3 defaults to
     // "Only When Clicked" without this step).
     if (details.reason === 'install') {
-      openPermissionsPage().catch(() => { });
+      ensureRequiredVpnPermissions().catch((error) => {
+        log.warn('permissions', 'Failed to check required VPN permissions after install:', error?.message || error);
+      });
     } else {
       ensureRequiredVpnPermissions().catch((error) => {
         log.warn('permissions', 'Failed to check required VPN permissions after update:', error?.message || error);

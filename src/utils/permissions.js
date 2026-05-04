@@ -1,4 +1,8 @@
 const REQUIRED_VPN_PERMISSION = { origins: ['<all_urls>'] };
+const OPEN_DEBOUNCE_MS = 2000;
+
+let openPermissionsPagePromise = null;
+let lastOpenPermissionsPageAt = 0;
 
 const callbackResult = (fn) => new Promise((resolve) => {
     try {
@@ -11,7 +15,7 @@ const callbackResult = (fn) => new Promise((resolve) => {
 export const hasRequiredVpnPermissions = async () => {
     if (!chrome.permissions?.contains) return false;
 
-    return callbackResult((done) => {
+    const containsAllUrls = await callbackResult((done) => {
         chrome.permissions.contains(REQUIRED_VPN_PERMISSION, (granted) => {
             if (chrome.runtime?.lastError) {
                 done(false);
@@ -20,12 +24,20 @@ export const hasRequiredVpnPermissions = async () => {
             done(Boolean(granted));
         });
     });
+    if (containsAllUrls) return true;
+
+    if (!chrome.permissions?.getAll) return false;
+
+    const allPermissions = await callbackResult((done) => chrome.permissions.getAll(done));
+    return Array.isArray(allPermissions?.origins) && allPermissions.origins.includes('<all_urls>');
 };
 
 export const requestRequiredVpnPermissions = async () => {
-    if (await hasRequiredVpnPermissions()) return true;
     if (!chrome.permissions?.request) return false;
 
+    // Keep permissions.request as the first async browser permission call from
+    // click handlers. Firefox can reject the prompt if an awaited preflight
+    // consumes the user gesture before request() runs.
     return callbackResult((done) => {
         chrome.permissions.request(REQUIRED_VPN_PERMISSION, (granted) => {
             if (chrome.runtime?.lastError) {
@@ -38,21 +50,32 @@ export const requestRequiredVpnPermissions = async () => {
     });
 };
 
-export const openPermissionsPage = async () => {
+const focusTab = async (tab) => {
+    if (!tab) return false;
+    if (tab.id) {
+        await callbackResult((done) => chrome.tabs.update(tab.id, { active: true }, done));
+    }
+    if (tab.windowId && chrome.windows?.update) {
+        await callbackResult((done) => chrome.windows.update(tab.windowId, { focused: true }, done));
+    }
+    return true;
+};
+
+const findPermissionsPageTab = async (url) => {
+    const tabs = await callbackResult((done) => chrome.tabs.query({}, done));
+    if (!Array.isArray(tabs)) return null;
+    return tabs.find((tab) => tab.url === url || tab.pendingUrl === url) || null;
+};
+
+const doOpenPermissionsPage = async () => {
     if (!chrome.tabs?.create) return;
 
     const url = chrome.runtime.getURL('welcome.html');
 
     try {
-        const tabs = await callbackResult((done) => chrome.tabs.query({ url }, done));
-        if (Array.isArray(tabs) && tabs.length > 0) {
-            const tab = tabs[0];
-            if (tab.id) {
-                await callbackResult((done) => chrome.tabs.update(tab.id, { active: true }, done));
-            }
-            if (tab.windowId && chrome.windows?.update) {
-                await callbackResult((done) => chrome.windows.update(tab.windowId, { focused: true }, done));
-            }
+        const existing = await findPermissionsPageTab(url);
+        if (existing) {
+            await focusTab(existing);
             return;
         }
     } catch (_) {
@@ -60,6 +83,23 @@ export const openPermissionsPage = async () => {
     }
 
     await callbackResult((done) => chrome.tabs.create({ url, active: true }, done));
+};
+
+export const openPermissionsPage = async () => {
+    if (openPermissionsPagePromise) return openPermissionsPagePromise;
+
+    const now = Date.now();
+    if (now - lastOpenPermissionsPageAt < OPEN_DEBOUNCE_MS) {
+        return;
+    }
+
+    openPermissionsPagePromise = doOpenPermissionsPage()
+        .finally(() => {
+            lastOpenPermissionsPageAt = Date.now();
+            openPermissionsPagePromise = null;
+        });
+
+    return openPermissionsPagePromise;
 };
 
 export { REQUIRED_VPN_PERMISSION };

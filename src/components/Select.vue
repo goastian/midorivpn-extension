@@ -69,6 +69,31 @@ function stripPort(endpoint) {
     return endpoint.split(':')[0];
 }
 
+function isValidCountryCode(code) {
+    return /^[A-Z]{2}$/.test(code || '') && code !== 'XX';
+}
+
+function countryFlag(code) {
+    const normalized = String(code || '').toUpperCase();
+    if (!isValidCountryCode(normalized)) return '🏳️';
+    return normalized
+        .split('')
+        .map((char) => String.fromCodePoint(0x1F1E6 + char.charCodeAt(0) - 65))
+        .join('');
+}
+
+function meshCountryCode(mesh) {
+    if (mesh?.country_code) return String(mesh.country_code).toUpperCase();
+    const match = String(mesh?.name || '').match(/\[([A-Za-z]{2})\]/);
+    return match ? match[1].toUpperCase() : '';
+}
+
+function meshDisplayName(mesh) {
+    const code = meshCountryCode(mesh);
+    if (!isValidCountryCode(code)) return mesh?.name || 'Servidor Random';
+    return `Servidor Random ${countryFlag(code)} [${code}]`;
+}
+
 export default {
     data() {
         return {
@@ -99,7 +124,7 @@ export default {
             return (this.settings.meshEnabled && this.mesh.meshList.length)
                 ? this.mesh.meshList.map((m) => ({
                     id: 'mesh-' + m.id,
-                    label: m.name,
+                    label: meshDisplayName(m),
                     ip: subnetGateway(m.subnet),
                     _isMesh: true,
                     _meshRef: m,

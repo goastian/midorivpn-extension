@@ -321,7 +321,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // ── Mesh WebSocket ────────────────────────────────────────────────────────────
 // Keeps a persistent WS connection to /ws so the extension can receive real-time
-// mesh membership events (mesh.member_joined, mesh.member_left, mesh.deleted)
+// mesh directory and membership events.
 // without the popup needing to poll.
 
 let _meshSocket = null;
@@ -361,7 +361,8 @@ async function connectMeshWS() {
       if (
         msg.type === 'mesh.member_joined' ||
         msg.type === 'mesh.member_left' ||
-        msg.type === 'mesh.deleted'
+        msg.type === 'mesh.deleted' ||
+        msg.type === 'mesh.list_changed'
       ) {
         // Forward to any open extension page (popup / options).
         // Errors are normal when no receiver is open — suppress them.

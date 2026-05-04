@@ -4,6 +4,26 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#App {
+  width: 330px;
+  height: 460px;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background: #F1F5F9;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
 .row {
   display: flex;
 }

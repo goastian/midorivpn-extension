@@ -249,13 +249,15 @@ export interface MeshNetwork {
     id: string;
     name: string;
     description: string;
-    owner_id: string;
+    owner_id?: string;
     subnet: string;
     /** Only present for the owner of the network */
     invite_code?: string;
     max_members: number;
     is_active: boolean;
     member_count: number;
+    country_code?: string;
+    is_session?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -336,8 +338,8 @@ export const meshApi = {
             }
         ),
 
-    /** Create (or return existing) the user's session mesh named "Servidor random [XX]".
-     *  Call this on login; the backend detects the client IP and assigns country. */
+    /** Create (or return existing) the user's public session mesh named
+     *  "Servidor mesh random [CC]". Backend rejects unknown/private origins. */
     autoCreate: (): Promise<MeshNetwork> =>
         request<MeshNetwork>('/api/v1/control/mesh/auto', { method: 'POST' }),
 

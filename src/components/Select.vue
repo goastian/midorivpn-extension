@@ -18,23 +18,57 @@
         </button>
 
         <!-- Dropdown panel -->
-        <ul v-if="open" class="selector-list" role="listbox">
-            <li
-                v-for="opt in allOptions"
-                :key="opt.id"
-                class="selector-item"
-                :class="{ active: selectedId === opt.id }"
-                role="option"
-                :aria-selected="selectedId === opt.id"
-                @click="pick(opt)"
-            >
-                <span class="item-label">{{ opt.label }}</span>
-                <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
-            </li>
-            <li v-if="!allOptions.length" class="selector-item empty">
+        <div v-if="open" class="selector-menu" role="listbox">
+            <template v-if="allOptions.length">
+                <div v-if="serverOptions.length" class="selector-group">
+                    <div class="selector-group-label">VPN Servers</div>
+                    <button
+                        v-for="opt in serverOptions"
+                        :key="opt.id"
+                        type="button"
+                        class="selector-item"
+                        :class="{ active: selectedId === opt.id }"
+                        role="option"
+                        :aria-selected="selectedId === opt.id"
+                        @click="pick(opt)"
+                    >
+                        <span class="item-main">
+                            <span class="item-label">{{ opt.label }}</span>
+                            <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
+                        </span>
+                        <svg v-if="selectedId === opt.id" class="item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div v-if="meshOptions.length" class="selector-group">
+                    <div class="selector-group-label">Mesh Networks</div>
+                    <button
+                        v-for="opt in meshOptions"
+                        :key="opt.id"
+                        type="button"
+                        class="selector-item"
+                        :class="{ active: selectedId === opt.id }"
+                        role="option"
+                        :aria-selected="selectedId === opt.id"
+                        @click="pick(opt)"
+                    >
+                        <span class="item-main">
+                            <span class="item-label">{{ opt.label }}</span>
+                            <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
+                        </span>
+                        <svg v-if="selectedId === opt.id" class="item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </template>
+
+            <div v-else class="selector-empty">
                 No servers available
-            </li>
-        </ul>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -76,16 +110,18 @@ export default {
             return this.vpn.active?.id ?? '';
         },
 
-        allOptions() {
-            const serverOpts = this.vpn.servers.map(s => ({
+        serverOptions() {
+            return this.vpn.servers.map(s => ({
                 id: s.id,
                 label: s.name || s.country_code,
                 ip: stripPort(s.endpoint),
                 _isMesh: false,
                 _ref: s,
             }));
+        },
 
-            const meshOpts = (this.settings.meshEnabled && this.mesh.meshList.length)
+        meshOptions() {
+            return (this.settings.meshEnabled && this.mesh.meshList.length)
                 ? this.mesh.meshList.filter(m => !m.is_session).map((m) => ({
                     id: 'mesh-' + m.id,
                     label: m.name,
@@ -94,8 +130,10 @@ export default {
                     _meshRef: m,
                 }))
                 : [];
+        },
 
-            return [...serverOpts, ...meshOpts];
+        allOptions() {
+            return [...this.serverOptions, ...this.meshOptions];
         },
 
         selected() {
@@ -170,24 +208,32 @@ export default {
 .selector {
     position: relative;
     width: 100%;
+    z-index: 90;
 }
 
 .selector-btn {
     display: flex;
     align-items: center;
     width: 100%;
-    padding: .45rem .75rem;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: .4rem;
+    min-height: 48px;
+    padding: .42rem .65rem;
+    border: 1px solid #dbe4ef;
+    border-radius: .5rem;
     background-color: white;
     cursor: pointer;
     gap: .5rem;
     text-align: left;
-    transition: border-color .15s;
+    transition: border-color .15s, box-shadow .15s;
 }
 
 .selector-btn:hover {
     border-color: #49B9FF;
+}
+
+.selector-btn:focus-visible {
+    outline: none;
+    border-color: #49B9FF;
+    box-shadow: 0 0 0 3px rgba(73, 185, 255, .16);
 }
 
 .selector-info {
@@ -211,6 +257,9 @@ export default {
     font-size: .68rem;
     color: #94a3b8;
     font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .chevron {
@@ -223,21 +272,35 @@ export default {
     transform: rotate(180deg);
 }
 
-.selector-list {
+.selector-menu {
     position: absolute;
     top: calc(100% + .3rem);
     left: 0;
     right: 0;
     background: white;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: .4rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
-    padding: .25rem 0;
-    list-style: none;
+    border: 1px solid #dbe4ef;
+    border-radius: .55rem;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, .16);
+    padding: .35rem;
     margin: 0;
-    max-height: 160px;
+    max-height: 128px;
     overflow-y: auto;
-    z-index: 50;
+    z-index: 150;
+}
+
+.selector-group + .selector-group {
+    margin-top: .35rem;
+    padding-top: .35rem;
+    border-top: 1px solid #eef2f7;
+}
+
+.selector-group-label {
+    padding: .2rem .45rem .3rem;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #94a3b8;
 }
 
 .selector-item {
@@ -245,9 +308,14 @@ export default {
     align-items: center;
     justify-content: space-between;
     gap: .5rem;
-    padding: .45rem .75rem;
+    width: 100%;
+    border: 0;
+    border-radius: .4rem;
+    background: transparent;
+    padding: .45rem .5rem;
     cursor: pointer;
     transition: background-color .1s;
+    text-align: left;
 }
 
 .selector-item:hover {
@@ -258,17 +326,25 @@ export default {
     background-color: #eff6ff;
 }
 
-.selector-item.empty {
+.selector-empty {
     color: #94a3b8;
     font-size: .8rem;
     cursor: default;
-    justify-content: center;
+    text-align: center;
+    padding: .7rem .5rem;
+}
+
+.item-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: .08rem;
+    flex: 1;
 }
 
 .item-label {
     font-size: .875rem;
     color: #1e293b;
-    flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -283,10 +359,17 @@ export default {
     font-size: .68rem;
     color: #94a3b8;
     font-family: monospace;
-    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .selector-item.active .item-ip {
     color: #93c5fd;
+}
+
+.item-check {
+    color: #2563eb;
+    flex: 0 0 auto;
 }
 </style>

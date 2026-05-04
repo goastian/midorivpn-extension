@@ -20,7 +20,7 @@
         <v-switch />
       </div>
       <div class="main column ga-md">
-        <div class="column ga-sm">
+        <div class="server-picker column ga-sm">
           <span class="subtitle">Select Server</span>
           <v-select />
         </div>
@@ -79,11 +79,13 @@ export default {
   background-color: #F1F5F9;
   background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px);
   background-size: 20px 20px;
-  padding: .4rem;
+  padding: .5rem;
   box-shadow: none;
   color: #202020;
   font-family: 'Inter', sans-serif;
   position: relative;
+  gap: .5rem;
+  overflow: hidden;
 }
 
 .header {
@@ -94,6 +96,7 @@ export default {
   padding: .4rem .8rem;
   border-radius: .4rem;
   height: 48px;
+  flex: 0 0 48px;
   /* position + z-index ensure the Options dropdown renders above .center and .main */
   position: relative;
   z-index: 100;
@@ -110,8 +113,9 @@ export default {
 
 .center {
   width: 100%;
-  height: 30%;
+  flex: 0 0 128px;
   position: relative;
+  z-index: 2;
 }
 
 .btn {
@@ -143,35 +147,52 @@ export default {
 
 .main {
   background-color: white;
-  height: 60%;
+  flex: 1;
+  min-height: 0;
   border-radius: .87rem;
-  padding: 1rem;
-  padding-top: 60px;
+  padding: 48px .85rem .75rem;
+  position: relative;
+  z-index: 1;
 }
 
 .subtitle {
-  font-size: .9rem;
+  font-size: .72rem;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.server-picker {
+  position: relative;
+  z-index: 80;
 }
 
 .main-footer {
   box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 5px 0px, rgba(0, 0, 0, 0.1) 0px 0px 1px 0px;
-  padding: 1rem;
+  padding: .75rem;
   border-radius: .5rem;
+  min-height: 0;
 }
 
 .primary-text {
   font-size: .9rem;
+  line-height: 1.2;
 }
 
 .description {
-  font-size: .8rem;
+  font-size: .74rem;
+  line-height: 1.35;
+  color: #64748b;
 }
 
 .btn.update {
   background-color: #49B9FF;
   color: white;
-  padding: .4rem 0;
+  padding: .42rem 0;
   border-radius: .4rem;
+  font-size: .82rem;
+  font-weight: 600;
 }
 
 .icon-gem {

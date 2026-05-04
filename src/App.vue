@@ -1,9 +1,7 @@
 <template>
   <div class="containerApp">
     <Home v-if="!isLoggedIn" />
-    <div v-else>
-      <Main />
-    </div>
+    <Main v-else />
     <Notification
       @close="removeNotification"
     />
@@ -68,5 +66,8 @@ export default {
 <style scoped>
 .containerApp {
   position: relative;
+  width: 330px;
+  height: 460px;
+  overflow: hidden;
 }
 </style>

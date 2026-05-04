@@ -105,7 +105,7 @@ export default {
 <style scoped>
 .container-control {
     position: absolute;
-    bottom: -60px;
+    bottom: -44px;
     left: 0;
     right: 0;
     margin: auto;
@@ -115,11 +115,11 @@ export default {
 }
 
 .control {
-    width: 140px;
-    height: 140px;
+    width: 128px;
+    height: 128px;
     border-radius: 50%;
     background-color: #F1F5F9;
-    padding: 1rem;
+    padding: .85rem;
 }
 
 .btn-control {
@@ -147,14 +147,14 @@ export default {
     /* explicit centering — avoids relying on flex static-position */
     left: 50%;
     transform: translateX(-50%);
-    top: -28px;
+    top: -24px;
     white-space: nowrap;
     background-color: #FFE6E6;
     color: #E67B7B;
     border: 1px solid #E67B7B;
     border-radius: 1rem;
-    padding: .28rem 1rem;
-    font-size: .78rem;
+    padding: .24rem .9rem;
+    font-size: .75rem;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -174,7 +174,7 @@ export default {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: -52px;
+    top: -47px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;

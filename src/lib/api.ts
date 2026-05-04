@@ -341,7 +341,7 @@ export const meshApi = {
         ),
 
     /** Create (or return existing) the user's public session mesh named
-     *  "Servidor Random 🇩🇴 [CC]". Backend rejects unknown/private origins. */
+     *  "Servidor Comunitario 🇩🇴 [CC]". Backend rejects unknown/private origins. */
     autoCreate: (): Promise<MeshNetwork> =>
         request<MeshNetwork>('/api/v1/control/mesh/auto', { method: 'POST' }),
 

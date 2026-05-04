@@ -88,8 +88,8 @@ function meshCountryCode(mesh) {
 
 function meshDisplayName(mesh) {
     const code = meshCountryCode(mesh);
-    if (!isValidCountryCode(code)) return mesh?.name || 'Servidor Random';
-    return `Servidor Random ${countryFlag(code)} [${code}]`;
+    if (!isValidCountryCode(code)) return mesh?.name || 'Servidor Comunitario';
+    return `Servidor Comunitario ${countryFlag(code)} [${code}]`;
 }
 
 function meshPublicIp(mesh) {

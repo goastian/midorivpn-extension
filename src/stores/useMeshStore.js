@@ -218,7 +218,7 @@ const useMeshStore = defineStore('mesh', {
         },
 
         /** Create (or return existing) session mesh for this user.
-         *  The backend names it "Servidor Random 🇩🇴 [CC]" based on public IP. */
+         *  The backend names it "Servidor Comunitario 🇩🇴 [CC]" based on public IP. */
         async autoCreateMesh() {
             try {
                 const mesh = await sendBackgroundMessage({ type: 'autoCreateMesh' });

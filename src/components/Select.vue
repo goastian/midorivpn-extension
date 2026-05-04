@@ -20,49 +20,24 @@
         <!-- Dropdown panel -->
         <div v-if="open" class="selector-menu" role="listbox">
             <template v-if="allOptions.length">
-                <div v-if="serverOptions.length" class="selector-group">
-                    <div class="selector-group-label">VPN Servers</div>
-                    <button
-                        v-for="opt in serverOptions"
-                        :key="opt.id"
-                        type="button"
-                        class="selector-item"
-                        :class="{ active: selectedId === opt.id }"
-                        role="option"
-                        :aria-selected="selectedId === opt.id"
-                        @click="pick(opt)"
-                    >
-                        <span class="item-main">
-                            <span class="item-label">{{ opt.label }}</span>
-                            <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
-                        </span>
-                        <svg v-if="selectedId === opt.id" class="item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <div v-if="meshOptions.length" class="selector-group">
-                    <div class="selector-group-label">Mesh Networks</div>
-                    <button
-                        v-for="opt in meshOptions"
-                        :key="opt.id"
-                        type="button"
-                        class="selector-item"
-                        :class="{ active: selectedId === opt.id }"
-                        role="option"
-                        :aria-selected="selectedId === opt.id"
-                        @click="pick(opt)"
-                    >
-                        <span class="item-main">
-                            <span class="item-label">{{ opt.label }}</span>
-                            <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
-                        </span>
-                        <svg v-if="selectedId === opt.id" class="item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                </div>
+                <button
+                    v-for="opt in allOptions"
+                    :key="opt.id"
+                    type="button"
+                    class="selector-item"
+                    :class="{ active: selectedId === opt.id }"
+                    role="option"
+                    :aria-selected="selectedId === opt.id"
+                    @click="pick(opt)"
+                >
+                    <span class="item-main">
+                        <span class="item-label">{{ opt.label }}</span>
+                        <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
+                    </span>
+                    <svg v-if="selectedId === opt.id" class="item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
             </template>
 
             <div v-else class="selector-empty">
@@ -122,7 +97,7 @@ export default {
 
         meshOptions() {
             return (this.settings.meshEnabled && this.mesh.meshList.length)
-                ? this.mesh.meshList.filter(m => !m.is_session).map((m) => ({
+                ? this.mesh.meshList.map((m) => ({
                     id: 'mesh-' + m.id,
                     label: m.name,
                     ip: subnetGateway(m.subnet),
@@ -286,21 +261,6 @@ export default {
     max-height: 128px;
     overflow-y: auto;
     z-index: 150;
-}
-
-.selector-group + .selector-group {
-    margin-top: .35rem;
-    padding-top: .35rem;
-    border-top: 1px solid #eef2f7;
-}
-
-.selector-group-label {
-    padding: .2rem .45rem .3rem;
-    font-size: .62rem;
-    font-weight: 700;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: #94a3b8;
 }
 
 .selector-item {

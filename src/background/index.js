@@ -112,7 +112,8 @@ const handlers = {
   joinMesh: async (msg) => {
     const code = (msg.inviteCode ?? '').trim();
     if (!code) throw new Error('Invite code is required');
-    if (!/^[0-9a-fA-F]{32}$/.test(code)) throw new Error('Invite code must be a 32-character hex string');
+    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(code))
+      throw new Error('Invite code must be a valid UUID');
     return meshApi.join(code);
   },
   leaveMesh: async (msg) => {

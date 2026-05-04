@@ -29,14 +29,14 @@
 
       <!-- Mesh list -->
       <div v-if="mesh.loading && !mesh.meshList.length" class="loading-text">Loading…</div>
-      <div v-else-if="!mesh.meshList.length" class="empty-card column ga-sm items-center">
+      <div v-if="!visibleMeshList.length && !mesh.loading" class="empty-card column ga-sm items-center">
         <span class="empty-icon">🌐</span>
         <span class="empty-text">No mesh networks yet.</span>
         <span class="hint-text">Create one or join with an invite code.</span>
       </div>
       <div v-else class="mesh-list column ga-xs">
         <div
-          v-for="m in mesh.meshList"
+          v-for="m in visibleMeshList"
           :key="m.id"
           class="mesh-row row items-center ga-sm"
           @click="openDetail(m)"
@@ -46,7 +46,7 @@
             <span class="mesh-name">{{ m.name }}</span>
             <span class="mesh-sub">{{ m.subnet }} · {{ m.member_count }}/{{ m.max_members }} members</span>
           </div>
-          <span class="owner-badge" v-if="m.is_owner">owner</span>
+          <span class="owner-badge" v-if="m.invite_code">owner</span>
           <span class="chevron">›</span>
         </div>
       </div>
@@ -120,8 +120,8 @@
           </div>
         </div>
 
-        <!-- Invite code (only shown to owner) -->
-        <div v-if="currentMesh.is_owner" class="invite-box column ga-xs">
+        <!-- Invite code (only shown to owner — backend omits invite_code for non-owners) -->
+        <div v-if="currentMesh.invite_code" class="invite-box column ga-xs">
           <div class="row items-center ga-sm">
             <span class="label">Invite Code</span>
             <button class="btn-text" :disabled="mesh.loading" @click="refreshInvite">↻ New</button>
@@ -147,7 +147,7 @@
 
         <!-- Leave / Delete -->
         <button class="btn-danger" :disabled="mesh.loading" @click="confirmLeave">
-          {{ currentMesh.is_owner ? 'Delete Mesh' : 'Leave Mesh' }}
+          {{ currentMesh.invite_code ? 'Delete Mesh' : 'Leave Mesh' }}
         </button>
       </div>
     </template>
@@ -211,6 +211,13 @@ export default {
       joinCode: '',
       copied: null,
     };
+  },
+
+  computed: {
+    /** Hide auto-managed session meshes from the user-facing list. */
+    visibleMeshList() {
+      return this.mesh.meshList.filter(m => !m.is_session);
+    },
   },
 
   async created() {
@@ -289,7 +296,7 @@ export default {
 
     async confirmLeave() {
       if (!this.currentMesh) return;
-      const label = this.currentMesh.is_owner ? 'delete' : 'leave';
+      const label = this.currentMesh.invite_code ? 'delete' : 'leave';
       if (!confirm(`Are you sure you want to ${label} "${this.currentMesh.name}"?`)) return;
       try {
         await this.mesh.leaveMesh(this.currentMesh.id);
@@ -327,7 +334,6 @@ export default {
   color: #202020;
   font-family: 'Inter', sans-serif;
   box-sizing: border-box;
-  overflow-y: auto;
 }
 
 .mesh-header {

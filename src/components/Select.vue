@@ -86,7 +86,7 @@ export default {
             }));
 
             const meshOpts = (this.settings.meshEnabled && this.mesh.meshList.length)
-                ? this.mesh.meshList.map((m) => ({
+                ? this.mesh.meshList.filter(m => !m.is_session).map((m) => ({
                     id: 'mesh-' + m.id,
                     label: m.name,
                     ip: subnetGateway(m.subnet),

@@ -21,7 +21,7 @@ import useMeshStore from '../stores/useMeshStore';
 import useSettingsStore from '../stores/useSettingsStore';
 import { enableBadge, disableBadge } from '../utils/badge';
 import { disableProxy, enableProxy } from '../utils/proxy';
-import { openPermissionsPage, requestRequiredVpnPermissions } from '../utils/permissions';
+import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permissions';
 export default {
     data() {
         return {
@@ -59,10 +59,10 @@ export default {
         async enableproxy() {
             this.permissionError = '';
             if(!this.storage.state) {
-                const hasPermissions = await requestRequiredVpnPermissions();
+                const hasPermissions = await hasRequiredVpnPermissions();
                 if (!hasPermissions) {
-                    this.permissionError = 'Grant website access to use the VPN.';
                     await openPermissionsPage();
+                    window.close();
                     return;
                 }
                 const result = await enableProxy();

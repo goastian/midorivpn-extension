@@ -227,7 +227,7 @@ export default {
   computed: {
     /** Public mesh directory. Backend already filters invalid/legacy meshes. */
     visibleMeshList() {
-      return this.mesh.meshList;
+      return this.mesh.publicMeshList;
     },
 
     totalMembers() {

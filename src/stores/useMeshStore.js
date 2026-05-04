@@ -25,6 +25,8 @@ const useMeshStore = defineStore('mesh', {
         myMeshIp: null,
         /** ID of the underlying mesh network */
         meshId: null,
+        /** Session mesh created for this user; hidden from this user's public directory */
+        ownSessionMeshId: null,
         /** Other peers visible in the mesh */
         peers: [],
         /** All mesh networks the user owns or has joined */
@@ -35,12 +37,30 @@ const useMeshStore = defineStore('mesh', {
         error: null,
     }),
 
+    getters: {
+        publicMeshList(state) {
+            const ownId = state.ownSessionMeshId || state.meshId;
+            if (!ownId) return state.meshList;
+            return state.meshList.filter((mesh) => mesh.id !== ownId);
+        },
+    },
+
     actions: {
         _applyStatus(status) {
             this.nodeActive = !!status?.active;
             this.myMeshIp = status?.mesh_ip ?? null;
             this.meshId = status?.mesh_id ?? null;
+            if (status?.mesh_id) {
+                this.ownSessionMeshId = status.mesh_id;
+                this.meshList = this.meshList.filter((mesh) => mesh.id !== status.mesh_id);
+            }
             this.peers = status?.peers ?? [];
+        },
+
+        _setMeshList(meshes) {
+            const list = Array.isArray(meshes) ? meshes : [];
+            const ownId = this.ownSessionMeshId || this.meshId;
+            this.meshList = ownId ? list.filter((mesh) => mesh.id !== ownId) : list;
         },
 
         async loadNodeStatus() {
@@ -91,8 +111,9 @@ const useMeshStore = defineStore('mesh', {
             this.loading = true;
             this.error = null;
             try {
-                this.meshList = await sendBackgroundMessage({ type: 'listMeshes' })
+                const meshes = await sendBackgroundMessage({ type: 'listMeshes' })
                     .catch(() => meshApi.list());
+                this._setMeshList(meshes);
             } catch (err) {
                 this.error = err.message || 'Failed to load mesh list';
             } finally {
@@ -197,10 +218,9 @@ const useMeshStore = defineStore('mesh', {
         async autoCreateMesh() {
             try {
                 const mesh = await sendBackgroundMessage({ type: 'autoCreateMesh' });
-                // Refresh the list so Select.vue sees the new entry.
-                if (!this.meshList.find(m => m.id === mesh.id)) {
-                    this.meshList = [mesh, ...this.meshList];
-                }
+                this.ownSessionMeshId = mesh?.id ?? this.ownSessionMeshId;
+                this.meshId = mesh?.id ?? this.meshId;
+                this.meshList = this.meshList.filter(m => m.id !== mesh?.id);
                 return mesh;
             } catch (err) {
                 // Non-fatal: log and continue — VPN still works without mesh.

@@ -120,8 +120,8 @@ export default {
         },
 
         meshOptions() {
-            if (!this.settings.meshEnabled || !this.mesh.meshList.length) return [];
-            return this.mesh.meshList.map((m) => {
+            if (!this.settings.meshEnabled || !this.mesh.publicMeshList.length) return [];
+            return this.mesh.publicMeshList.map((m) => {
                 const code = meshCountryCode(m);
                 const matchedServer = this.vpn.servers.find(
                     (s) => String(s.country_code || '').toUpperCase() === code

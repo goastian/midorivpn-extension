@@ -1,5 +1,6 @@
 import { ensureValidAccessToken } from '../lib/api';
 import log from './logger.js';
+import { hasRequiredVpnPermissions } from './permissions.js';
 
 const API_URL = process.env.API_URL || '';
 const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
@@ -15,6 +16,8 @@ const bypassDomains = [
 const getLocalStorage = (keys) => new Promise((resolve) => {
     chrome.storage.local.get(keys, (storage) => resolve(storage || {}));
 });
+
+const blockProxyRequest = () => ({ type: 'http', host: '127.0.0.1', port: 1 });
 
 const resolveProxyServer = (activeServer) => {
     if (!activeServer) return null;
@@ -50,13 +53,19 @@ export const handleProxy = async (details) => {
             return { type: 'direct' };
         }
 
+        const hasVpnPermission = await hasRequiredVpnPermissions();
+        if (!hasVpnPermission) {
+            log.warn('proxy', 'Missing <all_urls> permission for', hostname, '— blocking to prevent IP leak');
+            return blockProxyRequest();
+        }
+
         log.warn('proxy:dbg', 'state=ON host=', hostname,
             '| server.active=', JSON.stringify(storage.server?.active));
 
         const proxyServer = resolveProxyServer(storage.server?.active);
         if (!proxyServer) {
             log.warn('proxy', 'No proxy server resolved from storage:', storage.server?.active);
-            return { type: 'direct' };
+            return blockProxyRequest();
         }
 
         log.warn('proxy:dbg', `resolved → ${proxyServer.host}:${proxyServer.port}`);
@@ -88,7 +97,7 @@ export const handleProxy = async (details) => {
             // VPN is ON but token is unavailable — BLOCK instead of going direct.
             // Returning a connection that will be refused prevents IP leaks (kill switch).
             log.warn('proxy', 'No access token for', hostname, '— blocking to prevent IP leak', tokenErr?.message || '');
-            return { type: 'http', host: '127.0.0.1', port: 1 };
+            return blockProxyRequest();
         }
 
         log.warn('proxy:dbg', 'token OK, routing', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
@@ -119,13 +128,14 @@ export const debugProxyState = async () => {
         serverActive: active ?? null,
         resolvedProxy: proxyServer ?? null,
         hasAccessToken: !!(storage.access_token),
+        hasAllUrlsPermission: await hasRequiredVpnPermissions(),
         connection: storage.connection ?? null,
     };
     console.warn('[MidoriVPN] proxy:debug', JSON.stringify(report, null, 2));
     return report;
 };
 
-// Firefox: proxy.onRequest handles routing. enableProxy/disableProxy
-// only toggle the store state — the actual proxy decision is in handleProxy.
-export const enableProxy = async () => true;
+// Firefox: proxy.onRequest handles routing. enableProxy/disableProxy only gate
+// whether UI state may change; the actual proxy decision is in handleProxy.
+export const enableProxy = async () => hasRequiredVpnPermissions();
 export const disableProxy = async () => true;

@@ -4,6 +4,8 @@
 // instead of the per-site "Only When Clicked" default.
 // Supports ES / EN via the language switcher buttons.
 
+import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions.js';
+
 (function () {
     // ── i18n ────────────────────────────────────────────────────────────────
     const STRINGS = {
@@ -14,8 +16,8 @@
             perm1: '<b>Leer y modificar datos en todos los sitios</b> — necesario para enrutar el tráfico a través del servidor VPN.',
             perm2: '<b>Gestionar proxy y solicitudes de red</b> — para conectarte al servidor VPN de forma segura.',
             perm3: '<b>Almacenamiento local</b> — para guardar tu sesión y configuración.',
-            btnGrant: 'Conceder permisos y activar VPN',
-            btnSkip: 'Omitir por ahora',
+            btnGrant: 'Conceder permisos requeridos',
+            btnSkip: 'Cerrar',
             statusOk: '¡Permisos concedidos! Ya puedes usar MidoriVPN.',
             statusErr: 'Permisos denegados. La VPN no funcionará correctamente.',
         },
@@ -26,8 +28,8 @@
             perm1: '<b>Read and change data on all websites</b> — needed to route traffic through the VPN server.',
             perm2: '<b>Manage proxy and network requests</b> — to connect securely to the VPN server.',
             perm3: '<b>Local storage</b> — to save your session and settings.',
-            btnGrant: 'Grant permissions & enable VPN',
-            btnSkip: 'Skip for now',
+            btnGrant: 'Grant required permissions',
+            btnSkip: 'Close',
             statusOk: 'Permissions granted! You can now use MidoriVPN.',
             statusErr: 'Permissions denied. The VPN will not work correctly.',
         },
@@ -73,31 +75,24 @@
     const statusErr = document.getElementById('status-err');
 
     // Check if permission is already granted
-    chrome.permissions.contains(
-        { origins: ['<all_urls>'] },
-        (already) => { if (already) showSuccess(); }
-    );
+    hasRequiredVpnPermissions().then((already) => {
+        if (already) showSuccess();
+    });
 
-    btnGrant.addEventListener('click', () => {
+    btnGrant.addEventListener('click', async () => {
         btnGrant.disabled = true;
         statusOk.style.display = 'none';
         statusErr.style.display = 'none';
 
-        chrome.permissions.request(
-            { origins: ['<all_urls>'] },
-            (granted) => {
-                if (chrome.runtime.lastError) {
-                    console.error('Permission request error:', chrome.runtime.lastError.message);
-                }
-                if (granted) {
-                    showSuccess();
-                } else {
-                    btnGrant.disabled = false;
-                    statusErr.style.display = 'flex';
-                    statusOk.style.display = 'none';
-                }
-            }
-        );
+        const granted = await requestRequiredVpnPermissions();
+        const confirmed = granted && await hasRequiredVpnPermissions();
+        if (confirmed) {
+            showSuccess();
+        } else {
+            btnGrant.disabled = false;
+            statusErr.style.display = 'flex';
+            statusOk.style.display = 'none';
+        }
     });
 
     btnSkip.addEventListener('click', () => window.close());

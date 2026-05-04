@@ -5,6 +5,7 @@ import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
 import log from '../utils/logger.js';
+import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permissions.js';
 
 // Expose debug helper on globalThis so it can be called from the background
 // inspector console: await debugProxy()
@@ -42,6 +43,38 @@ async function markSessionExpired() {
   } catch (_) {
     // ignore
   }
+}
+
+async function turnOffVpnForMissingPermissions() {
+  try {
+    const { store } = await new Promise((resolve) =>
+      chrome.storage.local.get(['store'], resolve)
+    );
+    if (store?.state) {
+      await chrome.storage.local.set({ store: { ...store, state: false } });
+    }
+  } catch (_) {
+    // ignore
+  }
+  try {
+    if (chrome.action?.setBadgeText) {
+      chrome.action.setBadgeText({ text: '!' });
+      chrome.action.setBadgeBackgroundColor({ color: '#E67B7B' });
+    }
+  } catch (_) {
+    // ignore
+  }
+}
+
+async function ensureRequiredVpnPermissions({ openPage = true } = {}) {
+  const granted = await hasRequiredVpnPermissions();
+  if (granted) return true;
+
+  await turnOffVpnForMissingPermissions();
+  if (openPage) {
+    await openPermissionsPage();
+  }
+  return false;
 }
 
 async function clearRefreshAlarm() {
@@ -191,6 +224,9 @@ const handlers = {
 badge();
 
 log.info('boot', 'background loaded, initializing token session');
+ensureRequiredVpnPermissions().catch((error) => {
+  log.warn('permissions', 'Failed to check required VPN permissions on boot:', error?.message || error);
+});
 syncTokenSession().then((token) => {
   connectMeshWS().catch(() => { });
   if (token) {
@@ -287,6 +323,9 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
 if (chrome.runtime?.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
+    ensureRequiredVpnPermissions().catch((error) => {
+      log.warn('permissions', 'Failed to check required VPN permissions on startup:', error?.message || error);
+    });
     syncTokenSession().then((token) => {
       connectMeshWS().catch(() => { });
       if (token) {
@@ -306,11 +345,27 @@ if (chrome.runtime?.onInstalled) {
     // explicitly grant <all_urls> host access (Firefox MV3 defaults to
     // "Only When Clicked" without this step).
     if (details.reason === 'install') {
-      chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+      openPermissionsPage().catch(() => { });
+    } else {
+      ensureRequiredVpnPermissions().catch((error) => {
+        log.warn('permissions', 'Failed to check required VPN permissions after update:', error?.message || error);
+      });
     }
     syncTokenSession().catch((error) => {
       log.error('boot', 'Failed to sync token session after install/update:', error);
     });
+  });
+}
+
+if (chrome.permissions?.onRemoved) {
+  chrome.permissions.onRemoved.addListener((removed) => {
+    if (!removed?.origins?.includes('<all_urls>')) return;
+    log.warn('permissions', '<all_urls> permission removed; turning VPN off');
+    turnOffVpnForMissingPermissions()
+      .then(() => openPermissionsPage())
+      .catch((error) => {
+        log.warn('permissions', 'Failed to handle removed VPN permission:', error?.message || error);
+      });
   });
 }
 

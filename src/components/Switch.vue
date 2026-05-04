@@ -11,6 +11,7 @@
                 </svg>
             </button>
         </div>
+        <p v-if="permissionError" class="permission-error">{{ permissionError }}</p>
     </div>
 </template>
 
@@ -20,12 +21,14 @@ import useMeshStore from '../stores/useMeshStore';
 import useSettingsStore from '../stores/useSettingsStore';
 import { enableBadge, disableBadge } from '../utils/badge';
 import { disableProxy, enableProxy } from '../utils/proxy';
+import { openPermissionsPage, requestRequiredVpnPermissions } from '../utils/permissions';
 export default {
     data() {
         return {
             storage: useStore(),
             mesh: useMeshStore(),
             settingsStore: useSettingsStore(),
+            permissionError: '',
         }
     },
 
@@ -54,7 +57,14 @@ export default {
 
     methods: {
         async enableproxy() {
+            this.permissionError = '';
             if(!this.storage.state) {
+                const hasPermissions = await requestRequiredVpnPermissions();
+                if (!hasPermissions) {
+                    this.permissionError = 'Grant website access to use the VPN.';
+                    await openPermissionsPage();
+                    return;
+                }
                 const result = await enableProxy();
                 if(result) {
                     await this.storage.changeState();
@@ -63,7 +73,7 @@ export default {
             } else {
                 const result = await disableProxy();
                 if(result)  {
-                    this.storage.changeState();
+                    await this.storage.changeState();
                     disableBadge();
                 }
             }
@@ -134,5 +144,17 @@ export default {
     color: #4AC176;
     border-color: #4AC176;
     background-color: #CBFFDE;
+}
+
+.permission-error {
+    position: absolute;
+    top: 138px;
+    width: min(220px, 90vw);
+    margin: 0;
+    color: #E67B7B;
+    font-size: .72rem;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
 }
 </style>

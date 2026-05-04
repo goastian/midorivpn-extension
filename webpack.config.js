@@ -9,10 +9,31 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const { app_env, browser } = require('./config/config.js');
 
+const requireAllUrlsPermission = process.env.REQUIRE_ALL_URLS_PERMISSION !== 'false';
+
 function manifestMerge(fileMain, fileBrowser) {
   const main = JSON.parse(fs.readFileSync(fileMain, 'utf8'));
-  const browser = JSON.parse(fs.readFileSync(fileBrowser, 'utf8'));
-  return JSON.stringify(merge(main, browser));
+  const browserManifest = JSON.parse(fs.readFileSync(fileBrowser, 'utf8'));
+  const manifest = merge(main, browserManifest);
+
+  if (requireAllUrlsPermission) {
+    manifest.host_permissions = Array.from(new Set([
+      ...(manifest.host_permissions || []),
+      '<all_urls>',
+    ]));
+    delete manifest.optional_host_permissions;
+  } else {
+    manifest.optional_host_permissions = Array.from(new Set([
+      ...(manifest.optional_host_permissions || []),
+      '<all_urls>',
+    ]));
+    manifest.host_permissions = (manifest.host_permissions || []).filter((origin) => origin !== '<all_urls>');
+    if (manifest.host_permissions.length === 0) {
+      delete manifest.host_permissions;
+    }
+  }
+
+  return JSON.stringify(manifest, null, 2);
 }
 
 const config = {

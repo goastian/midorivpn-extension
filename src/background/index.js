@@ -1,10 +1,14 @@
 import badge from '../utils/badge.js';
-import { handleProxy } from '../utils/proxy';
+import { handleProxy, debugProxyState } from '../utils/proxy';
 import { api, meshApi, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
 import log from '../utils/logger.js';
+
+// Expose debug helper on globalThis so it can be called from the background
+// inspector console: await debugProxy()
+globalThis.debugProxy = debugProxyState;
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
 // Throttle how often we force a token refresh in response to a 407 so a burst

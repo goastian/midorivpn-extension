@@ -19,9 +19,10 @@ const getLocalStorage = (keys) => new Promise((resolve) => {
 const resolveProxyServer = (activeServer) => {
     if (!activeServer) return null;
 
-    // 'host' is the clean IP/hostname. 'endpoint' is the WireGuard endpoint
-    // in "ip:port" format — strip the port before using it as proxy host.
-    const raw = activeServer.host || activeServer.endpoint || '';
+    // 'endpoint' is the public-facing IP/hostname (may include ":port" for WireGuard).
+    // 'host' is the internal container name (e.g. "vpn-core") — NOT reachable from
+    // the browser. Always prefer endpoint (stripped of any port suffix) for the proxy.
+    const raw = activeServer.endpoint || activeServer.host || '';
     const host = raw.split(':')[0];
     const rawPort = activeServer.proxy_port || 8888;
     const port = Number(rawPort);
@@ -49,11 +50,16 @@ export const handleProxy = async (details) => {
             return { type: 'direct' };
         }
 
+        log.warn('proxy:dbg', 'state=ON host=', hostname,
+            '| server.active=', JSON.stringify(storage.server?.active));
+
         const proxyServer = resolveProxyServer(storage.server?.active);
         if (!proxyServer) {
             log.warn('proxy', 'No proxy server resolved from storage:', storage.server?.active);
             return { type: 'direct' };
         }
+
+        log.warn('proxy:dbg', `resolved → ${proxyServer.host}:${proxyServer.port}`);
 
         const proxyInfo = {
             type: 'http',
@@ -74,6 +80,8 @@ export const handleProxy = async (details) => {
             return { type: 'direct' };
         }
 
+        log.warn('proxy:dbg', 'token OK, routing', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
+
         // username/password → Firefox sends Proxy-Authorization: Basic
         proxyInfo.username = 'midorivpn';
         proxyInfo.password = token;
@@ -86,6 +94,23 @@ export const handleProxy = async (details) => {
         log.error('proxy', 'handleProxy error:', e);
         return { type: 'direct' };
     }
+};
+
+// ── Debug helper — call from background inspector console: ──────────────────
+// await debugProxyState()
+export const debugProxyState = async () => {
+    const storage = await getLocalStorage(['store', 'server', 'connection', 'access_token']);
+    const active = storage.server?.active;
+    const proxyServer = resolveProxyServer(active);
+    const report = {
+        vpnToggle: storage.store?.state ?? false,
+        serverActive: active ?? null,
+        resolvedProxy: proxyServer ?? null,
+        hasAccessToken: !!(storage.access_token),
+        connection: storage.connection ?? null,
+    };
+    console.warn('[MidoriVPN] proxy:debug', JSON.stringify(report, null, 2));
+    return report;
 };
 
 // Firefox: proxy.onRequest handles routing. enableProxy/disableProxy

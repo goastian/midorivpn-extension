@@ -191,6 +191,33 @@ const useMeshStore = defineStore('mesh', {
             this.meshList = [];
             this.currentMesh = null;
         },
+
+        /** Create (or return existing) session mesh for this user.
+         *  The backend names it "Servidor random [XX]" based on the user's IP. */
+        async autoCreateMesh() {
+            try {
+                const mesh = await sendBackgroundMessage({ type: 'autoCreateMesh' });
+                // Refresh the list so Select.vue sees the new entry.
+                if (!this.meshList.find(m => m.id === mesh.id)) {
+                    this.meshList = [mesh, ...this.meshList];
+                }
+                return mesh;
+            } catch (err) {
+                // Non-fatal: log and continue — VPN still works without mesh.
+                console.warn('[useMeshStore] autoCreateMesh failed:', err?.message || err);
+            }
+        },
+
+        /** Delete all session meshes for this user (logout / browser close). */
+        async autoDeleteMesh() {
+            try {
+                const result = await sendBackgroundMessage({ type: 'autoDeleteMesh' });
+                this.clearList();
+                return result;
+            } catch (err) {
+                console.warn('[useMeshStore] autoDeleteMesh failed:', err?.message || err);
+            }
+        },
     },
 });
 

@@ -115,6 +115,13 @@ const handlers = {
     if (!msg.meshId) throw new Error('meshId required');
     return meshApi.createInvite(msg.meshId, msg.expiresInHours ?? 0);
   },
+  // Session mesh (auto lifecycle)
+  autoCreateMesh: async () => {
+    return meshApi.autoCreate();
+  },
+  autoDeleteMesh: async () => {
+    return meshApi.autoDelete();
+  },
   // ─────────────────────────────────────────────────────────────────────────
   provisionConnection: async (msg) => {
     const serverId = msg.serverId;
@@ -162,8 +169,13 @@ const handlers = {
 badge();
 
 log.info('boot', 'background loaded, initializing token session');
-syncTokenSession().then(() => {
+syncTokenSession().then((token) => {
   connectMeshWS().catch(() => {});
+  if (token) {
+    meshApi.autoCreate().catch((err) => {
+      log.warn('auto-mesh', 'Failed to auto-create session mesh on boot:', err?.message || err);
+    });
+  }
 }).catch((error) => {
   log.error('boot', 'Failed to initialize token session:', error);
 });
@@ -253,8 +265,13 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
 if (chrome.runtime?.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
-    syncTokenSession().then(() => {
+    syncTokenSession().then((token) => {
       connectMeshWS().catch(() => {});
+      if (token) {
+        meshApi.autoCreate().catch((err) => {
+          log.warn('auto-mesh', 'Failed to auto-create session mesh on startup:', err?.message || err);
+        });
+      }
     }).catch((error) => {
       log.error('boot', 'Failed to restore token session on startup:', error);
     });
@@ -377,3 +394,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     );
   return true;
 });
+
+// Clean up session mesh when the service worker is about to be suspended
+// (this happens when the browser closes or the extension is idle long enough).
+if (chrome.runtime?.onSuspend) {
+  chrome.runtime.onSuspend.addListener(() => {
+    meshApi.autoDelete().catch(() => {});
+  });
+}

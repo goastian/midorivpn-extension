@@ -335,6 +335,16 @@ export const meshApi = {
                 ),
             }
         ),
+
+    /** Create (or return existing) the user's session mesh named "Servidor random [XX]".
+     *  Call this on login; the backend detects the client IP and assigns country. */
+    autoCreate: (): Promise<MeshNetwork> =>
+        request<MeshNetwork>('/api/v1/control/mesh/auto', { method: 'POST' }),
+
+    /** Delete all session meshes for this user.
+     *  Call this on logout, browser close, or when the user disables mesh. */
+    autoDelete: (): Promise<{ deleted: number }> =>
+        request<{ deleted: number }>('/api/v1/control/mesh/auto', { method: 'DELETE' }),
 };
 
 export {

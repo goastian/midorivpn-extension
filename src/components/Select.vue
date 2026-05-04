@@ -86,9 +86,9 @@ export default {
             }));
 
             const meshOpts = (this.settings.meshEnabled && this.mesh.meshList.length)
-                ? this.mesh.meshList.map((m, i) => ({
+                ? this.mesh.meshList.map((m) => ({
                     id: 'mesh-' + m.id,
-                    label: `Server Random #${String(i + 1).padStart(2, '0')}`,
+                    label: m.name,
                     ip: subnetGateway(m.subnet),
                     _isMesh: true,
                     _meshRef: m,
@@ -105,6 +105,7 @@ export default {
 
     async created() {
         if (this.settings.meshEnabled) {
+            await this.mesh.autoCreateMesh().catch(() => {});
             await this.mesh.listMeshes().catch(() => {});
         }
     },
@@ -121,11 +122,16 @@ export default {
     },
 
     watch: {
-        // Mesh disabled: clear list and deselect immediately
+        // Mesh disabled: delete session mesh, clear list and deselect immediately
         'settings.meshEnabled'(newVal) {
             if (!newVal) {
+                this.mesh.autoDeleteMesh().catch(() => {});
                 this.mesh.clearList();
                 if (this.vpn.active?._isMesh) this.vpn.setActive(null);
+            } else {
+                this.mesh.autoCreateMesh()
+                    .catch(() => {})
+                    .finally(() => this.mesh.listMeshes().catch(() => {}));
             }
         },
         // VPN disconnects while a mesh entry was selected: clear and deselect

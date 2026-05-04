@@ -161,8 +161,17 @@ const handlers = {
       await chrome.storage.local.set({ connection });
       return connection;
     } catch (err) {
-      // 409 = device limit — try to reuse any existing connection
-      if (err.message && err.message.includes('device limit')) {
+      // Recoverable errors: reuse any existing active connection instead of failing
+      // - 409: device limit reached
+      // - 404: stale server_id (e.g. after container rebuild / DB migration)
+      // - "invalid server_id": UUID format mismatch
+      const msg = err?.message || '';
+      if (
+        msg.includes('device limit') ||
+        msg.includes('server not found') ||
+        msg.includes('no available servers') ||
+        msg.includes('invalid server_id')
+      ) {
         const existing = await api.get('/api/v1/control/connections');
         if (Array.isArray(existing) && existing.length > 0) {
           const active = existing.find(c => c.is_active) || existing[0];

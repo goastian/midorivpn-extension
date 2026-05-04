@@ -19,7 +19,14 @@
 
         <!-- Dropdown panel -->
         <div v-if="open" class="selector-menu" role="listbox">
-            <template v-if="allOptions.length">
+            <div v-if="loading" class="selector-loading">
+                <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="3"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#49B9FF" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span>Cargando servidores…</span>
+            </div>
+            <template v-else-if="allOptions.length">
                 <button
                     v-for="opt in allOptions"
                     :key="opt.id"
@@ -93,6 +100,7 @@ export default {
             settings: useSettingsStore(),
             vpnState: useStore(),
             open: false,
+            loading: false,
         };
     },
 
@@ -141,10 +149,7 @@ export default {
     },
 
     async created() {
-        if (this.settings.meshEnabled) {
-            await this.mesh.autoCreateMesh().catch(() => {});
-            await this.mesh.listMeshes().catch(() => {});
-        }
+        // No pre-loading here: data is fetched lazily when the dropdown opens.
     },
 
     mounted() {
@@ -181,8 +186,22 @@ export default {
     },
 
     methods: {
-        toggleDropdown() {
-            this.open = !this.open;
+        async toggleDropdown() {
+            if (this.open) {
+                this.open = false;
+                return;
+            }
+            this.open = true;
+            this.loading = true;
+            try {
+                await this.vpn.loadServers();
+                if (this.settings.meshEnabled) {
+                    await this.mesh.autoCreateMesh().catch(() => {});
+                    await this.mesh.listMeshes().catch(() => {});
+                }
+            } finally {
+                this.loading = false;
+            }
         },
 
         pick(opt) {
@@ -316,6 +335,25 @@ export default {
     cursor: default;
     text-align: center;
     padding: .7rem .5rem;
+}
+
+.selector-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    padding: .75rem .5rem;
+    color: #94a3b8;
+    font-size: .8rem;
+}
+
+.spinner {
+    animation: spin .75s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .item-main {

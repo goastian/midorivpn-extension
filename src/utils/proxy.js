@@ -19,7 +19,10 @@ const getLocalStorage = (keys) => new Promise((resolve) => {
 const resolveProxyServer = (activeServer) => {
     if (!activeServer) return null;
 
-    const host = activeServer.endpoint || activeServer.host || '';
+    // 'host' is the clean IP/hostname. 'endpoint' is the WireGuard endpoint
+    // in "ip:port" format — strip the port before using it as proxy host.
+    const raw = activeServer.host || activeServer.endpoint || '';
+    const host = raw.split(':')[0];
     const rawPort = activeServer.proxy_port || 8888;
     const port = Number(rawPort);
 

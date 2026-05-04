@@ -20,6 +20,7 @@ const config = {
   entry: {
     popup: './src/main.js',
     background: path.join(__dirname, 'src', 'background', 'index.js'),
+    welcome: path.join(__dirname, 'src', 'welcome.js'),
   },
   output: {
     path: path.join(__dirname, 'dist'),
@@ -73,6 +74,12 @@ const config = {
       chunks: ['popup'],
       cache: false,
     }),
+    new HtmlWebpackPlugin({
+      template: path.join(__dirname, 'public', 'welcome.html'),
+      filename: 'welcome.html',
+      chunks: ['welcome'],
+      cache: false,
+    }),
     new CopyWebpackPlugin({
       patterns: [
         {
@@ -95,13 +102,13 @@ const config = {
       ]
     }),
     new MiniCssExtractPlugin({
-        filename: '[name].[contenthash].css',
+      filename: '[name].[contenthash].css',
     }),
   ],
   optimization: {
     splitChunks: {
       chunks: (chunk) => {
-        return chunk.name !== 'background';
+        return chunk.name !== 'background' && chunk.name !== 'welcome';
       },
       minSize: 10000,
       maxSize: 50000,

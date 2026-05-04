@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to MidoriVPN</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f0f6ff;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .lang-bar {
+        position: fixed;
+        top: 1rem;
+        right: 1.25rem;
+        display: flex;
+        gap: .3rem;
+      }
+
+      .lang-btn {
+        background: #fff;
+        border: 1px solid #dbe4ef;
+        border-radius: .4rem;
+        padding: .28rem .6rem;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: border-color .15s, color .15s;
+      }
+      .lang-btn:hover { border-color: #49B9FF; color: #0ea5e9; }
+      .lang-btn.active { border-color: #49B9FF; color: #0ea5e9; background: #eff9ff; }
+
+      .card {
+        background: #fff;
+        border-radius: 1.25rem;
+        box-shadow: 0 20px 60px rgba(15,23,42,.12);
+        max-width: 480px;
+        width: 100%;
+        padding: 2.5rem 2.5rem 2rem;
+        text-align: center;
+      }
+
+      .logo {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 1.25rem;
+        display: block;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        color: #0f172a;
+        font-weight: 700;
+        margin-bottom: .5rem;
+      }
+
+      .subtitle {
+        font-size: .95rem;
+        color: #64748b;
+        margin-bottom: 2rem;
+        line-height: 1.55;
+      }
+
+      .permission-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: .75rem;
+        padding: 1.1rem 1.25rem;
+        text-align: left;
+        margin-bottom: 1.75rem;
+      }
+
+      .permission-box h2 {
+        font-size: .9rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: .75rem;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+      }
+
+      .permission-box h2 svg { flex-shrink: 0; color: #49B9FF; }
+
+      .perm-item {
+        display: flex;
+        align-items: flex-start;
+        gap: .6rem;
+        margin-bottom: .55rem;
+        font-size: .85rem;
+        color: #475569;
+        line-height: 1.45;
+      }
+      .perm-item:last-child { margin-bottom: 0; }
+
+      .perm-item svg { flex-shrink: 0; margin-top: .1rem; color: #49B9FF; }
+
+      #btn-grant {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        background: #49B9FF;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: .65rem;
+        padding: .8rem 2.2rem;
+        cursor: pointer;
+        transition: background .15s, transform .1s;
+        width: 100%;
+        justify-content: center;
+        margin-bottom: .85rem;
+      }
+      #btn-grant:hover { background: #1fa8f7; }
+      #btn-grant:active { transform: scale(.98); }
+      #btn-grant:disabled { background: #94a3b8; cursor: default; }
+
+      #btn-skip {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: .8rem;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      #btn-skip:hover { color: #64748b; }
+
+      .status {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        padding: .75rem 1rem;
+        border-radius: .6rem;
+        font-size: .875rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+      }
+      .status.success { display: flex; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+      .status.error   { display: flex; background: #fff1f2; color: #dc2626; border: 1px solid #fecaca; }
+    </style>
+  </head>
+  <body>
+    <!-- Language switcher -->
+    <div class="lang-bar">
+      <button class="lang-btn active" data-lang="es">ES</button>
+      <button class="lang-btn" data-lang="en">EN</button>
+    </div>
+
+    <div class="card">
+      <img class="logo" src="icons/icon128.png" alt="MidoriVPN" />
+      <h1 id="t-title"></h1>
+      <p class="subtitle" id="t-subtitle"></p>
+
+      <div class="permission-box">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="t-perm-title"></span>
+        </h2>
+        <div class="perm-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="t-perm-1"></span>
+        </div>
+        <div class="perm-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="t-perm-2"></span>
+        </div>
+        <div class="perm-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="t-perm-3"></span>
+        </div>
+      </div>
+
+      <div id="status-ok" class="status success">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="t-status-ok"></span>
+      </div>
+      <div id="status-err" class="status error">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="t-status-err"></span>
+      </div>
+
+      <button id="btn-grant">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="t-btn-grant"></span>
+      </button>
+      <button id="btn-skip"><span id="t-btn-skip"></span></button>
+    </div>
+    <script src="welcome.js"></script>
+  </body>
+</html>
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f0f6ff;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .card {
+        background: #fff;
+        border-radius: 1.25rem;
+        box-shadow: 0 20px 60px rgba(15,23,42,.12);
+        max-width: 480px;
+        width: 100%;
+        padding: 2.5rem 2.5rem 2rem;
+        text-align: center;
+      }
+
+      .logo {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 1.25rem;
+        display: block;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        color: #0f172a;
+        font-weight: 700;
+        margin-bottom: .5rem;
+      }
+
+      .subtitle {
+        font-size: .95rem;
+        color: #64748b;
+        margin-bottom: 2rem;
+        line-height: 1.55;
+      }
+
+      .permission-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: .75rem;
+        padding: 1.1rem 1.25rem;
+        text-align: left;
+        margin-bottom: 1.75rem;
+      }
+
+      .permission-box h2 {
+        font-size: .9rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: .75rem;
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+      }
+
+      .permission-box h2 svg { flex-shrink: 0; color: #49B9FF; }
+
+      .perm-item {
+        display: flex;
+        align-items: flex-start;
+        gap: .6rem;
+        margin-bottom: .55rem;
+        font-size: .85rem;
+        color: #475569;
+        line-height: 1.45;
+      }
+      .perm-item:last-child { margin-bottom: 0; }
+
+      .perm-item svg { flex-shrink: 0; margin-top: .1rem; color: #49B9FF; }
+
+      #btn-grant {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        background: #49B9FF;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: .65rem;
+        padding: .8rem 2.2rem;
+        cursor: pointer;
+        transition: background .15s, transform .1s;
+        width: 100%;
+        justify-content: center;
+        margin-bottom: .85rem;
+      }
+      #btn-grant:hover { background: #1fa8f7; }
+      #btn-grant:active { transform: scale(.98); }
+      #btn-grant:disabled { background: #94a3b8; cursor: default; }
+
+      #btn-skip {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: .8rem;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      #btn-skip:hover { color: #64748b; }
+
+      .status {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        padding: .75rem 1rem;
+        border-radius: .6rem;
+        font-size: .875rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+      }
+      .status.success { display: flex; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+      .status.error   { display: flex; background: #fff1f2; color: #dc2626; border: 1px solid #fecaca; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="icons/icon128.png" alt="MidoriVPN" />
+      <h1>Bienvenido a MidoriVPN</h1>
+      <p class="subtitle">
+        Para que la VPN funcione correctamente en todos los sitios web,
+        necesitamos que autorices el acceso al tráfico del navegador.
+      </p>
+
+      <div class="permission-box">
+        <h2>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Permisos requeridos
+        </h2>
+        <div class="perm-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span><b>Leer y modificar datos en todos los sitios</b> — necesario para enrutar el tráfico a través del servidor VPN.</span>
+        </div>
+        <div class="perm-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span><b>Gestionar proxy y solicitudes de red</b> — para conectarte al servidor VPN de forma segura.</span>
+        </div>
+        <div class="perm-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span><b>Almacenamiento local</b> — para guardar tu sesión y configuración.</span>
+        </div>
+      </div>
+
+      <div id="status-ok" class="status success">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        ¡Permisos concedidos! Ya puedes usar MidoriVPN.
+      </div>
+      <div id="status-err" class="status error">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Permisos denegados. La VPN no funcionará correctamente.
+      </div>
+
+      <button id="btn-grant">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Conceder permisos y activar VPN
+      </button>
+      <button id="btn-skip">Omitir por ahora</button>
+    </div>
+    <script src="welcome.js"></script>
+  </body>
+</html>

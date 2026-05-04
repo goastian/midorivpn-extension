@@ -32,7 +32,7 @@ config.optimization = {
     ],
     splitChunks: {
         chunks: (chunk) => {
-            return chunk.name !== 'background';
+            return chunk.name !== 'background' && chunk.name !== 'welcome';
         },
         minSize: 10000,
         maxSize: 50000,

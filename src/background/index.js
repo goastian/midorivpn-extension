@@ -297,7 +297,13 @@ if (chrome.runtime?.onStartup) {
 }
 
 if (chrome.runtime?.onInstalled) {
-  chrome.runtime.onInstalled.addListener(() => {
+  chrome.runtime.onInstalled.addListener((details) => {
+    // On first install: open the welcome/permissions page so the user can
+    // explicitly grant <all_urls> host access (Firefox MV3 defaults to
+    // "Only When Clicked" without this step).
+    if (details.reason === 'install') {
+      chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+    }
     syncTokenSession().catch((error) => {
       log.error('boot', 'Failed to sync token session after install/update:', error);
     });

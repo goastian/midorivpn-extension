@@ -54,15 +54,6 @@ import useSettingsStore from '../stores/useSettingsStore.js';
 import useStore from '../stores/useStore.js';
 import badge from '../utils/badge.js';
 
-/** Returns the first usable IP of a subnet (e.g. "10.200.1.0/24" → "10.200.1.1") */
-function subnetGateway(subnet) {
-    if (!subnet) return '';
-    const ip = subnet.split('/')[0];
-    const parts = ip.split('.');
-    parts[3] = String(parseInt(parts[3]) + 1);
-    return parts.join('.');
-}
-
 /** Strips port from an endpoint string ("1.2.3.4:51820" → "1.2.3.4") */
 function stripPort(endpoint) {
     if (!endpoint) return '';
@@ -121,15 +112,23 @@ export default {
         },
 
         meshOptions() {
-            return (this.settings.meshEnabled && this.mesh.meshList.length)
-                ? this.mesh.meshList.map((m) => ({
+            if (!this.settings.meshEnabled || !this.mesh.meshList.length) return [];
+            return this.mesh.meshList.map((m) => {
+                const code = meshCountryCode(m);
+                const matchedServer = this.vpn.servers.find(
+                    (s) => String(s.country_code || '').toUpperCase() === code
+                );
+                const ip = matchedServer
+                    ? stripPort(matchedServer.endpoint)
+                    : (code || '');
+                return {
                     id: 'mesh-' + m.id,
                     label: meshDisplayName(m),
-                    ip: subnetGateway(m.subnet),
+                    ip,
                     _isMesh: true,
                     _meshRef: m,
-                }))
-                : [];
+                };
+            });
         },
 
         allOptions() {

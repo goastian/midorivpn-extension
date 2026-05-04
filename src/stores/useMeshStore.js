@@ -23,6 +23,8 @@ const useMeshStore = defineStore('mesh', {
         nodeActive: false,
         /** Assigned overlay IP (e.g. "10.200.1.2") when active */
         myMeshIp: null,
+        /** Public origin IP associated with this user's session mesh */
+        myPublicIp: null,
         /** ID of the underlying mesh network */
         meshId: null,
         /** Session mesh created for this user; hidden from this user's public directory */
@@ -49,6 +51,7 @@ const useMeshStore = defineStore('mesh', {
         _applyStatus(status) {
             this.nodeActive = !!status?.active;
             this.myMeshIp = status?.mesh_ip ?? null;
+            this.myPublicIp = status?.public_ip ?? null;
             this.meshId = status?.mesh_id ?? null;
             if (status?.mesh_id) {
                 this.ownSessionMeshId = status.mesh_id;
@@ -211,6 +214,7 @@ const useMeshStore = defineStore('mesh', {
         clearList() {
             this.meshList = [];
             this.currentMesh = null;
+            this.myPublicIp = null;
         },
 
         /** Create (or return existing) session mesh for this user.
@@ -220,6 +224,7 @@ const useMeshStore = defineStore('mesh', {
                 const mesh = await sendBackgroundMessage({ type: 'autoCreateMesh' });
                 this.ownSessionMeshId = mesh?.id ?? this.ownSessionMeshId;
                 this.meshId = mesh?.id ?? this.meshId;
+                this.myPublicIp = mesh?.public_ip ?? this.myPublicIp;
                 this.meshList = this.meshList.filter(m => m.id !== mesh?.id);
                 return mesh;
             } catch (err) {

@@ -257,6 +257,7 @@ export interface MeshNetwork {
     is_active: boolean;
     member_count: number;
     country_code?: string;
+    public_ip?: string;
     is_session?: boolean;
     created_at: string;
     updated_at: string;
@@ -280,6 +281,7 @@ export interface MeshNodeStatus {
     active: boolean;
     mesh_ip?: string;
     mesh_id?: string;
+    public_ip?: string;
     peers: Array<{ mesh_ip: string; display_name?: string }>;
 }
 

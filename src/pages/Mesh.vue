@@ -108,7 +108,11 @@
               <span class="mesh-name">{{ m.name }}</span>
               <span class="live-pill">live</span>
             </div>
-            <span class="mesh-sub">{{ m.subnet }} · {{ m.member_count }}/{{ m.max_members }} members</span>
+            <span class="mesh-sub">
+              <span v-if="publicIp(m)" class="public-ip">Public {{ publicIp(m) }}</span>
+              <span v-else>{{ m.subnet }}</span>
+              · {{ m.member_count }}/{{ m.max_members }} members
+            </span>
             <div class="capacity-track" aria-hidden="true">
               <span class="capacity-fill" :style="{ width: occupancy(m) + '%' }"></span>
             </div>
@@ -140,6 +144,14 @@
           <code class="ip-val">{{ mesh.myMeshIp }}</code>
           <button class="btn-copy btn-copy-sm" @click="copyText(mesh.myMeshIp, 'ip')" :title="copied === 'ip' ? 'Copied!' : 'Copy'">
             {{ copied === 'ip' ? '✓' : '📋' }}
+          </button>
+        </div>
+
+        <div v-if="mesh.nodeActive && mesh.myPublicIp" class="ip-box public row items-center ga-sm">
+          <span class="label">Public IP</span>
+          <code class="ip-val public">{{ mesh.myPublicIp }}</code>
+          <button class="btn-copy btn-copy-sm" @click="copyText(mesh.myPublicIp, 'public-ip')" :title="copied === 'public-ip' ? 'Copied!' : 'Copy'">
+            {{ copied === 'public-ip' ? '✓' : '📋' }}
           </button>
         </div>
 
@@ -178,6 +190,10 @@
           <div class="info-tile">
             <span class="label">Subnet</span>
             <code class="ip-val">{{ currentMesh.subnet }}</code>
+          </div>
+          <div v-if="publicIp(currentMesh)" class="info-tile">
+            <span class="label">Public IP</span>
+            <code class="ip-val public">{{ publicIp(currentMesh) }}</code>
           </div>
           <div class="info-tile">
             <span class="label">Members</span>
@@ -305,6 +321,10 @@ export default {
       const max = Number(mesh?.max_members || 0);
       if (!max) return 0;
       return Math.min(100, Math.round((Number(mesh?.member_count || 0) / max) * 100));
+    },
+
+    publicIp(mesh) {
+      return String(mesh?.public_ip || '').trim();
     },
 
     async copyText(text, key) {
@@ -611,6 +631,10 @@ export default {
 }
 .detail-name { font-size: 0.98rem; }
 .mesh-sub { font-size: 0.68rem; color: var(--mesh-muted); }
+.public-ip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #12623d;
+}
 .live-pill {
   flex-shrink: 0;
   font-size: 0.56rem;
@@ -639,12 +663,20 @@ export default {
   border-radius: 0.8rem;
   padding: 0.5rem 0.65rem;
 }
+.ip-box.public {
+  background: #eef7ff;
+  border-color: #bfdbfe;
+}
 .ip-val {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.82rem;
   color: #12623d;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.ip-val.public { color: #075985; }
 
 .peers-section { margin-top: 0.2rem; }
 .peer-row {

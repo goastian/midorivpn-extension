@@ -100,12 +100,20 @@ const handlers = {
     return meshApi.get(msg.meshId);
   },
   createMesh: async (msg) => {
-    if (!msg.name?.trim()) throw new Error('Mesh name is required');
-    return meshApi.create(msg.name.trim(), msg.description ?? '', msg.maxMembers ?? 10);
+    const name = (msg.name ?? '').trim();
+    if (!name) throw new Error('Mesh name is required');
+    if (name.length > 64) throw new Error('Mesh name must be 64 characters or fewer');
+    if (!/^[\w\s\-\.]+$/.test(name)) throw new Error('Mesh name contains invalid characters');
+    const maxMembers = Number(msg.maxMembers ?? 10);
+    if (!Number.isInteger(maxMembers) || maxMembers < 1 || maxMembers > 255)
+      throw new Error('Max members must be an integer between 1 and 255');
+    return meshApi.create(name, msg.description ?? '', maxMembers);
   },
   joinMesh: async (msg) => {
-    if (!msg.inviteCode?.trim()) throw new Error('Invite code is required');
-    return meshApi.join(msg.inviteCode.trim());
+    const code = (msg.inviteCode ?? '').trim();
+    if (!code) throw new Error('Invite code is required');
+    if (!/^[0-9a-fA-F]{32}$/.test(code)) throw new Error('Invite code must be a 32-character hex string');
+    return meshApi.join(code);
   },
   leaveMesh: async (msg) => {
     if (!msg.meshId) throw new Error('meshId required');
@@ -170,7 +178,7 @@ badge();
 
 log.info('boot', 'background loaded, initializing token session');
 syncTokenSession().then((token) => {
-  connectMeshWS().catch(() => {});
+  connectMeshWS().catch(() => { });
   if (token) {
     meshApi.autoCreate().catch((err) => {
       log.warn('auto-mesh', 'Failed to auto-create session mesh on boot:', err?.message || err);
@@ -208,7 +216,7 @@ browser.webRequest.onAuthRequired.addListener(
         lastProxyTriggeredRefresh = now;
         token = await refreshAccessToken();
         log.info('auth', 'forced refresh after 407 OK, retrying with new token');
-        scheduleTokenRefresh().catch(() => {});
+        scheduleTokenRefresh().catch(() => { });
       } else {
         // Within the throttle window — reuse whatever we have.
         token = await ensureValidAccessToken();
@@ -266,7 +274,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 if (chrome.runtime?.onStartup) {
   chrome.runtime.onStartup.addListener(() => {
     syncTokenSession().then((token) => {
-      connectMeshWS().catch(() => {});
+      connectMeshWS().catch(() => { });
       if (token) {
         meshApi.autoCreate().catch((err) => {
           log.warn('auto-mesh', 'Failed to auto-create session mesh on startup:', err?.message || err);
@@ -306,7 +314,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   // Reconnect mesh WebSocket when the access token changes (login / refresh).
   if (changes.access_token) {
-    connectMeshWS().catch(() => {});
+    connectMeshWS().catch(() => { });
   }
 });
 
@@ -356,7 +364,7 @@ async function connectMeshWS() {
       ) {
         // Forward to any open extension page (popup / options).
         // Errors are normal when no receiver is open — suppress them.
-        chrome.runtime.sendMessage({ type: 'meshEvent', event: msg }).catch(() => {});
+        chrome.runtime.sendMessage({ type: 'meshEvent', event: msg }).catch(() => { });
       }
     };
 
@@ -366,13 +374,29 @@ async function connectMeshWS() {
       _meshSocket = null;
       clearTimeout(_meshWSRetryTimer);
       _meshWSRetryTimer = setTimeout(() => {
-        connectMeshWS().catch(() => {});
+        connectMeshWS().catch(() => { });
       }, _meshWSBackoff);
       _meshWSBackoff = Math.min(_meshWSBackoff * 2, MESH_WS_MAX_BACKOFF_MS);
     };
   } catch (_) {
     // WebSocket constructor threw (e.g. invalid URL) — do not retry
   }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Debounce: prevent rapid-fire duplicate calls for mesh mutation operations.
+// Each key tracks the timestamp of the last call; if the same command is
+// invoked again within DEBOUNCE_MS, the call is rejected with an error.
+const DEBOUNCE_MS = 1500;
+const DEBOUNCED_COMMANDS = new Set(['createMesh', 'joinMesh', 'leaveMesh', 'autoCreateMesh', 'autoDeleteMesh']);
+const lastCommandAt = new Map();
+
+function isDebouncedCommand(type) {
+  if (!DEBOUNCED_COMMANDS.has(type)) return false;
+  const now = Date.now();
+  const last = lastCommandAt.get(type) || 0;
+  if (now - last < DEBOUNCE_MS) return true;
+  lastCommandAt.set(type, now);
+  return false;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -386,11 +410,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 
+  if (isDebouncedCommand(msg.type)) {
+    sendResponse({ success: false, error: 'Please wait before retrying' });
+    return;
+  }
+
   const handler = handlers[msg.type];
   Promise.resolve(handler(msg, sender))
     .then((result) => sendResponse({ success: true, data: result }))
     .catch((error) =>
-      sendResponse({ success: false, error: error.message || 'Unknown error' })
+      sendResponse({ success: false, error: error.message || 'An unexpected error occurred' })
     );
   return true;
 });
@@ -399,6 +428,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // (this happens when the browser closes or the extension is idle long enough).
 if (chrome.runtime?.onSuspend) {
   chrome.runtime.onSuspend.addListener(() => {
-    meshApi.autoDelete().catch(() => {});
+    meshApi.autoDelete().catch(() => { });
   });
 }

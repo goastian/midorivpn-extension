@@ -19,6 +19,7 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
             btnGrant: 'Conceder permisos requeridos',
             btnSkip: 'Cerrar',
             statusOk: '¡Permisos concedidos! Ya puedes usar MidoriVPN.',
+            statusClosing: 'Esta pestaña se cerrará en {seconds}s.',
             statusErr: 'Permisos denegados. La VPN no funcionará correctamente.',
         },
         en: {
@@ -31,6 +32,7 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
             btnGrant: 'Grant required permissions',
             btnSkip: 'Close',
             statusOk: 'Permissions granted! You can now use MidoriVPN.',
+            statusClosing: 'This tab will close in {seconds}s.',
             statusErr: 'Permissions denied. The VPN will not work correctly.',
         },
     };
@@ -73,16 +75,18 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
     const btnSkip = document.getElementById('btn-skip');
     const statusOk = document.getElementById('status-ok');
     const statusErr = document.getElementById('status-err');
+    const statusOkText = document.getElementById('t-status-ok');
+    const statusErrText = document.getElementById('t-status-err');
+    let closeTimer = null;
 
-    // Check if permission is already granted
-    hasRequiredVpnPermissions().then((already) => {
-        if (already) showSuccess();
-    });
+    function hideStatuses() {
+        statusOk.classList.remove('visible');
+        statusErr.classList.remove('visible');
+    }
 
     btnGrant.addEventListener('click', async () => {
         btnGrant.disabled = true;
-        statusOk.style.display = 'none';
-        statusErr.style.display = 'none';
+        hideStatuses();
 
         const granted = await requestRequiredVpnPermissions();
         const confirmed = granted && await hasRequiredVpnPermissions();
@@ -90,8 +94,8 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
             showSuccess();
         } else {
             btnGrant.disabled = false;
-            statusErr.style.display = 'flex';
-            statusOk.style.display = 'none';
+            statusErrText.textContent = STRINGS[currentLang].statusErr;
+            statusErr.classList.add('visible');
         }
     });
 
@@ -100,8 +104,26 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
     function showSuccess() {
         btnGrant.style.display = 'none';
         btnSkip.style.display = 'none';
-        statusErr.style.display = 'none';
-        statusOk.style.display = 'flex';
-        setTimeout(() => window.close(), 2000);
+        statusErr.classList.remove('visible');
+
+        let seconds = 5;
+        const renderCountdown = () => {
+            const t = STRINGS[currentLang];
+            statusOkText.textContent = `${t.statusOk} ${t.statusClosing.replace('{seconds}', seconds)}`;
+        };
+
+        renderCountdown();
+        statusOk.classList.add('visible');
+
+        clearInterval(closeTimer);
+        closeTimer = setInterval(() => {
+            seconds -= 1;
+            if (seconds <= 0) {
+                clearInterval(closeTimer);
+                window.close();
+                return;
+            }
+            renderCountdown();
+        }, 1000);
     }
 })();

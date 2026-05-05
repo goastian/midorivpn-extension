@@ -20,7 +20,7 @@ import useStore from '../stores/useStore';
 import useMeshStore from '../stores/useMeshStore';
 import useSettingsStore from '../stores/useSettingsStore';
 import { enableBadge, disableBadge } from '../utils/badge';
-import { disableProxy, enableProxy } from '../utils/proxy';
+import { disableProxy, enableProxy, validateProxyReady } from '../utils/proxy';
 import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permissions';
 export default {
     data() {
@@ -63,6 +63,11 @@ export default {
                 if (!hasPermissions) {
                     await openPermissionsPage();
                     window.close();
+                    return;
+                }
+                const ready = await validateProxyReady();
+                if (!ready.ok) {
+                    this.permissionError = ready.error || 'VPN proxy is not ready';
                     return;
                 }
                 const result = await enableProxy();

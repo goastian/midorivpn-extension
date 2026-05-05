@@ -66,6 +66,9 @@ const useServerStore = defineStore('server', {
 
         async provisionConnection() {
             if (!this.active) return 'No server selected';
+            if (this.active.supports_proxy === false || !this.active.proxy_port) {
+                return 'Selected server does not support browser proxy mode';
+            }
 
             try {
                 const connection = await sendBackgroundMessage({
@@ -73,12 +76,13 @@ const useServerStore = defineStore('server', {
                     serverId: this.active.id,
                 });
 
-                this.connectionId = connection.id;
+                this.connectionId = null;
 
-                // Store connection config for proxy use
+                // Store active server for proxy use. Browser mode is proxy-only
+                // and must not consume WireGuard peer capacity.
                 const plainActive = JSON.parse(JSON.stringify(this.active));
                 await chrome.storage.local.set({
-                    connection: connection,
+                    connection: null,
                     server: { active: plainActive },
                 });
 

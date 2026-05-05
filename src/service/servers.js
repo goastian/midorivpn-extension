@@ -24,16 +24,24 @@ class ServerManager {
             const servers = await api.get('/api/v1/control/servers');
 
             if (Array.isArray(servers) && servers.length > 0) {
-                this.__serversCache.servers = servers;
-                if (!this.__serversCache.active) {
-                    this.__serversCache.active = servers[0];
+                const proxyServers = servers.filter((server) =>
+                    server?.supports_proxy !== false && Number(server?.proxy_port || 0) > 0
+                );
+                this.__serversCache.servers = proxyServers;
+                if (
+                    !this.__serversCache.active ||
+                    !proxyServers.some((server) => server.id === this.__serversCache.active?.id)
+                ) {
+                    this.__serversCache.active = proxyServers[0] || null;
                 }
                 this.__lastFetch = now;
 
-                // Persist active server for proxy usage
-                await chrome.storage.local.set({
-                    server: { active: this.__serversCache.active }
-                });
+                if (this.__serversCache.active) {
+                    // Persist active server for proxy usage
+                    await chrome.storage.local.set({
+                        server: { active: this.__serversCache.active }
+                    });
+                }
             }
 
             return this.__serversCache;

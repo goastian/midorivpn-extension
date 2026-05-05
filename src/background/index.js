@@ -174,51 +174,27 @@ const handlers = {
     const serverId = msg.serverId;
     if (!serverId) throw new Error('No server selected');
 
-    // First try to reuse an existing connection for this server
-    try {
-      const existing = await api.get('/api/v1/control/connections');
-      if (Array.isArray(existing)) {
-        const match = existing.find(c => c.server_id === serverId && c.is_active);
-        if (match) {
-          await chrome.storage.local.set({ connection: match });
-          return match;
-        }
-      }
-    } catch (_) {
-      // Ignore — proceed to create
+    const { server } = await new Promise((resolve) =>
+      chrome.storage.local.get(['server'], resolve)
+    );
+    const active = server?.active;
+    if (!active || active.id !== serverId) {
+      throw new Error('Selected server is not active');
+    }
+    if (active.supports_proxy === false || !active.proxy_port) {
+      throw new Error('Selected server does not support browser proxy mode');
     }
 
-    try {
-      const keypair = await api.post('/api/v1/control/keypair');
-      const connection = await api.post('/api/v1/control/connections', {
-        server_id: serverId,
-        public_key: keypair.public_key,
-        device_name: 'extension',
-      });
+    const token = await ensureValidAccessToken();
+    if (!token) throw new Error('Login session expired');
 
-      await chrome.storage.local.set({ connection });
-      return connection;
-    } catch (err) {
-      // Recoverable errors: reuse any existing active connection instead of failing
-      // - 409: device limit reached
-      // - 404: stale server_id (e.g. after container rebuild / DB migration)
-      // - "invalid server_id": UUID format mismatch
-      const msg = err?.message || '';
-      if (
-        msg.includes('device limit') ||
-        msg.includes('server not found') ||
-        msg.includes('no available servers') ||
-        msg.includes('invalid server_id')
-      ) {
-        const existing = await api.get('/api/v1/control/connections');
-        if (Array.isArray(existing) && existing.length > 0) {
-          const active = existing.find(c => c.is_active) || existing[0];
-          await chrome.storage.local.set({ connection: active });
-          return active;
-        }
-      }
-      throw err;
-    }
+    await chrome.storage.local.set({ connection: null });
+    return {
+      id: null,
+      server_id: serverId,
+      mode: 'proxy',
+      proxy_port: active.proxy_port,
+    };
   },
 };
 

@@ -21,6 +21,7 @@ const blockProxyRequest = () => ({ type: 'http', host: '127.0.0.1', port: 1 });
 
 const resolveProxyServer = (activeServer) => {
     if (!activeServer) return null;
+    if (activeServer.supports_proxy === false) return null;
 
     // 'endpoint' is the public-facing IP/hostname (may include ":port" for WireGuard).
     // 'host' is the internal container name (e.g. "vpn-core") — NOT reachable from
@@ -35,6 +36,26 @@ const resolveProxyServer = (activeServer) => {
     }
 
     return { host, port };
+};
+
+export const validateProxyReady = async () => {
+    const storage = await getLocalStorage(['server']);
+    const proxyServer = resolveProxyServer(storage.server?.active);
+    if (!proxyServer) {
+        return { ok: false, error: 'Selected server does not support browser proxy mode' };
+    }
+
+    const hasVpnPermission = await hasRequiredVpnPermissions();
+    if (!hasVpnPermission) {
+        return { ok: false, error: 'Missing browser permissions' };
+    }
+
+    const token = await ensureValidAccessToken();
+    if (!token) {
+        return { ok: false, error: 'Login session expired' };
+    }
+
+    return { ok: true, proxy: proxyServer };
 };
 
 export const handleProxy = async (details) => {
@@ -137,5 +158,8 @@ export const debugProxyState = async () => {
 
 // Firefox: proxy.onRequest handles routing. enableProxy/disableProxy only gate
 // whether UI state may change; the actual proxy decision is in handleProxy.
-export const enableProxy = async () => hasRequiredVpnPermissions();
+export const enableProxy = async () => {
+    const result = await validateProxyReady();
+    return result.ok;
+};
 export const disableProxy = async () => true;

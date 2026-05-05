@@ -9,12 +9,18 @@
 
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f0f6ff;
+        background: #eef5ff;
+        background-image:
+          radial-gradient(ellipse at 15% 50%, rgba(73,185,255,.09) 0%, transparent 55%),
+          radial-gradient(ellipse at 85% 20%, rgba(14,165,233,.06) 0%, transparent 50%);
         min-height: 100vh;
         display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: center;
-        padding: 2rem;
+        gap: 2.5rem;
+        padding: 4rem 2rem 3rem;
       }
 
       .lang-bar {
@@ -40,6 +46,7 @@
       .lang-btn.active { border-color: #49B9FF; color: #0ea5e9; background: #eff9ff; }
 
       .card {
+        flex: none;
         background: #fff;
         border-radius: 1.25rem;
         box-shadow: 0 20px 60px rgba(15,23,42,.12);
@@ -136,6 +143,173 @@
       }
       #btn-skip:hover { color: #64748b; }
 
+      /* ── Desktop client promo banner ──────────────────────────────────── */
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 1;  transform: scale(1); }
+        50%       { opacity: .5; transform: scale(.7); }
+      }
+      @keyframes float-orb {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50%       { transform: translateY(-12px) scale(1.04); }
+      }
+
+      .desktop-banner {
+        flex: none;
+        width: 100%;
+        max-width: 400px;
+        background: linear-gradient(155deg, #06101e 0%, #091b36 50%, #0d2548 100%);
+        border-radius: 1.5rem;
+        padding: 2rem 1.85rem 1.75rem;
+        color: #fff;
+        text-align: left;
+        box-shadow:
+          0 24px 64px rgba(6,16,30,.65),
+          0 0 0 1px rgba(73,185,255,.18),
+          inset 0 1px 0 rgba(255,255,255,.07);
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Starfield */
+      .desktop-banner::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+          radial-gradient(1px 1px at  8% 14%, rgba(255,255,255,.65) 0%, transparent 100%),
+          radial-gradient(1px 1px at 23%  5%, rgba(255,255,255,.45) 0%, transparent 100%),
+          radial-gradient(1.5px 1.5px at 58% 20%, rgba(255,255,255,.5) 0%, transparent 100%),
+          radial-gradient(1px 1px at 80%  4%, rgba(255,255,255,.55) 0%, transparent 100%),
+          radial-gradient(1px 1px at 92% 37%, rgba(255,255,255,.35) 0%, transparent 100%),
+          radial-gradient(1px 1px at 45% 67%, rgba(255,255,255,.3)  0%, transparent 100%),
+          radial-gradient(1.5px 1.5px at 17% 83%, rgba(255,255,255,.35) 0%, transparent 100%),
+          radial-gradient(1px 1px at 72% 88%, rgba(255,255,255,.4) 0%, transparent 100%),
+          radial-gradient(1px 1px at 36% 95%, rgba(255,255,255,.25) 0%, transparent 100%),
+          radial-gradient(1px 1px at  4% 54%, rgba(255,255,255,.35) 0%, transparent 100%),
+          radial-gradient(1px 1px at 88% 72%, rgba(255,255,255,.3) 0%, transparent 100%),
+          radial-gradient(1.5px 1.5px at 51% 43%, rgba(255,255,255,.2) 0%, transparent 100%);
+        pointer-events: none;
+      }
+
+      /* Floating glow orb */
+      .desktop-banner::after {
+        content: '';
+        position: absolute;
+        top: -80px;
+        right: -55px;
+        width: 240px;
+        height: 240px;
+        background: radial-gradient(circle, rgba(73,185,255,.28) 0%, rgba(14,165,233,.1) 45%, transparent 70%);
+        pointer-events: none;
+        animation: float-orb 6s ease-in-out infinite;
+      }
+
+      .desktop-banner-inner { position: relative; z-index: 1; }
+
+      /* Badge */
+      .desktop-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        background: linear-gradient(90deg, rgba(73,185,255,.18), rgba(73,185,255,.08));
+        border: 1px solid rgba(73,185,255,.4);
+        border-radius: 2rem;
+        padding: .22rem .75rem;
+        font-size: .68rem;
+        font-weight: 700;
+        letter-spacing: .09em;
+        color: #49B9FF;
+        text-transform: uppercase;
+        margin-bottom: 1.1rem;
+      }
+      .desktop-badge-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #49B9FF;
+        flex-shrink: 0;
+        animation: pulse-dot 1.8s ease-in-out infinite;
+      }
+
+      /* Headline */
+      .desktop-banner h3 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        line-height: 1.2;
+        color: #fff;
+        margin-bottom: .7rem;
+        letter-spacing: -.025em;
+      }
+      .desktop-banner h3 em {
+        font-style: normal;
+        background: linear-gradient(90deg, #49B9FF 0%, #a5f3fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      /* Description */
+      .desktop-banner p {
+        font-size: .855rem;
+        color: rgba(255,255,255,.65);
+        line-height: 1.65;
+        margin-bottom: 1.2rem;
+      }
+
+      /* Feature pills */
+      .desktop-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+        margin-bottom: 1.35rem;
+      }
+      .desktop-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .28rem;
+        background: rgba(255,255,255,.07);
+        border: 1px solid rgba(255,255,255,.11);
+        border-radius: 2rem;
+        padding: .28rem .72rem;
+        font-size: .74rem;
+        font-weight: 600;
+        color: rgba(255,255,255,.82);
+        white-space: nowrap;
+      }
+
+      /* CTA */
+      .desktop-banner-cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        background: linear-gradient(90deg, #0ea5e9 0%, #49B9FF 100%);
+        color: #fff;
+        font-size: .92rem;
+        font-weight: 700;
+        border-radius: .75rem;
+        padding: .82rem 1.5rem;
+        text-decoration: none;
+        transition: filter .2s ease, transform .15s ease, box-shadow .2s ease;
+        box-shadow: 0 4px 22px rgba(73,185,255,.45), inset 0 1px 0 rgba(255,255,255,.18);
+        letter-spacing: .01em;
+        margin-bottom: .95rem;
+      }
+      .desktop-banner-cta:hover {
+        filter: brightness(1.12);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 32px rgba(73,185,255,.6);
+      }
+      .desktop-banner-cta:active { transform: scale(.97); }
+
+      /* Platforms */
+      .desktop-platforms {
+        text-align: center;
+        font-size: .72rem;
+        color: rgba(255,255,255,.36);
+        letter-spacing: .03em;
+      }
+
       .status {
         display: none;
         align-items: center;
@@ -157,6 +331,47 @@
     <div class="lang-bar">
       <button class="lang-btn active" data-lang="es">ES</button>
       <button class="lang-btn" data-lang="en">EN</button>
+    </div>
+
+    <!-- Desktop client promo banner -->
+    <div class="desktop-banner">
+      <div class="desktop-banner-inner">
+
+        <!-- Badge -->
+        <div class="desktop-badge">
+          <span class="desktop-badge-dot"></span>
+          <span id="t-desktop-badge"></span>
+        </div>
+
+        <!-- Headline -->
+        <h3 id="t-desktop-title"></h3>
+
+        <!-- Description -->
+        <p id="t-desktop-desc"></p>
+
+        <!-- Feature pills -->
+        <div class="desktop-pills">
+          <span class="desktop-pill">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Mesh VPN
+          </span>
+          <span class="desktop-pill" id="t-pill-2"></span>
+          <span class="desktop-pill" id="t-pill-3"></span>
+        </div>
+
+        <!-- CTA -->
+        <a id="desktop-cta" class="desktop-banner-cta" href="#" target="_blank" rel="noopener noreferrer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 15V3m0 12-4-4m4 4 4-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 20h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          <span id="t-desktop-btn"></span>
+        </a>
+
+        <!-- Platform availability -->
+        <div class="desktop-platforms" id="t-desktop-platforms"></div>
+
+      </div>
     </div>
 
     <div class="card">

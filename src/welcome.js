@@ -26,6 +26,13 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
             statusOk: '¡Permisos concedidos! Ya puedes usar MidoriVPN.',
             statusClosing: 'Esta pestaña se cerrará en {seconds}s.',
             statusErr: 'Permisos denegados. La VPN no funcionará correctamente.',
+            desktopBadge: 'Novedad',
+            desktopTitle: 'Tu privacidad, <em>sin límites</em>',
+            desktopDesc: 'La extensión es solo el principio. Con el cliente de escritorio obtienes Mesh VPN, protección siempre activa y rendimiento nativo completo.',
+            desktopBtn: 'Descargar cliente de escritorio',
+            desktopPill2: '🛡️ Siempre activo',
+            desktopPill3: '💻 Multi-plataforma',
+            desktopPlatforms: 'Disponible para Windows · macOS · Linux',
         },
         en: {
             title: 'Welcome to MidoriVPN',
@@ -39,6 +46,13 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
             statusOk: 'Permissions granted! You can now use MidoriVPN.',
             statusClosing: 'This tab will close in {seconds}s.',
             statusErr: 'Permissions denied. The VPN will not work correctly.',
+            desktopBadge: 'New',
+            desktopTitle: 'Your privacy, <em>unleashed</em>',
+            desktopDesc: 'The extension is just the beginning. The desktop client gives you Mesh VPN, always-on protection and full native performance.',
+            desktopBtn: 'Download desktop client',
+            desktopPill2: '🛡️ Always-on',
+            desktopPill3: '💻 Multi-platform',
+            desktopPlatforms: 'Available for Windows · macOS · Linux',
         },
     };
 
@@ -61,6 +75,13 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
         document.getElementById('t-btn-skip').textContent = t.btnSkip;
         document.getElementById('t-status-ok').textContent = t.statusOk;
         document.getElementById('t-status-err').textContent = t.statusErr;
+        document.getElementById('t-desktop-badge').textContent = t.desktopBadge;
+        document.getElementById('t-desktop-title').innerHTML = t.desktopTitle;
+        document.getElementById('t-desktop-desc').textContent = t.desktopDesc;
+        document.getElementById('t-desktop-btn').textContent = t.desktopBtn;
+        document.getElementById('t-pill-2').textContent = t.desktopPill2;
+        document.getElementById('t-pill-3').textContent = t.desktopPill3;
+        document.getElementById('t-desktop-platforms').textContent = t.desktopPlatforms;
 
         document.querySelectorAll('.lang-btn').forEach((btn) => {
             btn.classList.toggle('active', btn.dataset.lang === lang);
@@ -69,6 +90,9 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
 
     // Initial render
     applyLang(currentLang);
+
+    // Set desktop CTA href from build-time env
+    document.getElementById('desktop-cta').href = (process.env.API_URL || '') + '/download';
 
     // Lang switcher buttons
     document.querySelectorAll('.lang-btn').forEach((btn) => {

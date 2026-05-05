@@ -7,7 +7,7 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "permissions": [
+  "optional_permissions": [
     "alarms",
     "proxy",
     "storage",

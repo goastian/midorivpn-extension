@@ -19,7 +19,7 @@
       "128": "icons/icon128.png"
     }
   },
-  "permissions": [
+  "optional_permissions": [
     "webRequestBlocking"
   ],
   "optional_host_permissions": [

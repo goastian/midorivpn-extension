@@ -1,4 +1,14 @@
-const REQUIRED_VPN_PERMISSION = { origins: ['<all_urls>'] };
+import { isFirefox } from './vars.js';
+
+const COMMON_API_PERMISSIONS = ['alarms', 'proxy', 'storage', 'tabs', 'webRequest', 'webNavigation'];
+const BROWSER_SPECIFIC_PERMISSIONS = isFirefox
+    ? ['webRequestBlocking']
+    : ['webRequestAuthProvider', 'offscreen'];
+
+const REQUIRED_VPN_PERMISSION = {
+    permissions: [...COMMON_API_PERMISSIONS, ...BROWSER_SPECIFIC_PERMISSIONS],
+    origins: ['<all_urls>'],
+};
 const OPEN_DEBOUNCE_MS = 2000;
 
 let openPermissionsPagePromise = null;
@@ -29,7 +39,10 @@ export const hasRequiredVpnPermissions = async () => {
     if (!chrome.permissions?.getAll) return false;
 
     const allPermissions = await callbackResult((done) => chrome.permissions.getAll(done));
-    return Array.isArray(allPermissions?.origins) && allPermissions.origins.includes('<all_urls>');
+    const hasAllUrls = Array.isArray(allPermissions?.origins) && allPermissions.origins.includes('<all_urls>');
+    const hasApiPerms = Array.isArray(allPermissions?.permissions) &&
+        REQUIRED_VPN_PERMISSION.permissions.every((p) => allPermissions.permissions.includes(p));
+    return hasAllUrls && hasApiPerms;
 };
 
 export const requestRequiredVpnPermissions = async () => {

@@ -46,13 +46,17 @@
 
 <script>
 import { defineAsyncComponent } from 'vue';
+import VSelectComp from '../components/Select.vue';
+import VSwitchComp from '../components/Switch.vue';
+import OptionsComp from '../components/Options.vue';
+import SettingsComp from './Settings.vue';
 export default {
   inject: ['app_name'],
   components: {
-    VSelect: defineAsyncComponent(() => import('../components/Select.vue')),
-    VSwitch: defineAsyncComponent(() => import('../components/Switch.vue')),
-    Options: defineAsyncComponent(() => import('../components/Options.vue')),
-    SettingsPage: defineAsyncComponent(() => import('./Settings.vue')),
+    VSelect: VSelectComp,
+    VSwitch: VSwitchComp,
+    Options: OptionsComp,
+    SettingsPage: SettingsComp,
   },
 
   data() {

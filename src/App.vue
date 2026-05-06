@@ -10,31 +10,39 @@
 
 <script>
 import useNotificationStore from "./stores/useNotificationStore.js";
-import { defineAsyncComponent } from 'vue';
 import useVpnStore from './stores/useVpnStore';
 import Token from './utils/token.ts';
+import Home from './pages/Home.vue';
+import Main from './pages/Main.vue';
+import Notification from './components/Notification.vue';
 export default {
   data() {
     return {
       isLoggedIn: false,
+      initError: false,
       vpn: useVpnStore(),
       notifications: useNotificationStore(),
     }
   },
 
   components: {
-    Home: defineAsyncComponent(() => import('./pages/Home.vue')),
-    Main: defineAsyncComponent(() => import('./pages/Main.vue')),
-    Notification: defineAsyncComponent(() => import('./components/Notification.vue')),
+    Home,
+    Main,
+    Notification,
   },
 
   async created() {
-    const token = new Token();
-    const accessToken = await token.getDecryptedToken();
+    try {
+      const token = new Token();
+      const accessToken = await token.getDecryptedToken();
 
-    if (accessToken) {
-      this.isLoggedIn = true;
-      await this.vpn.loadServers();
+      if (accessToken) {
+        this.isLoggedIn = true;
+        await this.vpn.loadServers();
+      }
+    } catch (err) {
+      console.error('[MidoriVPN] App init error:', err);
+      this.isLoggedIn = false;
     }
   },
 

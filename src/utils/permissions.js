@@ -1,6 +1,8 @@
 import { isFirefox } from './vars.js';
 
-const COMMON_API_PERMISSIONS = ['alarms', 'proxy', 'storage', 'tabs', 'webRequest', 'webNavigation'];
+// 'alarms' and 'storage' are required permissions in the manifest (always granted),
+// so they must NOT be included in optional permission requests.
+const COMMON_API_PERMISSIONS = ['proxy', 'tabs', 'webRequest', 'webNavigation'];
 const BROWSER_SPECIFIC_PERMISSIONS = isFirefox
     ? ['webRequestBlocking']
     : ['webRequestAuthProvider', 'offscreen'];

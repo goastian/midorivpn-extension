@@ -7,10 +7,12 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "optional_permissions": [
+  "permissions": [
     "alarms",
+    "storage"
+  ],
+  "optional_permissions": [
     "proxy",
-    "storage",
     "tabs",
     "webRequest",
     "webNavigation"

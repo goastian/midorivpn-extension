@@ -5,6 +5,7 @@
 // Supports ES / EN via the language switcher buttons.
 
 import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions.js';
+import { getLatestDownloadUrl } from './utils/download.js';
 
 (function () {
     const parsedCloseDelay = Number.parseInt(process.env.PERMISSIONS_CLOSE_DELAY_SECONDS || '5', 10);
@@ -92,7 +93,10 @@ import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './util
     applyLang(currentLang);
 
     // Set desktop CTA href from build-time env
-    document.getElementById('desktop-cta').href = (process.env.API_URL || '') + '/download';
+    // Resolve the best download URL for the user's OS (async, non-blocking)
+    const ctaEl = document.getElementById('desktop-cta');
+    ctaEl.href = 'https://github.com/goastian/midori-vpn-desktop/releases/latest';
+    getLatestDownloadUrl().then((url) => { ctaEl.href = url; });
 
     // Lang switcher buttons
     document.querySelectorAll('.lang-btn').forEach((btn) => {

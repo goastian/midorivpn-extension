@@ -11,6 +11,9 @@
     "alarms",
     "storage"
   ],
+  "host_permissions": [
+    "https://api.github.com/*"
+  ],
   "optional_permissions": [
     "proxy",
     "tabs",

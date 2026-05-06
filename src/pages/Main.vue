@@ -41,6 +41,7 @@
 import VSelectComp from '../components/Select.vue';
 import VSwitchComp from '../components/Switch.vue';
 import OptionsComp from '../components/Options.vue';
+import { getLatestDownloadUrl } from '../utils/download.js';
 export default {
   inject: ['app_name'],
   components: {
@@ -50,9 +51,9 @@ export default {
   },
 
   methods: {
-    openDesktop() {
-      const apiUrl = process.env.API_URL || '';
-      chrome.tabs.create({ url: `${apiUrl}/download` }, function () {
+    async openDesktop() {
+      const url = await getLatestDownloadUrl();
+      chrome.tabs.create({ url }, function () {
         window.close();
       });
     }

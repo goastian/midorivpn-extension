@@ -3,6 +3,8 @@
  * Adapted for browser extension context (chrome.storage.local).
  */
 
+import { encryptToken, decryptToken } from '../utils/crypto-utils';
+
 const API_URL = process.env.API_URL || '';
 
 interface ApiResponse<T = any> {
@@ -62,18 +64,45 @@ function storageRemove(keys: string[]): Promise<void> {
 }
 
 async function getTokens(): Promise<StoredTokens> {
-    return storageGet(['access_token', 'refresh_token', 'token_expires_at']);
+    const raw = await storageGet(['access_token_enc', 'refresh_token_enc', 'token_expires_at', 'access_token', 'refresh_token']);
+    const result: StoredTokens = { token_expires_at: raw.token_expires_at };
+    // Decrypt if encrypted versions exist; fall back to legacy plaintext for migration.
+    if (raw.access_token_enc) {
+        try { result.access_token = await decryptToken(raw.access_token_enc); } catch { /* skip */ }
+    } else if (raw.access_token) {
+        result.access_token = raw.access_token;
+    }
+    if (raw.refresh_token_enc) {
+        try { result.refresh_token = await decryptToken(raw.refresh_token_enc); } catch { /* skip */ }
+    } else if (raw.refresh_token) {
+        result.refresh_token = raw.refresh_token;
+    }
+    return result;
 }
 
 async function saveTokens(accessToken: string, refreshToken?: string, expiresIn?: number): Promise<void> {
-    const data: Record<string, any> = { access_token: accessToken };
-    if (refreshToken) data.refresh_token = refreshToken;
+    const data: Record<string, any> = {};
+    try {
+        data.access_token_enc = await encryptToken(accessToken);
+        // Remove any legacy plaintext key
+        await storageRemove(['access_token']);
+    } catch {
+        data.access_token = accessToken; // fallback if SubtleCrypto unavailable
+    }
+    if (refreshToken) {
+        try {
+            data.refresh_token_enc = await encryptToken(refreshToken);
+            await storageRemove(['refresh_token']);
+        } catch {
+            data.refresh_token = refreshToken;
+        }
+    }
     if (expiresIn) data.token_expires_at = Date.now() + expiresIn * 1000;
     await storageSet(data);
 }
 
 async function clearTokens(): Promise<void> {
-    await storageRemove(['access_token', 'refresh_token', 'token_expires_at', 'encryptedToken', 'tokenExpiry']);
+    await storageRemove(['access_token', 'access_token_enc', 'refresh_token', 'refresh_token_enc', 'token_expires_at', 'encryptedToken', 'tokenExpiry']);
 }
 
 async function tryRefreshToken(): Promise<string> {

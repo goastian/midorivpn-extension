@@ -9,7 +9,10 @@ import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permiss
 
 // Expose debug helper on globalThis so it can be called from the background
 // inspector console: await debugProxy()
-globalThis.debugProxy = debugProxyState;
+// Only exposed in non-production builds to avoid leaking internal state.
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.debugProxy = debugProxyState;
+}
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
 const REQUIRE_ALL_URLS_PERMISSION = process.env.REQUIRE_ALL_URLS_PERMISSION !== 'false';

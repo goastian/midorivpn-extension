@@ -17,8 +17,6 @@
 
 <script>
 import useStore from '../stores/useStore';
-import useMeshStore from '../stores/useMeshStore';
-import useSettingsStore from '../stores/useSettingsStore';
 import { enableBadge, disableBadge } from '../utils/badge';
 import { disableProxy, enableProxy, validateProxyReady } from '../utils/proxy';
 import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permissions';
@@ -26,32 +24,7 @@ export default {
     data() {
         return {
             storage: useStore(),
-            mesh: useMeshStore(),
-            settingsStore: useSettingsStore(),
             permissionError: '',
-        }
-    },
-
-    computed: {
-        meshIp() {
-            if (!this.settingsStore.meshEnabled) return null;
-            if (!this.mesh.myMeshIp) return null;
-            return this.mesh.myMeshIp;
-        }
-    },
-
-    async created() {
-        if (this.settingsStore.meshEnabled) {
-            await this.mesh.loadNodeStatus();
-        }
-    },
-
-    watch: {
-        // Refresh IP badge whenever the VPN connects or disconnects
-        'storage.state'(newVal) {
-            if (newVal && this.settingsStore.meshEnabled) {
-                this.mesh.loadNodeStatus();
-            }
         }
     },
 

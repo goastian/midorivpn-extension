@@ -19,16 +19,10 @@
             <div class="dialog-main column ga-xs">
                 <a @click="account" class="menu-item row items-center ga-sm">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.6"/>
-                        <path d="m19.4 15-.7-.4a7.5 7.5 0 0 0 0-5.2l.7-.4a1 1 0 0 0 .4-1.4l-1-1.7a1 1 0 0 0-1.4-.4l-.7.4a7.5 7.5 0 0 0-4.5-2.6V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v.7a7.5 7.5 0 0 0-4.5 2.6l-.7-.4a1 1 0 0 0-1.4.4l-1 1.7a1 1 0 0 0 .4 1.4l.7.4a7.5 7.5 0 0 0 0 5.2l-.7.4a1 1 0 0 0-.4 1.4l1 1.7a1 1 0 0 0 1.4.4l.7-.4a7.5 7.5 0 0 0 4.5 2.6V21a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-.7a7.5 7.5 0 0 0 4.5-2.6l.7.4a1 1 0 0 0 1.4-.4l1-1.7a1 1 0 0 0-.4-1.4Z" stroke="currentColor" stroke-width="1.4"/>
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/>
+                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                     </svg>
                     Manage Account
-                </a>
-                <a @click="openSettings" class="menu-item row items-center ga-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                    </svg>
-                    Settings
                 </a>
 
             </div>
@@ -51,7 +45,6 @@
 <script>
 import Auth from '../utils/authentification.ts';
 export default {
-    emits: ['open-settings'],
     data() {
         return {
             show: false,
@@ -75,15 +68,10 @@ export default {
         },
 
         account() {
-            const issuer = process.env.AUTHENTIK_ISSUER || '';
-            chrome.tabs.create({ url: issuer }, function () {
+            const url = process.env.ACCOUNT_URL || process.env.API_URL || '';
+            chrome.tabs.create({ url }, function () {
                 window.close();
             });
-        },
-
-        openSettings() {
-            this.show = false;
-            this.$emit('open-settings');
         },
 
         openAbout() {

@@ -1,6 +1,6 @@
 import badge from '../utils/badge.js';
 import { handleProxy, debugProxyState } from '../utils/proxy';
-import { api, meshApi, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
+import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
@@ -123,56 +123,6 @@ const handlers = {
   loadUser: async () => {
     return user.LoadUser();
   },
-  nodeStatus: async () => {
-    return meshApi.nodeStatus();
-  },
-  activateNode: async () => {
-    return meshApi.activateNode();
-  },
-  deactivateNode: async () => {
-    return meshApi.deactivateNode();
-  },
-  // ── Mesh management handlers ──────────────────────────────────────────────
-  listMeshes: async () => {
-    return meshApi.list();
-  },
-  getMesh: async (msg) => {
-    if (!msg.meshId) throw new Error('meshId required');
-    return meshApi.get(msg.meshId);
-  },
-  createMesh: async (msg) => {
-    const name = (msg.name ?? '').trim();
-    if (!name) throw new Error('Mesh name is required');
-    if (name.length > 64) throw new Error('Mesh name must be 64 characters or fewer');
-    if (!/^[\w\s\-\.]+$/.test(name)) throw new Error('Mesh name contains invalid characters');
-    const maxMembers = Number(msg.maxMembers ?? 10);
-    if (!Number.isInteger(maxMembers) || maxMembers < 1 || maxMembers > 255)
-      throw new Error('Max members must be an integer between 1 and 255');
-    return meshApi.create(name, msg.description ?? '', maxMembers);
-  },
-  joinMesh: async (msg) => {
-    const code = (msg.inviteCode ?? '').trim();
-    if (!code) throw new Error('Invite code is required');
-    if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(code))
-      throw new Error('Invite code must be a valid UUID');
-    return meshApi.join(code);
-  },
-  leaveMesh: async (msg) => {
-    if (!msg.meshId) throw new Error('meshId required');
-    return meshApi.leave(msg.meshId);
-  },
-  createInvite: async (msg) => {
-    if (!msg.meshId) throw new Error('meshId required');
-    return meshApi.createInvite(msg.meshId, msg.expiresInHours ?? 0);
-  },
-  // Session mesh (auto lifecycle)
-  autoCreateMesh: async () => {
-    return meshApi.autoCreate();
-  },
-  autoDeleteMesh: async () => {
-    return meshApi.autoDelete();
-  },
-  // ─────────────────────────────────────────────────────────────────────────
   provisionConnection: async (msg) => {
     const serverId = msg.serverId;
     if (!serverId) throw new Error('No server selected');
@@ -207,13 +157,7 @@ log.info('boot', 'background loaded, initializing token session');
 ensureRequiredVpnPermissions().catch((error) => {
   log.warn('permissions', 'Failed to check required VPN permissions on boot:', error?.message || error);
 });
-syncTokenSession().then((token) => {
-  connectMeshWS().catch(() => { });
-  if (token) {
-    meshApi.autoCreate().catch((err) => {
-      log.warn('auto-mesh', 'Failed to auto-create session mesh on boot:', err?.message || err);
-    });
-  }
+syncTokenSession().then(() => {
 }).catch((error) => {
   log.error('boot', 'Failed to initialize token session:', error);
 });
@@ -306,13 +250,7 @@ if (chrome.runtime?.onStartup) {
     ensureRequiredVpnPermissions().catch((error) => {
       log.warn('permissions', 'Failed to check required VPN permissions on startup:', error?.message || error);
     });
-    syncTokenSession().then((token) => {
-      connectMeshWS().catch(() => { });
-      if (token) {
-        meshApi.autoCreate().catch((err) => {
-          log.warn('auto-mesh', 'Failed to auto-create session mesh on startup:', err?.message || err);
-        });
-      }
+    syncTokenSession().then(() => {
     }).catch((error) => {
       log.error('boot', 'Failed to restore token session on startup:', error);
     });
@@ -369,94 +307,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     log.error('alarm', 'Failed to reschedule token refresh:', error);
   });
 
-  // Reconnect mesh WebSocket when the access token changes (login / refresh).
-  if (changes.access_token) {
-    connectMeshWS().catch(() => { });
-  }
 });
-
-// ── Mesh WebSocket ────────────────────────────────────────────────────────────
-// Keeps a persistent WS connection to /ws so the extension can receive real-time
-// mesh directory and membership events.
-// without the popup needing to poll.
-
-let _meshSocket = null;
-let _meshWSRetryTimer = null;
-let _meshWSBackoff = 1000;
-const MESH_WS_MAX_BACKOFF_MS = 30_000;
-
-function getMeshWSUrl() {
-  const base = (process.env.API_URL || '').replace(/\/+$/, '');
-  if (!base) return null;
-  return base.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '/ws';
-}
-
-async function connectMeshWS() {
-  // Already open or connecting — nothing to do.
-  if (_meshSocket && _meshSocket.readyState < 2) return;
-
-  const url = getMeshWSUrl();
-  if (!url) return;
-
-  const token = await ensureValidAccessToken().catch(() => null);
-  if (!token) return;
-
-  try {
-    const ws = new WebSocket(url);
-    _meshSocket = ws;
-
-    ws.onopen = () => {
-      _meshWSBackoff = 1000; // reset backoff on success
-      ws.send(JSON.stringify({ token }));
-    };
-
-    ws.onmessage = (evt) => {
-      let msg;
-      try { msg = JSON.parse(evt.data); } catch (_) { return; }
-      if (!msg || !msg.type) return;
-      if (
-        msg.type === 'mesh.member_joined' ||
-        msg.type === 'mesh.member_left' ||
-        msg.type === 'mesh.deleted' ||
-        msg.type === 'mesh.list_changed'
-      ) {
-        // Forward to any open extension page (popup / options).
-        // Errors are normal when no receiver is open — suppress them.
-        chrome.runtime.sendMessage({ type: 'meshEvent', event: msg }).catch(() => { });
-      }
-    };
-
-    ws.onerror = (err) => { log.warn('mesh-ws', 'WebSocket error:', err?.message || err); }; // detailed close follows in onclose
-
-    ws.onclose = () => {
-      _meshSocket = null;
-      clearTimeout(_meshWSRetryTimer);
-      _meshWSRetryTimer = setTimeout(() => {
-        connectMeshWS().catch(() => { });
-      }, _meshWSBackoff);
-      _meshWSBackoff = Math.min(_meshWSBackoff * 2, MESH_WS_MAX_BACKOFF_MS);
-    };
-  } catch (_) {
-    // WebSocket constructor threw (e.g. invalid URL) — do not retry
-  }
-}
-// ─────────────────────────────────────────────────────────────────────────────
-// Debounce: prevent rapid-fire duplicate calls for mesh mutation operations.
-// Each key tracks the timestamp of the last call; if the same command is
-// invoked again within DEBOUNCE_MS, the call is rejected with an error.
-const DEBOUNCE_MS = 1500;
-const DEBOUNCED_COMMANDS = new Set(['createMesh', 'joinMesh', 'leaveMesh', 'autoCreateMesh', 'autoDeleteMesh']);
-const lastCommandAt = new Map();
-
-function isDebouncedCommand(type) {
-  if (!DEBOUNCED_COMMANDS.has(type)) return false;
-  const now = Date.now();
-  const last = lastCommandAt.get(type) || 0;
-  if (now - last < DEBOUNCE_MS) return true;
-  lastCommandAt.set(type, now);
-  return false;
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Only accept messages from our own extension
@@ -465,11 +316,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   const ALLOWED_TYPES = new Set(Object.keys(handlers));
   if (!msg?.type || !ALLOWED_TYPES.has(msg.type)) {
     sendResponse({ success: false, error: 'Unknown command' });
-    return;
-  }
-
-  if (isDebouncedCommand(msg.type)) {
-    sendResponse({ success: false, error: 'Please wait before retrying' });
     return;
   }
 
@@ -482,10 +328,4 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true;
 });
 
-// Clean up session mesh when the service worker is about to be suspended
-// (this happens when the browser closes or the extension is idle long enough).
-if (chrome.runtime?.onSuspend) {
-  chrome.runtime.onSuspend.addListener(() => {
-    meshApi.autoDelete().catch(() => { });
-  });
-}
+

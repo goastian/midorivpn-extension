@@ -1,21 +1,13 @@
 import { defineStore } from 'pinia';
 
 const useSettingsStore = defineStore('settings', {
-    state: () => ({
-        meshEnabled: true,
-    }),
-
+    state: () => ({}),
     getters: {
         persistFields() {
-            return ['meshEnabled'];
+            return [];
         },
     },
-
-    actions: {
-        setMeshEnabled(value) {
-            this.meshEnabled = !!value;
-        },
-    },
+    actions: {},
 });
 
 export default useSettingsStore;

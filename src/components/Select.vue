@@ -56,9 +56,6 @@
 
 <script>
 import useVpnStore from '../stores/useVpnStore.js';
-import useMeshStore from '../stores/useMeshStore.js';
-import useSettingsStore from '../stores/useSettingsStore.js';
-import useStore from '../stores/useStore.js';
 import badge from '../utils/badge.js';
 
 /** Strips port from an endpoint string ("1.2.3.4:51820" → "1.2.3.4") */
@@ -67,42 +64,10 @@ function stripPort(endpoint) {
     return endpoint.split(':')[0];
 }
 
-function isValidCountryCode(code) {
-    return /^[A-Z]{2}$/.test(code || '') && code !== 'XX';
-}
-
-function countryFlag(code) {
-    const normalized = String(code || '').toUpperCase();
-    if (!isValidCountryCode(normalized)) return '🏳️';
-    return normalized
-        .split('')
-        .map((char) => String.fromCodePoint(0x1F1E6 + char.charCodeAt(0) - 65))
-        .join('');
-}
-
-function meshCountryCode(mesh) {
-    if (mesh?.country_code) return String(mesh.country_code).toUpperCase();
-    const match = String(mesh?.name || '').match(/\[([A-Za-z]{2})\]/);
-    return match ? match[1].toUpperCase() : '';
-}
-
-function meshDisplayName(mesh) {
-    const code = meshCountryCode(mesh);
-    if (!isValidCountryCode(code)) return mesh?.name || 'Servidor Comunitario';
-    return `Servidor Comunitario ${countryFlag(code)} [${code}]`;
-}
-
-function meshPublicIp(mesh) {
-    return String(mesh?.public_ip || '').trim();
-}
-
 export default {
     data() {
         return {
             vpn: useVpnStore(),
-            mesh: useMeshStore(),
-            settings: useSettingsStore(),
-            vpnState: useStore(),
             open: false,
             loading: false,
         };
@@ -113,42 +78,18 @@ export default {
             return this.vpn.active?.id ?? '';
         },
 
-        serverOptions() {
+        allOptions() {
             return this.vpn.servers.map(s => ({
                 id: s.id,
                 label: s.name || s.country_code,
                 ip: stripPort(s.endpoint),
-                _isMesh: false,
                 _ref: s,
             }));
-        },
-
-        meshOptions() {
-            if (!this.settings.meshEnabled || !this.mesh.publicMeshList.length) return [];
-            return this.mesh.publicMeshList.map((m) => {
-                const code = meshCountryCode(m);
-                const ip = meshPublicIp(m) || (code ? `Country ${code}` : '');
-                return {
-                    id: 'mesh-' + m.id,
-                    label: meshDisplayName(m),
-                    ip,
-                    _isMesh: true,
-                    _meshRef: m,
-                };
-            });
-        },
-
-        allOptions() {
-            return [...this.serverOptions, ...this.meshOptions];
         },
 
         selected() {
             return this.allOptions.find(o => o.id === this.selectedId) ?? null;
         },
-    },
-
-    async created() {
-        // No pre-loading here: data is fetched lazily when the dropdown opens.
     },
 
     mounted() {
@@ -162,28 +103,6 @@ export default {
         document.removeEventListener('click', this._clickOutside, true);
     },
 
-    watch: {
-        // Mesh disabled: delete session mesh, clear list and deselect immediately
-        'settings.meshEnabled'(newVal) {
-            if (!newVal) {
-                this.mesh.autoDeleteMesh().catch(() => {});
-                this.mesh.clearList();
-                if (this.vpn.active?._isMesh) this.vpn.setActive(null);
-            } else {
-                this.mesh.autoCreateMesh()
-                    .catch(() => {})
-                    .finally(() => this.mesh.listMeshes().catch(() => {}));
-            }
-        },
-        // VPN disconnects while a mesh entry was selected: clear and deselect
-        'vpnState.state'(newVal) {
-            if (!newVal && this.vpn.active?._isMesh) {
-                this.mesh.clearList();
-                this.vpn.setActive(null);
-            }
-        },
-    },
-
     methods: {
         async toggleDropdown() {
             if (this.open) {
@@ -194,27 +113,13 @@ export default {
             this.loading = true;
             try {
                 await this.vpn.loadServers();
-                if (this.settings.meshEnabled) {
-                    await this.mesh.autoCreateMesh().catch(() => {});
-                    await this.mesh.listMeshes().catch(() => {});
-                }
             } finally {
                 this.loading = false;
             }
         },
 
         pick(opt) {
-            if (opt._isMesh) {
-                this.vpn.setActive({
-                    id: opt.id,
-                    name: opt.label,
-                    public_ip: opt.ip,
-                    _isMesh: true,
-                    _meshId: opt._meshRef.id,
-                });
-            } else {
-                this.vpn.setActive(opt._ref);
-            }
+            this.vpn.setActive(opt._ref);
             this.open = false;
             badge();
         },

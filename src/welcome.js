@@ -6,6 +6,7 @@
 
 import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions.js';
 import { getLatestDownloadUrl } from './utils/download.js';
+import { detectDesktopEnvironment } from './utils/platform.js';
 
 (function () {
     const parsedCloseDelay = Number.parseInt(process.env.PERMISSIONS_CLOSE_DELAY_SECONDS || '5', 10);
@@ -95,8 +96,17 @@ import { getLatestDownloadUrl } from './utils/download.js';
     // Set desktop CTA href from build-time env
     // Resolve the best download URL for the user's OS (async, non-blocking)
     const ctaEl = document.getElementById('desktop-cta');
-    ctaEl.href = 'https://github.com/goastian/midori-vpn-desktop/releases/latest';
-    getLatestDownloadUrl().then((url) => { ctaEl.href = url; });
+    const desktopSection = document.getElementById('desktop-section');
+
+    detectDesktopEnvironment().then((env) => {
+      if (env.confidence === 'mobile') {
+        // Hide the entire desktop download section on phones/tablets
+        if (desktopSection) desktopSection.style.display = 'none';
+        return;
+      }
+      ctaEl.href = 'https://github.com/goastian/midori-vpn-desktop/releases/latest';
+      getLatestDownloadUrl().then((url) => { ctaEl.href = url; });
+    });
 
     // Lang switcher buttons
     document.querySelectorAll('.lang-btn').forEach((btn) => {

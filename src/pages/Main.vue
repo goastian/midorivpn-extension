@@ -14,7 +14,7 @@
         <span class="subtitle">Select Server</span>
         <v-select />
       </div>
-      <div class="desktop-promo column ga-sm">
+      <div v-if="!isMobile" class="desktop-promo column ga-sm">
         <div class="row items-center ga-sm">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0">
             <rect x="2" y="3" width="20" height="14" rx="2" stroke="rgba(255,255,255,0.9)" stroke-width="1.6"/>
@@ -42,12 +42,24 @@ import VSelectComp from '../components/Select.vue';
 import VSwitchComp from '../components/Switch.vue';
 import OptionsComp from '../components/Options.vue';
 import { getLatestDownloadUrl } from '../utils/download.js';
+import { detectDesktopEnvironment } from '../utils/platform.js';
 export default {
   inject: ['app_name'],
   components: {
     VSelect: VSelectComp,
     VSwitch: VSwitchComp,
     Options: OptionsComp,
+  },
+
+  data() {
+    return {
+      isMobile: false,
+    };
+  },
+
+  async created() {
+    const env = await detectDesktopEnvironment();
+    this.isMobile = env.confidence === 'mobile';
   },
 
   methods: {

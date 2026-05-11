@@ -23,16 +23,9 @@ function resolveRedirectURI(): string {
 }
 
 const REDIRECT_URI = resolveRedirectURI();
-const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
-const EXTENSION_CALLBACK_PATH = process.env.EXTENSION_CALLBACK_PATH || '/extension/callback';
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
-}
-
-function normalizePath(path: string): string {
-  if (!path) return '/extension/callback';
-  return path.startsWith('/') ? path : `/${path}`;
 }
 
 function resolveAuthorizationEndpoint(): string {
@@ -57,18 +50,6 @@ function resolveAuthorizationEndpoint(): string {
   }
 }
 
-function resolveRedirectURI(): string {
-  if (AUTHENTIK_REDIRECT_URI) {
-    return AUTHENTIK_REDIRECT_URI;
-  }
-
-  if (!PUBLIC_BASE_URL) {
-    return '';
-  }
-
-  return `${trimTrailingSlash(PUBLIC_BASE_URL)}${normalizePath(EXTENSION_CALLBACK_PATH)}`;
-}
-
 function generateCode(length = 128): string {
   const characters =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -88,8 +69,6 @@ async function codeChallenge(): Promise<{ verifier: string; challenge: string }>
   const hashed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   return { verifier, challenge: base64urlencode(hashed) };
 }
-
-const REDIRECT_URI = resolveRedirectURI();
 
 class Auth {
   async signIn() {

@@ -4,6 +4,7 @@ import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimesta
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
+import { REDIRECT_URI } from '../utils/authentification';
 import log from '../utils/logger.js';
 import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permissions.js';
 
@@ -225,7 +226,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   if (details.frameId !== 0) return;
 
   const url = new URL(details.url);
-  const redirectUri = process.env.AUTHENTIK_REDIRECT_URI || '';
+  const redirectUri = REDIRECT_URI;
 
   // Match the callback URL — compare origin+pathname exactly to prevent open-redirect abuse.
   if (redirectUri) {

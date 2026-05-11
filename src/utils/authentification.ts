@@ -7,10 +7,32 @@ const API_URL = process.env.API_URL || '';
 const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
 const AUTHENTIK_AUTHORIZATION_URL = process.env.AUTHENTIK_AUTHORIZATION_URL || '';
 const CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID || '';
-const REDIRECT_URI = process.env.AUTHENTIK_REDIRECT_URI || '';
+
+// REDIRECT_URI resolution order:
+//   1. AUTHENTIK_REDIRECT_URI (legacy full URL — kept for backward compat)
+//   2. PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH (new configurable scheme)
+// One of the two must be set; the build will silently use an empty string
+// otherwise, which will be caught by the PKCE state-mismatch error at runtime.
+function resolveRedirectURI(): string {
+  if (process.env.AUTHENTIK_REDIRECT_URI) {
+    return process.env.AUTHENTIK_REDIRECT_URI;
+  }
+  const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+  const path = process.env.EXTENSION_CALLBACK_PATH || '/extension/callback';
+  return base ? base + path : '';
+}
+
+const REDIRECT_URI = resolveRedirectURI();
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
+const EXTENSION_CALLBACK_PATH = process.env.EXTENSION_CALLBACK_PATH || '/extension/callback';
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
+}
+
+function normalizePath(path: string): string {
+  if (!path) return '/extension/callback';
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 function resolveAuthorizationEndpoint(): string {
@@ -35,6 +57,18 @@ function resolveAuthorizationEndpoint(): string {
   }
 }
 
+function resolveRedirectURI(): string {
+  if (AUTHENTIK_REDIRECT_URI) {
+    return AUTHENTIK_REDIRECT_URI;
+  }
+
+  if (!PUBLIC_BASE_URL) {
+    return '';
+  }
+
+  return `${trimTrailingSlash(PUBLIC_BASE_URL)}${normalizePath(EXTENSION_CALLBACK_PATH)}`;
+}
+
 function generateCode(length = 128): string {
   const characters =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
@@ -55,6 +89,8 @@ async function codeChallenge(): Promise<{ verifier: string; challenge: string }>
   return { verifier, challenge: base64urlencode(hashed) };
 }
 
+const REDIRECT_URI = resolveRedirectURI();
+
 class Auth {
   async signIn() {
     const state = generateCode(40);
@@ -66,6 +102,11 @@ class Auth {
     const authorizationEndpoint = resolveAuthorizationEndpoint();
     if (!authorizationEndpoint) {
       console.error('Missing or invalid AUTHENTIK_ISSUER/AUTHENTIK_AUTHORIZATION_URL');
+      return;
+    }
+
+    if (!REDIRECT_URI) {
+      console.error('Missing redirect URI: set AUTHENTIK_REDIRECT_URI or PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH');
       return;
     }
 

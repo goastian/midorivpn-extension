@@ -163,88 +163,147 @@ syncTokenSession().then(() => {
   log.error('boot', 'Failed to initialize token session:', error);
 });
 
-// Firefox: proxy.onRequest handles all proxy routing and auth.
-browser.proxy.onRequest.addListener(handleProxy, {
-  urls: ['<all_urls>'],
-});
+// Listener registration is guarded because `browser.proxy`, `browser.webRequest`
+// and `browser.webNavigation` come from optional_permissions. Until the user
+// grants them via the welcome page, those APIs are `undefined`. Registering
+// blindly at module load would throw a TypeError and kill the background
+// service worker — which would also kill the OAuth callback handler below,
+// making login impossible. Instead, we register lazily and re-register on
+// `permissions.onAdded` so the background keeps working in any state.
+const proxyAuthHandler = async (details) => {
+  if (!details.isProxy) return {};
+  log.warn('auth', '407 from proxy for', details.url, '- refreshing token and retrying');
 
-// Log proxy errors so they are visible in the browser console.
-browser.proxy.onError.addListener((error) => {
-  log.error('proxy-error', error);
-});
+  try {
+    // Throttle force-refresh so a burst of 407s does not hammer Authentik.
+    const now = Date.now();
+    let token;
+    if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
+      lastProxyTriggeredRefresh = now;
+      token = await refreshAccessToken();
+      log.info('auth', 'forced refresh after 407 OK, retrying with new token');
+      scheduleTokenRefresh().catch(() => { });
+    } else {
+      // Within the throttle window — reuse whatever we have.
+      token = await ensureValidAccessToken();
+    }
 
-// Firefox fires onAuthRequired when the proxy replies with 407.
-// Returning `authCredentials` asynchronously (Promise-based blocking listener)
-// makes Firefox retry the request with fresh credentials AND suppresses the
-// native username/password dialog. Returning `cancel` alone is not enough:
-// in some Firefox versions the proxy-auth dialog still appears briefly.
-browser.webRequest.onAuthRequired.addListener(
-  async (details) => {
-    if (!details.isProxy) return {};
-    log.warn('auth', '407 from proxy for', details.url, '- refreshing token and retrying');
-
-    try {
-      // Throttle force-refresh so a burst of 407s does not hammer Authentik.
-      const now = Date.now();
-      let token;
-      if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
-        lastProxyTriggeredRefresh = now;
-        token = await refreshAccessToken();
-        log.info('auth', 'forced refresh after 407 OK, retrying with new token');
-        scheduleTokenRefresh().catch(() => { });
-      } else {
-        // Within the throttle window — reuse whatever we have.
-        token = await ensureValidAccessToken();
-      }
-
-      if (!token) {
-        log.warn('auth', 'no token available after 407, cancelling');
-        await markSessionExpired();
-        return { cancel: true };
-      }
-
-      return {
-        authCredentials: {
-          username: 'midorivpn',
-          password: token,
-        },
-      };
-    } catch (err) {
-      log.warn('auth', 'refresh after 407 failed:', err?.message || err);
-      if (err && err.shouldClear) {
-        await markSessionExpired();
-      }
+    if (!token) {
+      log.warn('auth', 'no token available after 407, cancelling');
+      await markSessionExpired();
       return { cancel: true };
     }
-  },
-  { urls: ['<all_urls>'] },
-  ['blocking']
-);
 
-// Handle OAuth callback route — only fire on the main frame
-chrome.webNavigation.onCommitted.addListener(async (details) => {
+    return {
+      authCredentials: {
+        username: 'midorivpn',
+        password: token,
+      },
+    };
+  } catch (err) {
+    log.warn('auth', 'refresh after 407 failed:', err?.message || err);
+    if (err && err.shouldClear) {
+      await markSessionExpired();
+    }
+    return { cancel: true };
+  }
+};
+
+const proxyErrorHandler = (error) => {
+  log.error('proxy-error', error);
+};
+
+const oauthNavigationHandler = async (details) => {
   if (details.frameId !== 0) return;
 
-  const url = new URL(details.url);
   const redirectUri = REDIRECT_URI;
+  if (!redirectUri) return;
 
-  // Match the callback URL — compare origin+pathname exactly to prevent open-redirect abuse.
-  if (redirectUri) {
-    try {
-      const callbackURL = new URL(details.url);
-      const expectedURL = new URL(redirectUri);
-      if (callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname) {
-        const token = new Token();
-        const success = await token.exchangeCode(details.url);
-        if (success) {
-          await syncTokenSession();
-          // Close the callback tab
-          chrome.tabs.remove(details.tabId);
-        }
+  try {
+    const callbackURL = new URL(details.url);
+    const expectedURL = new URL(redirectUri);
+    if (callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname) {
+      const token = new Token();
+      const success = await token.exchangeCode(details.url);
+      if (success) {
+        await syncTokenSession();
+        chrome.tabs.remove(details.tabId);
       }
-    } catch (_) { /* invalid URL — ignore */ }
+    }
+  } catch (_) { /* invalid URL — ignore */ }
+};
+
+let proxyListenersRegistered = false;
+let webRequestListenersRegistered = false;
+let webNavigationListenerRegistered = false;
+
+function registerProxyListeners() {
+  if (proxyListenersRegistered) return;
+  try {
+    if (!browser?.proxy?.onRequest?.addListener) {
+      log.warn('boot', 'browser.proxy unavailable — skipping proxy listener registration');
+      return;
+    }
+    browser.proxy.onRequest.addListener(handleProxy, { urls: ['<all_urls>'] });
+    browser.proxy.onError.addListener(proxyErrorHandler);
+    proxyListenersRegistered = true;
+    log.info('boot', 'proxy listeners registered');
+  } catch (err) {
+    log.warn('boot', 'failed to register proxy listeners:', err?.message || err);
   }
-});
+}
+
+function registerWebRequestListeners() {
+  if (webRequestListenersRegistered) return;
+  try {
+    if (!browser?.webRequest?.onAuthRequired?.addListener) {
+      log.warn('boot', 'browser.webRequest unavailable — skipping onAuthRequired registration');
+      return;
+    }
+    browser.webRequest.onAuthRequired.addListener(
+      proxyAuthHandler,
+      { urls: ['<all_urls>'] },
+      ['blocking']
+    );
+    webRequestListenersRegistered = true;
+    log.info('boot', 'webRequest.onAuthRequired registered');
+  } catch (err) {
+    log.warn('boot', 'failed to register webRequest listener:', err?.message || err);
+  }
+}
+
+function registerWebNavigationListener() {
+  if (webNavigationListenerRegistered) return;
+  try {
+    if (!chrome?.webNavigation?.onCommitted?.addListener) {
+      log.warn('boot', 'chrome.webNavigation unavailable — OAuth callback detection disabled until permissions granted');
+      return;
+    }
+    chrome.webNavigation.onCommitted.addListener(oauthNavigationHandler);
+    webNavigationListenerRegistered = true;
+    log.info('boot', 'webNavigation.onCommitted registered');
+  } catch (err) {
+    log.warn('boot', 'failed to register webNavigation listener:', err?.message || err);
+  }
+}
+
+function registerAllListeners() {
+  registerProxyListeners();
+  registerWebRequestListeners();
+  registerWebNavigationListener();
+}
+
+registerAllListeners();
+
+// Re-register when the user grants the optional permissions via the welcome
+// page. Firefox/Chrome fire `permissions.onAdded` after a successful
+// chrome.permissions.request().
+if (chrome.permissions?.onAdded?.addListener) {
+  chrome.permissions.onAdded.addListener(() => {
+    log.info('boot', 'permissions added — registering missing listeners');
+    registerAllListeners();
+  });
+}
 
 if (chrome.runtime?.onStartup) {
   chrome.runtime.onStartup.addListener(() => {

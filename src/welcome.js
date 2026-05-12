@@ -104,7 +104,6 @@ import { detectDesktopEnvironment } from './utils/platform.js';
         if (desktopSection) desktopSection.style.display = 'none';
         return;
       }
-      ctaEl.href = 'https://github.com/goastian/midori-vpn-desktop/releases/latest';
       getLatestDownloadUrl().then((url) => { ctaEl.href = url; });
     });
 

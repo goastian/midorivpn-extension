@@ -1,5 +1,5 @@
 {
-  "optional_permissions": ["webRequestAuthProvider", "offscreen"],
+  "permissions": ["webRequestAuthProvider", "offscreen"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

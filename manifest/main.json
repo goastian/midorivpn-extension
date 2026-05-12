@@ -9,18 +9,14 @@
   },
   "permissions": [
     "alarms",
-    "storage"
-  ],
-  "host_permissions": [
-    "https://api.github.com/*"
-  ],
-  "optional_permissions": [
+    "storage",
     "proxy",
     "tabs",
     "webRequest",
     "webNavigation"
   ],
-  "optional_host_permissions": [
+  "host_permissions": [
+    "https://api.github.com/*",
     "<all_urls>"
   ],
   "content_security_policy": {

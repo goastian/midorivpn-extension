@@ -19,7 +19,6 @@
 import useStore from '../stores/useStore';
 import { enableBadge, disableBadge } from '../utils/badge';
 import { disableProxy, enableProxy, validateProxyReady } from '../utils/proxy';
-import { hasRequiredVpnPermissions, openPermissionsPage } from '../utils/permissions';
 export default {
     data() {
         return {
@@ -32,12 +31,6 @@ export default {
         async enableproxy() {
             this.permissionError = '';
             if(!this.storage.state) {
-                const hasPermissions = await hasRequiredVpnPermissions();
-                if (!hasPermissions) {
-                    await openPermissionsPage();
-                    window.close();
-                    return;
-                }
                 const ready = await validateProxyReady();
                 if (!ready.ok) {
                     this.permissionError = ready.error || 'VPN proxy is not ready';

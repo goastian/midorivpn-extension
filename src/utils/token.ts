@@ -3,6 +3,24 @@ import { saveTokens, getTokens, clearTokens, ensureValidAccessToken, refreshAcce
 
 declare const chrome: any;
 
+const TRANSIENT_EXCHANGE_STATUSES = new Set([502, 503, 504]);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(value: string | null): number {
+  if (!value) return 0;
+
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return seconds * 1000;
+  }
+
+  const dateMs = Date.parse(value);
+  return Number.isFinite(dateMs) ? Math.max(dateMs - Date.now(), 0) : 0;
+}
+
 class Token {
   async getDecryptedToken(): Promise<string | null> {
     return ensureValidAccessToken();
@@ -49,37 +67,57 @@ class Token {
       return false;
     }
 
-    // Clear PKCE state immediately
-    await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/auth/callback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'omit',
+          body: JSON.stringify({
+            code,
+            redirect_uri: REDIRECT_URI,
+            code_verifier: pkce_verifier || '',
+          }),
+        });
 
-    try {
-      const res = await fetch(`${API_URL}/api/v1/auth/callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'omit',
-        body: JSON.stringify({
-          code,
-          redirect_uri: REDIRECT_URI,
-          code_verifier: pkce_verifier || '',
-        }),
-      });
+        if (!res.ok) {
+          const transient = TRANSIENT_EXCHANGE_STATUSES.has(res.status);
+          if (transient && attempt === 0) {
+            const retryAfterMs = parseRetryAfterMs(res.headers.get('Retry-After')) || 1000;
+            console.warn('Token exchange transient failure:', res.status, `retrying in ${retryAfterMs}ms`);
+            await sleep(retryAfterMs);
+            continue;
+          }
 
-      if (!res.ok) {
-        console.error('Token exchange failed:', res.status);
+          console.error('Token exchange failed:', res.status);
+          if (!transient) {
+            await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
+          }
+          return false;
+        }
+
+        const json = await res.json();
+        if (json.data?.access_token) {
+          await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
+          await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
+          return true;
+        }
+
+        console.error('Token exchange response missing access token');
+        await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
+        return false;
+      } catch (error) {
+        if (attempt === 0) {
+          console.warn('Token exchange network error, retrying once:', error);
+          await sleep(1000);
+          continue;
+        }
+        console.error('Token exchange error:', error);
         return false;
       }
-
-      const json = await res.json();
-      if (json.data?.access_token) {
-        await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Token exchange error:', error);
-      return false;
     }
+
+    return false;
   }
 }
 

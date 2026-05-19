@@ -1,6 +1,6 @@
 import badge from '../utils/badge.js';
 import { handleProxy, debugProxyState } from '../utils/proxy';
-import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, clearTokens } from '../lib/api';
+import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
@@ -99,7 +99,16 @@ async function scheduleTokenRefresh() {
 
   const now = Date.now();
   if (alarmAt <= now) {
-    await ensureValidAccessToken();
+    const token = await ensureValidAccessToken();
+    const retryAt = getNextRefreshAttemptTimestamp();
+    if (retryAt && retryAt > Date.now()) {
+      chrome.alarms.create(TOKEN_REFRESH_ALARM, { when: retryAt });
+      return;
+    }
+    if (!token) {
+      await clearRefreshAlarm();
+      return;
+    }
     return scheduleTokenRefresh();
   }
 
@@ -113,6 +122,9 @@ async function syncTokenSession(forceRefresh = false) {
   // user still thinks they are connected, flip the VPN off so traffic stops
   // silently leaking through "direct" and the popup shows the real state.
   if (!token) {
+    if (getNextRefreshAttemptTimestamp()) {
+      return null;
+    }
     await markSessionExpired();
   }
   return token;
@@ -386,5 +398,3 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     );
   return true;
 });
-
-

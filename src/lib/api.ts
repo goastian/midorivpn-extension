@@ -21,21 +21,32 @@ interface StoredTokens {
 
 class RefreshTokenError extends Error {
     shouldClear: boolean;
+    transient: boolean;
+    retryAfterMs: number;
+    cooldownActive: boolean;
 
-    constructor(message: string, shouldClear = false) {
+    constructor(message: string, shouldClear = false, transient = false, retryAfterMs = 0, cooldownActive = false) {
         super(message);
         this.name = 'RefreshTokenError';
         this.shouldClear = shouldClear;
+        this.transient = transient;
+        this.retryAfterMs = retryAfterMs;
+        this.cooldownActive = cooldownActive;
     }
 }
 
 let isRefreshing = false;
 let refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: Error) => void }> = [];
+let refreshBlockedUntil = 0;
+let refreshFailureCount = 0;
 
 // Refresh 3 minutes before exp so that bursts of concurrent proxy requests do
 // not race a token that is seconds away from expiration. Proxy CONNECTs happen
 // many times per page load and each one re-checks the token validity.
 const TOKEN_REFRESH_LEEWAY_MS = 3 * 60 * 1000;
+const DEFAULT_REFRESH_COOLDOWN_MS = 30 * 1000;
+const MAX_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
+const TRANSIENT_REFRESH_STATUSES = new Set([429, 502, 503, 504]);
 
 function processRefreshQueue(error: Error | null, token: string | null) {
     refreshQueue.forEach(({ resolve, reject }) => {
@@ -105,7 +116,61 @@ async function clearTokens(): Promise<void> {
     await storageRemove(['access_token', 'access_token_enc', 'refresh_token', 'refresh_token_enc', 'token_expires_at', 'encryptedToken', 'tokenExpiry']);
 }
 
+function parseRetryAfterMs(value: string | null): number {
+    if (!value) return 0;
+
+    const seconds = Number(value);
+    if (Number.isFinite(seconds) && seconds > 0) {
+        return Math.min(seconds * 1000, MAX_REFRESH_COOLDOWN_MS);
+    }
+
+    const dateMs = Date.parse(value);
+    if (Number.isFinite(dateMs)) {
+        return Math.min(Math.max(dateMs - Date.now(), 0), MAX_REFRESH_COOLDOWN_MS);
+    }
+
+    return 0;
+}
+
+function nextRefreshBackoffMs(retryAfterMs = 0): number {
+    if (retryAfterMs > 0) {
+        return Math.min(retryAfterMs, MAX_REFRESH_COOLDOWN_MS);
+    }
+
+    const attempt = Math.min(refreshFailureCount, 4);
+    return Math.min(DEFAULT_REFRESH_COOLDOWN_MS * 2 ** attempt, MAX_REFRESH_COOLDOWN_MS);
+}
+
+function getRefreshCooldownRemainingMs(): number {
+    return Math.max(refreshBlockedUntil - Date.now(), 0);
+}
+
+function rememberTransientRefreshFailure(error: RefreshTokenError): RefreshTokenError {
+    const cooldownMs = nextRefreshBackoffMs(error.retryAfterMs);
+    refreshFailureCount += 1;
+    refreshBlockedUntil = Date.now() + cooldownMs;
+    error.retryAfterMs = cooldownMs;
+    console.warn('[MidoriVPN] api', 'refresh paused for', `${Math.ceil(cooldownMs / 1000)}s`, '-', error.message);
+    return error;
+}
+
+function resetRefreshBackoff() {
+    refreshFailureCount = 0;
+    refreshBlockedUntil = 0;
+}
+
 async function tryRefreshToken(): Promise<string> {
+    const cooldownMs = getRefreshCooldownRemainingMs();
+    if (cooldownMs > 0) {
+        throw new RefreshTokenError(
+            `Token refresh paused for ${Math.ceil(cooldownMs / 1000)}s`,
+            false,
+            true,
+            cooldownMs,
+            true
+        );
+    }
+
     const { refresh_token } = await getTokens();
     if (!refresh_token) throw new RefreshTokenError('No refresh token', true);
 
@@ -120,13 +185,15 @@ async function tryRefreshToken(): Promise<string> {
         });
     } catch (e) {
         console.warn('[MidoriVPN] api', 'refresh network error:', (e as Error)?.message || e);
-        throw new RefreshTokenError('Token refresh failed');
+        throw new RefreshTokenError('Token refresh failed: network error', false, true);
     }
 
     if (!res.ok) {
         const shouldClear = [400, 401, 403].includes(res.status);
+        const transient = TRANSIENT_REFRESH_STATUSES.has(res.status);
+        const retryAfterMs = transient ? parseRetryAfterMs(res.headers.get('Retry-After')) : 0;
         console.warn('[MidoriVPN] api', 'refresh HTTP', res.status, 'shouldClear=', shouldClear);
-        throw new RefreshTokenError(`Token refresh failed: ${res.status}`, shouldClear);
+        throw new RefreshTokenError(`Token refresh failed: ${res.status}`, shouldClear, transient, retryAfterMs);
     }
 
     const json: ApiResponse<{ access_token: string; refresh_token?: string; expires_in?: number }> = await res.json();
@@ -136,6 +203,7 @@ async function tryRefreshToken(): Promise<string> {
     }
 
     await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
+    resetRefreshBackoff();
     const expires = json.data.expires_in ? `${json.data.expires_in}s` : 'unknown';
     console.log('[MidoriVPN] api', 'refresh OK, expires_in=', expires);
     return json.data.access_token;
@@ -157,8 +225,16 @@ async function refreshAccessToken(): Promise<string> {
             processRefreshQueue(null, newToken);
             return newToken;
         } catch (err) {
-            processRefreshQueue(err as Error, null);
-            throw err;
+            const refreshErr = err instanceof RefreshTokenError
+                ? err
+                : new RefreshTokenError((err as Error)?.message || 'Token refresh failed');
+
+            if (refreshErr.transient && !refreshErr.cooldownActive) {
+                rememberTransientRefreshFailure(refreshErr);
+            }
+
+            processRefreshQueue(refreshErr, null);
+            throw refreshErr;
         } finally {
             isRefreshing = false;
         }
@@ -213,6 +289,10 @@ async function getRefreshAlarmTimestamp(): Promise<number | null> {
     }
 
     return token_expires_at - TOKEN_REFRESH_LEEWAY_MS;
+}
+
+function getNextRefreshAttemptTimestamp(): number | null {
+    return getRefreshCooldownRemainingMs() > 0 ? refreshBlockedUntil : null;
 }
 
 async function request<T>(path: string, options: RequestInit = {}, _isRetry = false): Promise<T> {
@@ -386,6 +466,7 @@ export {
     clearTokens,
     ensureValidAccessToken,
     getRefreshAlarmTimestamp,
+    getNextRefreshAttemptTimestamp,
     getTokens,
     refreshAccessToken,
     saveTokens,

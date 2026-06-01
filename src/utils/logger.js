@@ -10,6 +10,7 @@ function fmt(tag, args) {
 export const log = {
     // info-level messages are suppressed in production builds to avoid
     // leaking routing/state details into the browser console for end users.
+    // eslint-disable-next-line no-console
     info: IS_PROD ? () => {} : (tag, ...args) => console.log(...fmt(tag, args)),
     warn: (tag, ...args) => console.warn(...fmt(tag, args)),
     error: (tag, ...args) => console.error(...fmt(tag, args)),

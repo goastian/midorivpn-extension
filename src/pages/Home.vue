@@ -1,32 +1,17 @@
 <template>
     <div class="container">
-        <div class="header">
-            <img src="/icons/title.png" class="logo-title" width="80" />
-        </div>
-        <div class="main">
-            <img src="/icons/icon128.png" class="logo" width="80" />
-            <div class="main-content">
-                <h2 class="title">Protect your connection</h2>
-                <span class="description">Surf the web safely and privately with our high-speed VPN</span>
-            </div>
-            <div class="main-list">
-                <div class="container-icon">
-                    <span class="icon">🛡️</span>
-                    <span>Safe connection</span>
-                </div>
-                <div class="container-icon">
-                    <span class="icon">🌍</span>
-                    <span>International servers</span>
-                </div>
-                <div class="container-icon">
-                    <span class="icon">🔒</span>
-                    <span>Complete privacy</span>
-                </div>
-            </div>
+        <div class="hero">
+            <img src="/icons/title.png" class="logo-title" />
+            <img src="/icons/icon128.png" class="logo" width="96" />
+            <h2 class="title">Protect your connection</h2>
+            <p class="description">Sign in once. We'll keep your traffic private.</p>
         </div>
         <div class="footer">
-            <button @click="openLink">Login</button>
-            <span>We put your privacy first</span>
+            <button class="primary" :disabled="loading" @click="login">
+                <span v-if="!loading">Sign in to Midori VPN</span>
+                <span v-else>Opening sign in…</span>
+            </button>
+            <span class="tagline">We put your privacy first</span>
         </div>
     </div>
 </template>
@@ -36,10 +21,21 @@ import Auth from '../utils/authentification.ts';
 export default {
     inject: ['app_name'],
 
+    data() {
+        return { loading: false };
+    },
+
     methods: {
-        openLink() {
-            const auth = new Auth();
-            auth.signIn();
+        async login() {
+            if (this.loading) return;
+            this.loading = true;
+            try {
+                const auth = new Auth();
+                await auth.signIn();
+            } catch (error) {
+                console.error('signIn failed:', error);
+                this.loading = false;
+            }
         },
     }
 }
@@ -50,93 +46,76 @@ export default {
     width: 330px;
     height: 460px;
     background-color: white;
-    background-size: 20px 20px;
-    padding: .8rem;
-    box-shadow: none;
+    padding: 1.2rem;
     color: #202020;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
     justify-content: space-between;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.header {
-    width: 100%;
+.hero {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: .75rem;
+    padding-top: .5rem;
 }
 
 .logo-title {
     width: 120px;
 }
 
-.main {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.6rem;
-}
-
-.main-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: .5rem;
+.logo {
+    margin-top: .5rem;
 }
 
 .title {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0;
+    text-align: center;
 }
 
 .description {
     text-align: center;
-    font-size: .8rem;
+    font-size: .85rem;
     color: rgb(75, 85, 99);
-}
-
-.main-list {
-    align-self: start;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    font-size: .86rem;
-}
-
-.container-icon {
-    display: flex;
-    align-items: center;
-    gap: .3rem;
-}
-
-.icon {
-    background-color: #E6F6FD;
-    color: #0EA5E9;
-    border-radius: 50%;
-    width: 25px;
-    height: 25px;
-    padding: .2rem;
+    margin: 0;
+    max-width: 24ch;
+    line-height: 1.35;
 }
 
 .footer {
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: .5rem;
 }
 
-.footer>button {
+.primary {
     width: 100%;
     background-color: #0EA5E9;
     color: white;
     border: none;
-    padding: .6rem;
-    border-radius: .2rem;
-    font-size: .9rem;
+    padding: .7rem;
+    border-radius: .35rem;
+    font-size: .92rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color .15s ease, opacity .15s ease;
 }
 
-.footer>span {
+.primary:hover:not(:disabled) {
+    background-color: #0284C7;
+}
+
+.primary:disabled {
+    opacity: .7;
+    cursor: progress;
+}
+
+.tagline {
     color: gray;
     font-size: .7rem;
 }

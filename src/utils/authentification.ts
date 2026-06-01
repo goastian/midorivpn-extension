@@ -1,6 +1,7 @@
-// @ts-ignore
+// @ts-expect-error untyped JS module
 import { disableBadge } from './badge';
 import { clearTokens } from '../lib/api';
+// @ts-expect-error untyped JS module
 import { disableProxy } from './proxy';
 
 const API_URL = process.env.API_URL || '';

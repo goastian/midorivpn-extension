@@ -1,11 +1,11 @@
 <template>
-  <div class="containerApp">
-    <Home v-if="!isLoggedIn" />
-    <Main v-else />
-    <Notification
-      @close="removeNotification"
-    />
-  </div>
+    <div class="containerApp">
+        <Home v-if="!isLoggedIn" />
+        <Main v-else />
+        <Notification
+            @close="removeNotification"
+        />
+    </div>
 </template>
 
 <script>
@@ -16,6 +16,18 @@ import Home from './pages/Home.vue';
 import Main from './pages/Main.vue';
 import Notification from './components/Notification.vue';
 export default {
+
+  components: {
+    Home,
+    Main,
+    Notification,
+  },
+
+  provide() {
+    return {
+      app_name: process.env.APP_NAME,
+    }
+  },
   data() {
     return {
       isLoggedIn: false,
@@ -23,12 +35,6 @@ export default {
       vpn: useVpnStore(),
       notifications: useNotificationStore(),
     }
-  },
-
-  components: {
-    Home,
-    Main,
-    Notification,
   },
 
   async created() {
@@ -43,12 +49,6 @@ export default {
     } catch (err) {
       console.error('[MidoriVPN] App init error:', err);
       this.isLoggedIn = false;
-    }
-  },
-
-  provide() {
-    return {
-      app_name: process.env.APP_NAME,
     }
   },
 

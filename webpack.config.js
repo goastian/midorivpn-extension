@@ -9,6 +9,42 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const { app_env, browser } = require('./config/config.js');
 
+function safeOrigin(value) {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return null;
+  }
+}
+
+function buildExtensionPagesCsp() {
+  const origins = new Set();
+  [process.env.API_URL, process.env.ACCOUNT_URL, process.env.AUTHENTIK_ISSUER, process.env.AUTHENTIK_AUTHORIZATION_URL]
+    .map(safeOrigin)
+    .filter(Boolean)
+    .forEach((o) => origins.add(o));
+
+  const connectSrc = ["'self'", ...origins].join(' ');
+  // In development the popup connects to webpack-dev-server (HMR / sockjs).
+  const devSources = app_env === 'development'
+    ? " http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
+    : '';
+  return [
+    "default-src 'none'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    `connect-src ${connectSrc}${devSources}`,
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
 function manifestMerge(fileMain, fileBrowser) {
   const main = JSON.parse(fs.readFileSync(fileMain, 'utf8'));
   const browserManifest = JSON.parse(fs.readFileSync(fileBrowser, 'utf8'));
@@ -32,6 +68,11 @@ function manifestMerge(fileMain, fileBrowser) {
     '<all_urls>',
   ]));
   delete manifest.optional_host_permissions;
+
+  manifest.content_security_policy = {
+    ...(manifest.content_security_policy || {}),
+    extension_pages: buildExtensionPagesCsp(),
+  };
 
   return JSON.stringify(manifest, null, 2);
 }
@@ -73,12 +114,10 @@ const config = {
         loader: 'babel-loader',
       },
       {
-        test: /\.(jpe?g|png)$/,
-        loader: 'responsive-loader',
-        options: {
-          adapter: require('responsive-loader/sharp'),
-          sizes: [480, 768, 1024],
-          quality: 85,
+        test: /\.(jpe?g|png|svg|webp)$/,
+        type: 'asset/resource',
+        generator: {
+          filename: 'assets/[name].[contenthash][ext]',
         },
       },
     ],
@@ -107,7 +146,7 @@ const config = {
           from: path.join(__dirname, 'manifest', 'main.json'),
           to: path.join(__dirname, 'dist', 'manifest.json'),
           force: true,
-          transform(path, content) {
+          transform(_path, _content) {
             return Buffer.from(
               manifestMerge(
                 './manifest/main.json',

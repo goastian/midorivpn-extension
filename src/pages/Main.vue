@@ -1,40 +1,40 @@
 <template>
-  <div class="container column">
-    <div class="header">
-      <div class="row items-center ga-sm">
-        <img src="/icons/logo.png" class="logo" />
-      </div>
-      <Options />
-    </div>
-    <div class="center">
-      <v-switch />
-    </div>
-    <div class="main column ga-md">
-      <div class="server-picker column ga-sm">
-        <span class="subtitle">Select Server</span>
-        <v-select />
-      </div>
-      <div v-if="!isMobile" class="desktop-promo column ga-sm">
-        <div class="row items-center ga-sm">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0">
-            <rect x="2" y="3" width="20" height="14" rx="2" stroke="rgba(255,255,255,0.9)" stroke-width="1.6"/>
-            <path d="M8 21h8M12 17v4" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-          <div class="column ga-xs">
-            <h3 class="promo-title">MidoriVPN Desktop</h3>
-            <span class="promo-desc">Mesh VPN, always-on protection &amp; full native performance.</span>
-          </div>
+    <div class="container column">
+        <div class="header">
+            <div class="row items-center ga-sm">
+                <img src="/icons/logo.png" class="logo" />
+            </div>
+            <Options />
         </div>
-        <button class="btn-download" @click="openDesktop">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="flex-shrink:0">
-            <path d="M12 3v13M7 12l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M3 19h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          Download desktop client
-        </button>
-      </div>
+        <div class="center">
+            <v-switch />
+        </div>
+        <div class="main column ga-md">
+            <div class="server-picker column ga-sm">
+                <span class="subtitle">Select Server</span>
+                <v-select />
+            </div>
+            <div v-if="!isMobile" class="desktop-promo column ga-sm">
+                <div class="row items-center ga-sm">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0">
+                        <rect x="2" y="3" width="20" height="14" rx="2" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" />
+                        <path d="M8 21h8M12 17v4" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" stroke-linecap="round" />
+                    </svg>
+                    <div class="column ga-xs">
+                        <h3 class="promo-title">MidoriVPN Desktop</h3>
+                        <span class="promo-desc">Mesh VPN, always-on protection &amp; full native performance.</span>
+                    </div>
+                </div>
+                <button class="btn-download" @click="openDesktop">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="flex-shrink:0">
+                        <path d="M12 3v13M7 12l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 19h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Download desktop client
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
 </template>
 
 <script>
@@ -44,12 +44,12 @@ import OptionsComp from '../components/Options.vue';
 import { getLatestDownloadUrl } from '../utils/download.js';
 import { detectDesktopEnvironment } from '../utils/platform.js';
 export default {
-  inject: ['app_name'],
   components: {
     VSelect: VSelectComp,
     VSwitch: VSwitchComp,
     Options: OptionsComp,
   },
+  inject: ['app_name'],
 
   data() {
     return {

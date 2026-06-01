@@ -1,6 +1,7 @@
+import browser from 'webextension-polyfill';
 import badge from '../utils/badge.js';
 import { handleProxy, debugProxyState } from '../utils/proxy';
-import { api, ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
+import { ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
@@ -139,12 +140,8 @@ const handlers = {
   },
   provisionConnection: async (msg) => {
     const serverId = msg.serverId;
+    const active = msg.activeServer;
     if (!serverId) throw new Error('No server selected');
-
-    const { server } = await new Promise((resolve) =>
-      chrome.storage.local.get(['server'], resolve)
-    );
-    const active = server?.active;
     if (!active || active.id !== serverId) {
       throw new Error('Selected server is not active');
     }
@@ -155,7 +152,6 @@ const handlers = {
     const token = await ensureValidAccessToken();
     if (!token) throw new Error('Login session expired');
 
-    await chrome.storage.local.set({ connection: null });
     return {
       id: null,
       server_id: serverId,
@@ -292,7 +288,24 @@ function registerWebNavigationListener() {
       log.warn('boot', 'chrome.webNavigation unavailable — OAuth callback detection disabled until permissions granted');
       return;
     }
-    chrome.webNavigation.onCommitted.addListener(oauthNavigationHandler);
+
+    // Restrict the listener to the exact OAuth callback URL so we don't
+    // receive events for every top-frame navigation the user makes.
+    let filter;
+    try {
+      if (REDIRECT_URI) {
+        const u = new URL(REDIRECT_URI);
+        filter = {
+          url: [{ hostEquals: u.hostname, pathEquals: u.pathname, schemes: [u.protocol.replace(':', '')] }],
+        };
+      }
+    } catch (_) { /* fall back to unfiltered */ }
+
+    if (filter) {
+      chrome.webNavigation.onCommitted.addListener(oauthNavigationHandler, filter);
+    } else {
+      chrome.webNavigation.onCommitted.addListener(oauthNavigationHandler);
+    }
     webNavigationListenerRegistered = true;
     log.info('boot', 'webNavigation.onCommitted registered');
   } catch (err) {

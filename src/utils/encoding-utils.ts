@@ -21,6 +21,9 @@ export function bufferToBase64(buffer: ArrayBuffer|Uint8Array): string {
  * @param base64 - The Base64-encoded string to decode.
  * @returns A Uint8Array containing the decoded binary data.
  */
-export function base64ToBuffer(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+export function base64ToBuffer(base64: string): Uint8Array<ArrayBuffer> {
+  const bin = atob(base64);
+  const out = new Uint8Array(new ArrayBuffer(bin.length));
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  return out as Uint8Array<ArrayBuffer>;
 }

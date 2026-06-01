@@ -1,23 +1,23 @@
 <template>
-  <div :class="{ 'full' : notification.full}">
-    <div class="column notification ga-sm" :class="[notification?.notification.type, { 'show' : notification.show } ]">
-      <div class="row">
-        <div class="icon">
-          <slot name="icon">
-            <span v-if="notification?.notification.type === 'success'">✅</span>
-            <span v-else-if="notification?.notification.type === 'error'">❌</span>
-            <span v-else-if="notification?.notification.type === 'info'">ℹ️</span>
-            <span v-else>🔔</span>
-          </slot>
+    <div :class="{ 'full' : notification.full}">
+        <div class="column notification ga-sm" :class="[notification?.notification.type, { 'show' : notification.show } ]">
+            <div class="row">
+                <div class="icon">
+                    <slot name="icon">
+                        <span v-if="notification?.notification.type === 'success'">✅</span>
+                        <span v-else-if="notification?.notification.type === 'error'">❌</span>
+                        <span v-else-if="notification?.notification.type === 'info'">ℹ️</span>
+                        <span v-else>🔔</span>
+                    </slot>
+                </div>
+                <h3>{{ notification?.notification.title }}</h3>
+                <button class="close-btn" @click="$emit('close')">×</button>
+            </div>
+            <div class="content">
+                <p>{{ notification?.notification.description }}</p>
+            </div>
         </div>
-        <h3>{{ notification?.notification.title }}</h3>
-        <button class="close-btn" @click="$emit('close')">×</button>
-      </div>
-      <div class="content">
-        <p>{{ notification?.notification.description }}</p>
-      </div>
     </div>
-  </div>
 </template>
 
 <script>
@@ -25,6 +25,8 @@ import useNotificationStore from '../stores/useNotificationStore.js';
 
 export default {
     name: "Notification",
+
+    emits: ['close'],
 
     data() {
       return {

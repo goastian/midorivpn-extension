@@ -3,7 +3,10 @@
  * Adapted for browser extension context (chrome.storage.local).
  */
 
-import { encryptToken, decryptToken } from '../utils/crypto-utils';
+import { encryptToken, decryptToken, purgeLegacyKeyMaterial } from '../utils/crypto-utils';
+import { parseRetryAfterMs } from '../utils/http';
+// @ts-expect-error untyped JS module
+import log from '../utils/logger.js';
 
 const API_URL = process.env.API_URL || '';
 
@@ -39,6 +42,9 @@ let isRefreshing = false;
 let refreshQueue: Array<{ resolve: (token: string) => void; reject: (err: Error) => void }> = [];
 let refreshBlockedUntil = 0;
 let refreshFailureCount = 0;
+let backoffHydrated = false;
+
+const REFRESH_BACKOFF_STORAGE_KEY = 'midori_refresh_backoff';
 
 // Refresh 3 minutes before exp so that bursts of concurrent proxy requests do
 // not race a token that is seconds away from expiration. Proxy CONNECTs happen
@@ -47,6 +53,45 @@ const TOKEN_REFRESH_LEEWAY_MS = 3 * 60 * 1000;
 const DEFAULT_REFRESH_COOLDOWN_MS = 30 * 1000;
 const MAX_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 const TRANSIENT_REFRESH_STATUSES = new Set([429, 502, 503, 504]);
+
+function sessionStorageGet(keys: string[]): Promise<Record<string, any>> {
+    return new Promise((resolve) => {
+        const session = (chrome.storage as any)?.session;
+        if (!session?.get) { resolve({}); return; }
+        try { session.get(keys, (r: any) => resolve(r || {})); }
+        catch { resolve({}); }
+    });
+}
+
+function sessionStorageSet(data: Record<string, any>): Promise<void> {
+    return new Promise((resolve) => {
+        const session = (chrome.storage as any)?.session;
+        if (!session?.set) { resolve(); return; }
+        try { session.set(data, () => resolve()); }
+        catch { resolve(); }
+    });
+}
+
+async function hydrateRefreshBackoff(): Promise<void> {
+    if (backoffHydrated) return;
+    backoffHydrated = true;
+    const stored = await sessionStorageGet([REFRESH_BACKOFF_STORAGE_KEY]);
+    const entry = stored[REFRESH_BACKOFF_STORAGE_KEY];
+    if (entry && typeof entry === 'object') {
+        if (Number.isFinite(entry.refreshBlockedUntil)) {
+            refreshBlockedUntil = entry.refreshBlockedUntil;
+        }
+        if (Number.isFinite(entry.refreshFailureCount)) {
+            refreshFailureCount = entry.refreshFailureCount;
+        }
+    }
+}
+
+function persistRefreshBackoff(): void {
+    sessionStorageSet({
+        [REFRESH_BACKOFF_STORAGE_KEY]: { refreshBlockedUntil, refreshFailureCount },
+    }).catch(() => { /* ignore */ });
+}
 
 function processRefreshQueue(error: Error | null, token: string | null) {
     refreshQueue.forEach(({ resolve, reject }) => {
@@ -110,26 +155,13 @@ async function saveTokens(accessToken: string, refreshToken?: string, expiresIn?
     }
     if (expiresIn) data.token_expires_at = Date.now() + expiresIn * 1000;
     await storageSet(data);
+    // Once we've re-encrypted with the new (non-extractable) key, drop any
+    // legacy PBKDF2 key material that may still be sitting in storage.
+    purgeLegacyKeyMaterial().catch(() => { /* ignore */ });
 }
 
 async function clearTokens(): Promise<void> {
-    await storageRemove(['access_token', 'access_token_enc', 'refresh_token', 'refresh_token_enc', 'token_expires_at', 'encryptedToken', 'tokenExpiry']);
-}
-
-function parseRetryAfterMs(value: string | null): number {
-    if (!value) return 0;
-
-    const seconds = Number(value);
-    if (Number.isFinite(seconds) && seconds > 0) {
-        return Math.min(seconds * 1000, MAX_REFRESH_COOLDOWN_MS);
-    }
-
-    const dateMs = Date.parse(value);
-    if (Number.isFinite(dateMs)) {
-        return Math.min(Math.max(dateMs - Date.now(), 0), MAX_REFRESH_COOLDOWN_MS);
-    }
-
-    return 0;
+    await storageRemove(['access_token', 'access_token_enc', 'refresh_token', 'refresh_token_enc', 'token_expires_at', 'encryptedToken', 'tokenExpiry', 'encryptionSalt', 'installEncryptionKey']);
 }
 
 function nextRefreshBackoffMs(retryAfterMs = 0): number {
@@ -149,6 +181,7 @@ function rememberTransientRefreshFailure(error: RefreshTokenError): RefreshToken
     const cooldownMs = nextRefreshBackoffMs(error.retryAfterMs);
     refreshFailureCount += 1;
     refreshBlockedUntil = Date.now() + cooldownMs;
+    persistRefreshBackoff();
     error.retryAfterMs = cooldownMs;
     console.warn('[MidoriVPN] api', 'refresh paused for', `${Math.ceil(cooldownMs / 1000)}s`, '-', error.message);
     return error;
@@ -157,9 +190,11 @@ function rememberTransientRefreshFailure(error: RefreshTokenError): RefreshToken
 function resetRefreshBackoff() {
     refreshFailureCount = 0;
     refreshBlockedUntil = 0;
+    persistRefreshBackoff();
 }
 
 async function tryRefreshToken(): Promise<string> {
+    await hydrateRefreshBackoff();
     const cooldownMs = getRefreshCooldownRemainingMs();
     if (cooldownMs > 0) {
         throw new RefreshTokenError(
@@ -174,7 +209,7 @@ async function tryRefreshToken(): Promise<string> {
     const { refresh_token } = await getTokens();
     if (!refresh_token) throw new RefreshTokenError('No refresh token', true);
 
-    console.log('[MidoriVPN] api', 'refreshing access token…');
+    log.info('api', 'refreshing access token…');
 
     let res: Response;
     try {
@@ -191,7 +226,7 @@ async function tryRefreshToken(): Promise<string> {
     if (!res.ok) {
         const shouldClear = [400, 401, 403].includes(res.status);
         const transient = TRANSIENT_REFRESH_STATUSES.has(res.status);
-        const retryAfterMs = transient ? parseRetryAfterMs(res.headers.get('Retry-After')) : 0;
+        const retryAfterMs = transient ? parseRetryAfterMs(res.headers.get('Retry-After'), MAX_REFRESH_COOLDOWN_MS) : 0;
         console.warn('[MidoriVPN] api', 'refresh HTTP', res.status, 'shouldClear=', shouldClear);
         throw new RefreshTokenError(`Token refresh failed: ${res.status}`, shouldClear, transient, retryAfterMs);
     }
@@ -205,7 +240,7 @@ async function tryRefreshToken(): Promise<string> {
     await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
     resetRefreshBackoff();
     const expires = json.data.expires_in ? `${json.data.expires_in}s` : 'unknown';
-    console.log('[MidoriVPN] api', 'refresh OK, expires_in=', expires);
+    log.info('api', 'refresh OK, expires_in=', expires);
     return json.data.access_token;
 }
 
@@ -282,6 +317,7 @@ async function ensureValidAccessToken(forceRefresh = false): Promise<string | nu
 }
 
 async function getRefreshAlarmTimestamp(): Promise<number | null> {
+    await hydrateRefreshBackoff();
     const { refresh_token, token_expires_at } = await getTokens();
 
     if (!refresh_token || !token_expires_at) {

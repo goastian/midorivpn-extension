@@ -13,16 +13,17 @@ config.devtool = false;
 var packageInfo = JSON.parse(fs.readFileSync('package.json', 'utf-8'))
 
 config.optimization = {
+    ...config.optimization,
     minimize: true,
     minimizer: [
         new TerserPlugin({
             extractComments: false,
             terserOptions: {
                 compress: {
-                    // Keep console.* in production so proxy/auth issues can be
-                    // diagnosed from the extension DevTools. Only strip debug().
-                    drop_console: false,
-                    pure_funcs: ['console.debug'],
+                    // Strip console.log/info/debug/warn in production; preserve
+                    // console.error so genuine failures still surface in
+                    // extension DevTools.
+                    pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
                 },
                 format: {
                     comments: false,
@@ -31,13 +32,6 @@ config.optimization = {
         }),
         new CssMinimizerPlugin(),
     ],
-    splitChunks: {
-        chunks: (chunk) => {
-            return chunk.name !== 'background' && chunk.name !== 'welcome';
-        },
-        minSize: 10000,
-        maxSize: 50000,
-    },
 };
 
 config.plugins = (config.plugins || []).concat(

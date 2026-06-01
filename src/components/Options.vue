@@ -1,10 +1,10 @@
 <template>
     <div class="container-options">
-        <button class="menu-btn" @click="show = !show" aria-label="Options">
+        <button class="menu-btn" aria-label="Options" @click="show = !show">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="5" r="2" fill="currentColor"/>
-                <circle cx="12" cy="12" r="2" fill="currentColor"/>
-                <circle cx="12" cy="19" r="2" fill="currentColor"/>
+                <circle cx="12" cy="5" r="2" fill="currentColor" />
+                <circle cx="12" cy="12" r="2" fill="currentColor" />
+                <circle cx="12" cy="19" r="2" fill="currentColor" />
             </svg>
         </button>
 
@@ -17,23 +17,22 @@
             <div class="divider"></div>
 
             <div class="dialog-main column ga-xs">
-                <a @click="account" class="menu-item row items-center ga-sm">
+                <a class="menu-item row items-center ga-sm" @click="account">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/>
-                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6" />
+                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
                     </svg>
                     Manage Account
                 </a>
-
             </div>
 
             <div class="divider"></div>
 
             <div class="dialog-footer">
-                <a @click="logout" class="signup row items-center ga-sm">
+                <a class="signup row items-center ga-sm" @click="logout">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15 12H4m0 0 4-4m-4 4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M10 4h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        <path d="M15 12H4m0 0 4-4m-4 4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M10 4h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
                     </svg>
                     Log out
                 </a>

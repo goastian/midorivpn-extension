@@ -62,6 +62,26 @@ import { detectDesktopEnvironment } from './utils/platform.js';
     const browserLang = (navigator.language || 'es').slice(0, 2).toLowerCase();
     let currentLang = STRINGS[browserLang] ? browserLang : 'es';
 
+    // Renders a string containing at most one <b>...</b> or <em>...</em> tag as
+    // real DOM nodes via textContent. Avoids innerHTML to keep the welcome page
+    // free of any HTML-injection sink, even though the source strings are
+    // static build-time constants.
+    function setRichText(el, source) {
+        if (!el) return;
+        el.textContent = '';
+        const match = /^([\s\S]*?)<(b|em)>([\s\S]*?)<\/\2>([\s\S]*)$/.exec(source);
+        if (!match) {
+            el.textContent = source;
+            return;
+        }
+        const [, prefix, tag, inner, suffix] = match;
+        if (prefix) el.appendChild(document.createTextNode(prefix));
+        const node = document.createElement(tag);
+        node.textContent = inner;
+        el.appendChild(node);
+        if (suffix) el.appendChild(document.createTextNode(suffix));
+    }
+
     function applyLang(lang) {
         currentLang = lang;
         const t = STRINGS[lang];
@@ -70,15 +90,15 @@ import { detectDesktopEnvironment } from './utils/platform.js';
         document.getElementById('t-title').textContent = t.title;
         document.getElementById('t-subtitle').textContent = t.subtitle;
         document.getElementById('t-perm-title').textContent = t.permTitle;
-        document.getElementById('t-perm-1').innerHTML = t.perm1;
-        document.getElementById('t-perm-2').innerHTML = t.perm2;
-        document.getElementById('t-perm-3').innerHTML = t.perm3;
+        setRichText(document.getElementById('t-perm-1'), t.perm1);
+        setRichText(document.getElementById('t-perm-2'), t.perm2);
+        setRichText(document.getElementById('t-perm-3'), t.perm3);
         document.getElementById('t-btn-grant').textContent = t.btnGrant;
         document.getElementById('t-btn-skip').textContent = t.btnSkip;
         document.getElementById('t-status-ok').textContent = t.statusOk;
         document.getElementById('t-status-err').textContent = t.statusErr;
         document.getElementById('t-desktop-badge').textContent = t.desktopBadge;
-        document.getElementById('t-desktop-title').innerHTML = t.desktopTitle;
+        setRichText(document.getElementById('t-desktop-title'), t.desktopTitle);
         document.getElementById('t-desktop-desc').textContent = t.desktopDesc;
         document.getElementById('t-desktop-btn').textContent = t.desktopBtn;
         document.getElementById('t-pill-2').textContent = t.desktopPill2;

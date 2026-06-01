@@ -3,8 +3,14 @@
 export function chromeStoragePlugin({ store }) {
 
     const storageKey = `${store.$id}`;
-    // Leer persistFields desde el getter
-    const persistFields = store.persistFields || null;
+    // Read persistFields from the getter; an empty array means "do not persist".
+    const persistFields = Array.isArray(store.persistFields)
+        ? store.persistFields.filter((k) => typeof k === 'string' && k.length > 0)
+        : null;
+
+    if (persistFields && persistFields.length === 0) {
+        return;
+    }
 
     chrome.storage.local.get([storageKey], (result) => {
         if (result[storageKey]) {

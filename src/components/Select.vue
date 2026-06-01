@@ -1,11 +1,11 @@
 <template>
-    <div class="selector" ref="root">
+    <div ref="root" class="selector">
         <!-- Trigger button -->
         <button
             type="button"
             class="selector-btn"
-            @click="toggleDropdown"
             :aria-expanded="open"
+            @click="toggleDropdown"
         >
             <div class="selector-info">
                 <span class="selector-label">{{ selected ? selected.label : 'Select a server…' }}</span>
@@ -13,7 +13,7 @@
             </div>
             <!-- Lucide chevron-down (MIT) -->
             <svg class="chevron" :class="{ open }" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
         </button>
 
@@ -21,8 +21,8 @@
         <div v-if="open" class="selector-menu" role="listbox">
             <div v-if="loading" class="selector-loading">
                 <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="3"/>
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#49B9FF" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#49B9FF" stroke-width="3" stroke-linecap="round" />
                 </svg>
                 <span>Cargando servidores…</span>
             </div>
@@ -42,7 +42,7 @@
                         <span v-if="opt.ip" class="item-ip">{{ opt.ip }}</span>
                     </span>
                     <svg v-if="selectedId === opt.id" class="item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                 </button>
             </template>

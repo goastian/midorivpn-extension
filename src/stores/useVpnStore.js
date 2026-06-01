@@ -30,25 +30,24 @@ const useServerStore = defineStore('server', {
 
     actions: {
         async loadServers() {
+            const applyResult = (result) => {
+                if (!result?.servers) return;
+                this.servers = result.servers;
+                // Pick a sensible default active server when none is set or
+                // the previously-active one is no longer in the proxy list.
+                const stillValid = this.active && result.servers.some((s) => s.id === this.active.id);
+                if (!stillValid) {
+                    this.active = result.servers[0] || null;
+                }
+            };
+
             try {
                 // Keep network calls in background so popup lifecycle does not cancel requests.
-                const result = await loadServersFromBackground();
-                if (result?.servers) {
-                    this.servers = result.servers;
-                    if (!this.active && result.active) {
-                        this.active = result.active;
-                    }
-                }
+                applyResult(await loadServersFromBackground());
             } catch (error) {
                 // Fallback to direct request in case background messaging is temporarily unavailable.
                 try {
-                    const result = await serverManager.loadServers();
-                    if (result?.servers) {
-                        this.servers = result.servers;
-                        if (!this.active && result.active) {
-                            this.active = result.active;
-                        }
-                    }
+                    applyResult(await serverManager.loadServers());
                 } catch (fallbackError) {
                     console.error('Error loading servers:', fallbackError || error);
                 }
@@ -59,9 +58,8 @@ const useServerStore = defineStore('server', {
             // Deep-clone to strip Vue reactive Proxy wrappers; otherwise the
             // object cannot be passed to chrome.storage / chrome.runtime
             // (DataCloneError: Proxy object could not be cloned).
-            const plain = server ? JSON.parse(JSON.stringify(server)) : null;
-            this.active = plain;
-            serverManager.setActive(plain);
+            this.active = server ? JSON.parse(JSON.stringify(server)) : null;
+            // Persistence is handled by chromeStoragePlugin via $subscribe.
         },
 
         async provisionConnection() {
@@ -71,21 +69,13 @@ const useServerStore = defineStore('server', {
             }
 
             try {
-                const connection = await sendBackgroundMessage({
+                await sendBackgroundMessage({
                     type: 'provisionConnection',
                     serverId: this.active.id,
+                    activeServer: JSON.parse(JSON.stringify(this.active)),
                 });
 
                 this.connectionId = null;
-
-                // Store active server for proxy use. Browser mode is proxy-only
-                // and must not consume WireGuard peer capacity.
-                const plainActive = JSON.parse(JSON.stringify(this.active));
-                await chrome.storage.local.set({
-                    connection: null,
-                    server: { active: plainActive },
-                });
-
                 return null; // success
             } catch (error) {
                 console.error('Error provisioning connection:', error);

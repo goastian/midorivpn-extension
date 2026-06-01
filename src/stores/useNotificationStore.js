@@ -28,7 +28,7 @@ const useNotificationStore = defineStore('notification', {
 
     getters: {
         persistFields() {
-            return [''];
+            return [];
         },
     },
 })

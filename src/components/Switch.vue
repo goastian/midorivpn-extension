@@ -3,11 +3,11 @@
         <span v-if="storage.state" class="tag active">Connected</span>
         <span v-else class="tag">Disconnected</span>
         <div class="control">
-            <button @click="enableproxy" class="btn-control row items-center justify-center" :class="{'active' : storage.state}" :aria-label="storage.state ? 'Disconnect' : 'Connect'">
+            <button class="btn-control row items-center justify-center" :class="{'active' : storage.state}" :aria-label="storage.state ? 'Disconnect' : 'Connect'" @click="enableproxy">
                 <!-- Lucide power icon (MIT) -->
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M12 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-                    <path d="M6.5 5.5a8 8 0 1 0 11 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M12 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                    <path d="M6.5 5.5a8 8 0 1 0 11 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
                 </svg>
             </button>
         </div>

@@ -1,42 +1,18 @@
 import { ensureValidAccessToken } from '../lib/api';
 import log from './logger.js';
 import { hasRequiredVpnPermissions } from './permissions.js';
+import { resolveProxyServer, buildBypassDomains } from './proxy-routing';
 
-const API_URL = process.env.API_URL || '';
-const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
-
-// Domains that must bypass the proxy to avoid circular auth dependencies
-const bypassDomains = [
-    'localhost',
-    '127.0.0.1',
-    ...(API_URL ? [new URL(API_URL).hostname] : []),
-    ...(AUTHENTIK_ISSUER ? [new URL(AUTHENTIK_ISSUER).hostname] : []),
-];
+const bypassDomains = buildBypassDomains({
+    apiUrl: process.env.API_URL || '',
+    authentikIssuer: process.env.AUTHENTIK_ISSUER || '',
+});
 
 const getLocalStorage = (keys) => new Promise((resolve) => {
     chrome.storage.local.get(keys, (storage) => resolve(storage || {}));
 });
 
 const blockProxyRequest = () => ({ type: 'http', host: '127.0.0.1', port: 1 });
-
-const resolveProxyServer = (activeServer) => {
-    if (!activeServer) return null;
-    if (activeServer.supports_proxy === false) return null;
-
-    // 'endpoint' is the public-facing IP/hostname (may include ":port" for WireGuard).
-    // 'host' is the internal container name (e.g. "vpn-core") — NOT reachable from
-    // the browser. Always prefer endpoint (stripped of any port suffix) for the proxy.
-    const raw = activeServer.endpoint || activeServer.host || '';
-    const host = raw.split(':')[0];
-    const rawPort = activeServer.proxy_port || 8888;
-    const port = Number(rawPort);
-
-    if (!host || !Number.isFinite(port) || port <= 0) {
-        return null;
-    }
-
-    return { host, port };
-};
 
 export const validateProxyReady = async () => {
     const storage = await getLocalStorage(['server']);
@@ -80,7 +56,7 @@ export const handleProxy = async (details) => {
             return blockProxyRequest();
         }
 
-        log.warn('proxy:dbg', 'state=ON host=', hostname,
+        log.info('proxy:dbg', 'state=ON host=', hostname,
             '| server.active=', JSON.stringify(storage.server?.active));
 
         const proxyServer = resolveProxyServer(storage.server?.active);
@@ -89,7 +65,7 @@ export const handleProxy = async (details) => {
             return blockProxyRequest();
         }
 
-        log.warn('proxy:dbg', `resolved → ${proxyServer.host}:${proxyServer.port}`);
+        log.info('proxy:dbg', `resolved → ${proxyServer.host}:${proxyServer.port}`);
 
         const proxyInfo = {
             type: 'http',
@@ -110,7 +86,7 @@ export const handleProxy = async (details) => {
         if (!token) {
             for (let i = 0; i < 3 && !token; i++) {
                 await new Promise(r => setTimeout(r, 300));
-                try { token = await ensureValidAccessToken(); } catch { }
+                try { token = await ensureValidAccessToken(); } catch { /* retry */ }
             }
         }
 
@@ -121,7 +97,7 @@ export const handleProxy = async (details) => {
             return blockProxyRequest();
         }
 
-        log.warn('proxy:dbg', 'token OK, routing', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
+        log.info('proxy:dbg', 'token OK, routing', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
 
         // username/password → Firefox sends Proxy-Authorization: Basic
         proxyInfo.username = 'midorivpn';

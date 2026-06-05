@@ -18,6 +18,7 @@
 
 <script>
 import Auth from '../utils/authentification.ts';
+import log from '../utils/logger.js';
 export default {
     inject: ['app_name'],
 
@@ -33,7 +34,7 @@ export default {
                 const auth = new Auth();
                 await auth.signIn();
             } catch (error) {
-                console.error('signIn failed:', error);
+                log.error('home', 'signIn failed:', error);
                 this.loading = false;
             }
         },

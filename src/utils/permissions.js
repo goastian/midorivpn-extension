@@ -1,4 +1,5 @@
 import { isFirefox } from './vars.js';
+import log from './logger.js';
 
 // 'alarms' and 'storage' are required permissions in the manifest (always granted),
 // so they must NOT be included in optional permission requests.
@@ -56,7 +57,7 @@ export const requestRequiredVpnPermissions = async () => {
     return callbackResult((done) => {
         chrome.permissions.request(REQUIRED_VPN_PERMISSION, (granted) => {
             if (chrome.runtime?.lastError) {
-                console.warn('[MidoriVPN] permissions request failed:', chrome.runtime.lastError.message);
+                log.warn('permissions', 'request failed:', chrome.runtime.lastError.message);
                 done(false);
                 return;
             }

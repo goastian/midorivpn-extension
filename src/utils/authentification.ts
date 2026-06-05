@@ -3,6 +3,8 @@ import { disableBadge } from './badge';
 import { clearTokens } from '../lib/api';
 // @ts-expect-error untyped JS module
 import { disableProxy } from './proxy';
+// @ts-expect-error untyped JS module
+import log from './logger.js';
 
 const API_URL = process.env.API_URL || '';
 const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
@@ -81,12 +83,12 @@ class Auth {
 
     const authorizationEndpoint = resolveAuthorizationEndpoint();
     if (!authorizationEndpoint) {
-      console.error('Missing or invalid AUTHENTIK_ISSUER/AUTHENTIK_AUTHORIZATION_URL');
+      log.error('auth', 'Missing or invalid AUTHENTIK_ISSUER/AUTHENTIK_AUTHORIZATION_URL');
       return;
     }
 
     if (!REDIRECT_URI) {
-      console.error('Missing redirect URI: set AUTHENTIK_REDIRECT_URI or PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH');
+      log.error('auth', 'Missing redirect URI: set AUTHENTIK_REDIRECT_URI or PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH');
       return;
     }
 

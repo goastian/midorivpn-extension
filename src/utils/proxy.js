@@ -128,7 +128,7 @@ export const debugProxyState = async () => {
         hasAllUrlsPermission: await hasRequiredVpnPermissions(),
         connection: storage.connection ?? null,
     };
-    console.warn('[MidoriVPN] proxy:debug', JSON.stringify(report, null, 2));
+    log.warn('proxy', 'debug', JSON.stringify(report, null, 2));
     return report;
 };
 

@@ -43,6 +43,7 @@
 
 <script>
 import Auth from '../utils/authentification.ts';
+import log from '../utils/logger.js';
 export default {
     data() {
         return {
@@ -61,7 +62,7 @@ export default {
                 if (response?.success) {
                     this.user = response.data;
                 } else {
-                    console.error('Error loading user:', response?.error);
+                    log.error('options', 'Error loading user:', response?.error);
                 }
             });
         },

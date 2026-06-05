@@ -183,7 +183,7 @@ function rememberTransientRefreshFailure(error: RefreshTokenError): RefreshToken
     refreshBlockedUntil = Date.now() + cooldownMs;
     persistRefreshBackoff();
     error.retryAfterMs = cooldownMs;
-    console.warn('[MidoriVPN] api', 'refresh paused for', `${Math.ceil(cooldownMs / 1000)}s`, '-', error.message);
+    log.warn('api', 'refresh paused for', `${Math.ceil(cooldownMs / 1000)}s`, '-', error.message);
     return error;
 }
 
@@ -219,7 +219,7 @@ async function tryRefreshToken(): Promise<string> {
             body: JSON.stringify({ refresh_token }),
         });
     } catch (e) {
-        console.warn('[MidoriVPN] api', 'refresh network error:', (e as Error)?.message || e);
+        log.warn('api', 'refresh network error:', (e as Error)?.message || e);
         throw new RefreshTokenError('Token refresh failed: network error', false, true);
     }
 
@@ -227,13 +227,13 @@ async function tryRefreshToken(): Promise<string> {
         const shouldClear = [400, 401, 403].includes(res.status);
         const transient = TRANSIENT_REFRESH_STATUSES.has(res.status);
         const retryAfterMs = transient ? parseRetryAfterMs(res.headers.get('Retry-After'), MAX_REFRESH_COOLDOWN_MS) : 0;
-        console.warn('[MidoriVPN] api', 'refresh HTTP', res.status, 'shouldClear=', shouldClear);
+        log.warn('api', 'refresh HTTP', res.status, 'shouldClear=', shouldClear);
         throw new RefreshTokenError(`Token refresh failed: ${res.status}`, shouldClear, transient, retryAfterMs);
     }
 
     const json: ApiResponse<{ access_token: string; refresh_token?: string; expires_in?: number }> = await res.json();
     if (!json.ok || !json.data?.access_token) {
-        console.warn('[MidoriVPN] api', 'refresh response invalid:', json);
+        log.warn('api', 'refresh response invalid:', json);
         throw new RefreshTokenError('Invalid refresh response');
     }
 
@@ -361,7 +361,7 @@ async function request<T>(path: string, options: RequestInit = {}, _isRetry = fa
                 await clearTokens();
             }
 
-            throw new Error('Unauthorized');
+            throw new Error('Unauthorized', { cause: err });
         }
     }
 

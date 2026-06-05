@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import log from '../utils/logger.js';
 
 class User {
     __user;
@@ -25,7 +26,7 @@ class User {
             this.__lastFetch = now;
             return this.__user;
         } catch (error) {
-            console.error('Error loading user:', error);
+            log.error('user', 'Error loading user:', error);
             return this.__user;
         }
     };

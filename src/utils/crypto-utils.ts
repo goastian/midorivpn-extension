@@ -1,3 +1,5 @@
+// @ts-expect-error untyped JS module
+import log from './logger.js';
 import { bufferToBase64, base64ToBuffer } from './encoding-utils';
 
 interface EncryptedData {
@@ -77,7 +79,7 @@ async function getOrCreateKey(): Promise<CryptoKey> {
     const key = await generateKey();
     try { await putStoredKey(key); }
     catch (err) {
-      console.warn('[MidoriVPN] crypto: failed to persist key:', (err as Error)?.message || err);
+      log.warn('crypto', 'failed to persist key:', (err as Error)?.message || err);
     }
     return key;
   })();
@@ -154,7 +156,7 @@ export async function decryptToken(encryptedData: EncryptedData): Promise<string
   } catch (err) {
     const legacy = await tryLegacyDecrypt(encryptedData);
     if (legacy !== null) return legacy;
-    console.error('Decryption error:', err);
-    throw new Error('Failed to decrypt token');
+    log.error('crypto', 'Decryption error:', err);
+    throw new Error('Failed to decrypt token', { cause: err });
   }
 }

@@ -20,10 +20,12 @@ config.optimization = {
             extractComments: false,
             terserOptions: {
                 compress: {
-                    // Strip console.log/info/debug/warn in production; preserve
-                    // console.error so genuine failures still surface in
-                    // extension DevTools.
-                    pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+                    // Strip console.log/info/debug in production. console.debug
+                    // is used by the diag: channel which is disabled (no-op) in
+                    // prod builds, so stripping it is a no-op safety net.
+                    // console.error and console.warn are kept so real failures
+                    // and warnings remain visible in extension DevTools.
+                    pure_funcs: ['console.log', 'console.info', 'console.debug'],
                 },
                 format: {
                     comments: false,

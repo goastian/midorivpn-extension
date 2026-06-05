@@ -1,6 +1,8 @@
 import { API_URL, REDIRECT_URI } from '../utils/authentification';
 import { saveTokens } from './api';
 import { parseRetryAfterMs } from '../utils/http';
+// @ts-expect-error untyped JS module
+import log from '../utils/logger.js';
 
 declare const chrome: any;
 
@@ -20,7 +22,7 @@ function sleep(ms: number): Promise<void> {
  */
 export async function exchangeCode(url: string): Promise<boolean> {
   if (!REDIRECT_URI) {
-    console.error('REDIRECT_URI not configured');
+    log.error('oauth', 'REDIRECT_URI not configured');
     return false;
   }
 
@@ -30,12 +32,12 @@ export async function exchangeCode(url: string): Promise<boolean> {
     urlObj = new URL(url);
     expectedURL = new URL(REDIRECT_URI);
   } catch {
-    console.error('Invalid callback URL');
+    log.error('oauth', 'Invalid callback URL');
     return false;
   }
 
   if (urlObj.origin !== expectedURL.origin || urlObj.pathname !== expectedURL.pathname) {
-    console.error('Callback URL does not match configured REDIRECT_URI');
+    log.error('oauth', 'Callback URL does not match configured REDIRECT_URI');
     return false;
   }
 
@@ -45,11 +47,11 @@ export async function exchangeCode(url: string): Promise<boolean> {
   const code = params.get('code');
 
   if (!state || !pkce_state || state !== pkce_state) {
-    console.error('State mismatch');
+    log.error('oauth', 'State mismatch');
     return false;
   }
   if (!code) {
-    console.error('No authorization code');
+    log.error('oauth', 'No authorization code');
     return false;
   }
 
@@ -66,11 +68,11 @@ export async function exchangeCode(url: string): Promise<boolean> {
         const transient = TRANSIENT_EXCHANGE_STATUSES.has(res.status);
         if (transient && attempt === 0) {
           const retryAfterMs = parseRetryAfterMs(res.headers.get('Retry-After')) || DEFAULT_EXCHANGE_RETRY_MS;
-          console.warn('Token exchange transient failure:', res.status, `retrying in ${retryAfterMs}ms`);
+          log.warn('oauth', 'Token exchange transient failure:', res.status, `retrying in ${retryAfterMs}ms`);
           await sleep(retryAfterMs);
           continue;
         }
-        console.error('Token exchange failed:', res.status);
+        log.error('oauth', 'Token exchange failed:', res.status);
         if (!transient) {
           await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
         }
@@ -84,16 +86,16 @@ export async function exchangeCode(url: string): Promise<boolean> {
         return true;
       }
 
-      console.error('Token exchange response missing access token');
+      log.error('oauth', 'Token exchange response missing access token');
       await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
       return false;
     } catch (error) {
       if (attempt === 0) {
-        console.warn('Token exchange network error, retrying once:', error);
+        log.warn('oauth', 'Token exchange network error, retrying once:', error);
         await sleep(DEFAULT_EXCHANGE_RETRY_MS);
         continue;
       }
-      console.error('Token exchange error:', error);
+      log.error('oauth', 'Token exchange error:', error);
       return false;
     }
   }

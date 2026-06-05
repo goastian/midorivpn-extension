@@ -15,6 +15,7 @@ import Token from './utils/token.ts';
 import Home from './pages/Home.vue';
 import Main from './pages/Main.vue';
 import Notification from './components/Notification.vue';
+import log from './utils/logger.js';
 export default {
 
   components: {
@@ -47,7 +48,7 @@ export default {
         await this.vpn.loadServers();
       }
     } catch (err) {
-      console.error('[MidoriVPN] App init error:', err);
+      log.error('app', 'init error:', err);
       this.isLoggedIn = false;
     }
   },

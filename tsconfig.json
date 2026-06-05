@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es6",
-    "module": "es6",
+    "target": "es2022",
+    "module": "es2022",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
+    "ignoreDeprecations": "6.0",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["chrome", "node", "webextension-polyfill"],
     "baseUrl": "./",
     "moduleResolution": "node"
   },

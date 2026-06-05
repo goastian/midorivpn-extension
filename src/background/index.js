@@ -133,12 +133,24 @@ async function syncTokenSession(forceRefresh = false) {
 
 const handlers = {
   loadServers: async () => {
-    return serverManager.loadServers();
+    log.diag('background', 'handler:loadServers:start');
+    const result = await serverManager.loadServers();
+    log.diag('background', 'handler:loadServers:done', {
+      count: Array.isArray(result?.servers) ? result.servers.length : null,
+      activeId: result?.active?.id || null,
+    });
+    return result;
   },
   loadUser: async () => {
     return user.LoadUser();
   },
   provisionConnection: async (msg) => {
+    log.diag('background', 'handler:provisionConnection:start', {
+      serverId: msg?.serverId || null,
+      activeId: msg?.activeServer?.id || null,
+      proxyPort: msg?.activeServer?.proxy_port || null,
+      supportsProxy: msg?.activeServer?.supports_proxy,
+    });
     const serverId = msg.serverId;
     const active = msg.activeServer;
     if (!serverId) throw new Error('No server selected');
@@ -152,6 +164,10 @@ const handlers = {
     const token = await ensureValidAccessToken();
     if (!token) throw new Error('Login session expired');
 
+    log.diag('background', 'handler:provisionConnection:ok', {
+      serverId,
+      proxyPort: active.proxy_port,
+    });
     return {
       id: null,
       server_id: serverId,
@@ -399,15 +415,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   const ALLOWED_TYPES = new Set(Object.keys(handlers));
   if (!msg?.type || !ALLOWED_TYPES.has(msg.type)) {
+    log.warn('background', 'message:unknown', { type: msg?.type || null });
     sendResponse({ success: false, error: 'Unknown command' });
     return;
   }
 
   const handler = handlers[msg.type];
   Promise.resolve(handler(msg, sender))
-    .then((result) => sendResponse({ success: true, data: result }))
-    .catch((error) =>
-      sendResponse({ success: false, error: error.message || 'An unexpected error occurred' })
-    );
+    .then((result) => {
+      sendResponse({ success: true, data: result });
+    })
+    .catch((error) => {
+      log.error('background', 'message:failure', { type: msg.type, error: error?.message || String(error) });
+      sendResponse({ success: false, error: error.message || 'An unexpected error occurred' });
+    });
   return true;
 });

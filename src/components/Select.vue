@@ -8,18 +8,22 @@
             @click="toggleDropdown"
         >
             <div class="selector-info">
-                <span class="selector-label">{{ selected ? selected.label : 'Select a server…' }}</span>
+                <span class="selector-label">{{ selected ? selected.label : (showTriggerLoading ? 'Cargando servidores…' : 'Select a server…') }}</span>
                 <span v-if="selected && selected.ip" class="selector-ip">{{ selected.ip }}</span>
             </div>
+            <svg v-if="showTriggerLoading" class="spinner trigger-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="3" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="#49B9FF" stroke-width="3" stroke-linecap="round" />
+            </svg>
             <!-- Lucide chevron-down (MIT) -->
-            <svg class="chevron" :class="{ open }" width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <svg v-else class="chevron" :class="{ open }" width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
         </button>
 
         <!-- Dropdown panel -->
         <div v-if="open" class="selector-menu" role="listbox">
-            <div v-if="loading" class="selector-loading">
+            <div v-if="isLoading" class="selector-loading">
                 <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <circle cx="12" cy="12" r="10" stroke="#cbd5e1" stroke-width="3" />
                     <path d="M12 2a10 10 0 0 1 10 10" stroke="#49B9FF" stroke-width="3" stroke-linecap="round" />
@@ -48,7 +52,7 @@
             </template>
 
             <div v-else class="selector-empty">
-                No servers available
+                {{ emptyMessage }}
             </div>
         </div>
     </div>
@@ -57,6 +61,7 @@
 <script>
 import useVpnStore from '../stores/useVpnStore.js';
 import badge from '../utils/badge.js';
+import log from '../utils/logger.js';
 
 /** Strips port from an endpoint string ("1.2.3.4:51820" → "1.2.3.4") */
 function stripPort(endpoint) {
@@ -90,6 +95,25 @@ export default {
         selected() {
             return this.allOptions.find(o => o.id === this.selectedId) ?? null;
         },
+
+        isLoading() {
+            return this.loading || this.vpn.serversLoading;
+        },
+
+        showTriggerLoading() {
+            return this.vpn.serversLoading && !this.selected;
+        },
+
+        emptyMessage() {
+            const m = this.vpn.serversMeta;
+            if (m?.source === 'error') {
+                return `No se pudieron cargar servidores: ${m.error || 'error de red'}`;
+            }
+            if ((m?.total || 0) > 0 && (m?.eligibleProxy || 0) === 0) {
+                return 'No hay servidores con proxy habilitado (proxy_port).';
+            }
+            return 'No servers available';
+        },
     },
 
     mounted() {
@@ -107,18 +131,32 @@ export default {
         async toggleDropdown() {
             if (this.open) {
                 this.open = false;
+                log.diag('selector', 'dropdown:close');
                 return;
             }
             this.open = true;
             this.loading = true;
+            log.diag('selector', 'dropdown:open', {
+                currentOptions: this.allOptions.length,
+                selectedId: this.selectedId || null,
+            });
             try {
                 await this.vpn.loadServers();
+                log.diag('selector', 'dropdown:loaded', {
+                    options: this.allOptions.length,
+                    selectedId: this.selectedId || null,
+                });
             } finally {
                 this.loading = false;
             }
         },
 
         pick(opt) {
+            log.diag('selector', 'pick', {
+                id: opt?.id || null,
+                label: opt?.label || null,
+                ip: opt?.ip || null,
+            });
             this.vpn.setActive(opt._ref);
             this.open = false;
             badge();

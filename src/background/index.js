@@ -8,6 +8,10 @@ import Token from '../utils/token.ts';
 import { REDIRECT_URI } from '../utils/authentification';
 import log from '../utils/logger.js';
 import { hasRequiredVpnPermissions } from '../utils/permissions.js';
+import {
+  getMidoriPrivacyStatus,
+  isTrustedMidoriPrivacyRequest,
+} from '../utils/privacy-status.ts';
 
 // Expose debug helper on globalThis so it can be called from the background
 // inspector console: await debugProxy()
@@ -430,4 +434,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ success: false, error: error.message || 'An unexpected error occurred' });
     });
   return true;
+});
+
+// Read-only bridge for Midori Privacy. Only the known blocker identities can
+// query this minimal state; server selection, tokens and routing details never
+// leave MidoriVPN.
+browser.runtime.onMessageExternal.addListener(async (msg, sender) => {
+  if (!isTrustedMidoriPrivacyRequest(msg, sender)) return undefined;
+
+  const storage = await browser.storage.local.get(['store']);
+  return getMidoriPrivacyStatus(storage);
 });

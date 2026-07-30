@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MidoriVPN",
   "description": "Surf the web safely and privately with Midori VPN",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "author": "Astian, Inc.",
   "action": {
     "default_popup": "popup.html"

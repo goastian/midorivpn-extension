@@ -17,6 +17,23 @@ body {
   background: #F1F5F9;
 }
 
+/*
+ * Desktop browsers size the extension popup from these fixed dimensions.
+ * GeckoView displays the same document inside a full mobile viewport, so a
+ * fixed popup leaves unused space.  Limit the fluid layout to touch devices
+ * to keep the desktop popup's established dimensions unchanged.
+ */
+@media screen and (min-width: 360px) and (pointer: coarse) {
+  html,
+  body,
+  #App {
+    width: 100%;
+    min-width: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
 button,
 select,
 input,

@@ -69,4 +69,13 @@ export default {
   height: 460px;
   overflow: hidden;
 }
+
+@media screen and (min-width: 360px) and (pointer: coarse) {
+  .containerApp {
+    width: 100%;
+    min-width: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
+}
 </style>

@@ -120,4 +120,13 @@ export default {
     color: gray;
     font-size: .7rem;
 }
+
+@media screen and (min-width: 360px) and (pointer: coarse) {
+    .container {
+        width: 100%;
+        min-width: 0;
+        height: 100vh;
+        height: 100dvh;
+    }
+}
 </style>

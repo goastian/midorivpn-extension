@@ -188,6 +188,15 @@ export default {
 .ga-xs { gap: 0.25rem; }
 .ga-sm { gap: 0.5rem; }
 .ga-md { gap: 0.75rem; }
+
+@media screen and (min-width: 360px) and (pointer: coarse) {
+  .container {
+    width: 100%;
+    min-width: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
+}
 </style>
 
 

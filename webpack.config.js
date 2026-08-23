@@ -7,7 +7,23 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
+const webpack = require('webpack');
 const { app_env, browser } = require('./config/config.js');
+
+const defaultDomain = app_env === 'production' ? 'vpn.astian.org' : 'vpn.dorrejo.com';
+const defaultBaseUrl = `https://${defaultDomain}`;
+
+const API_URL = process.env.API_URL || defaultBaseUrl;
+const ACCOUNT_URL = process.env.ACCOUNT_URL || defaultBaseUrl;
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || defaultBaseUrl;
+
+// Authentik Identity Provider (accounts.astian.org)
+const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || 'https://accounts.astian.org/application/o/elrealplatano/';
+const AUTHENTIK_AUTHORIZATION_URL = process.env.AUTHENTIK_AUTHORIZATION_URL || 'https://accounts.astian.org/application/o/authorize/';
+const AUTHENTIK_CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID || 'Wbc5hsIaK6kDp4cCFvzTtgAnEc5qNfWWARMmYXTn';
+
+const EXTENSION_CALLBACK_PATH = process.env.EXTENSION_CALLBACK_PATH || '/extension/callback';
+const AUTHENTIK_REDIRECT_URI = process.env.AUTHENTIK_REDIRECT_URI || `${defaultBaseUrl}/extension/callback`;
 
 function safeOrigin(value) {
   if (!value) return null;
@@ -21,7 +37,7 @@ function safeOrigin(value) {
 
 function buildExtensionPagesCsp() {
   const origins = new Set();
-  [process.env.API_URL, process.env.ACCOUNT_URL, process.env.AUTHENTIK_ISSUER, process.env.AUTHENTIK_AUTHORIZATION_URL]
+  [API_URL, ACCOUNT_URL, AUTHENTIK_ISSUER, AUTHENTIK_AUTHORIZATION_URL]
     .map(safeOrigin)
     .filter(Boolean)
     .forEach((o) => origins.add(o));
@@ -49,6 +65,10 @@ function manifestMerge(fileMain, fileBrowser) {
   const main = JSON.parse(fs.readFileSync(fileMain, 'utf8'));
   const browserManifest = JSON.parse(fs.readFileSync(fileBrowser, 'utf8'));
   const manifest = merge(main, browserManifest);
+
+  if (manifest.background && Array.isArray(manifest.background.scripts)) {
+    manifest.background.scripts = Array.from(new Set(manifest.background.scripts));
+  }
 
   // All MidoriVPN permissions are required at install time. Promote anything
   // that may still live under optional_* into the required sets so the browser
@@ -126,7 +146,19 @@ const config = {
     extensions: ['.ts', '.js'],
   },
   plugins: [
-    new Dotenv(),
+    new Dotenv({ systemvars: true }),
+    new webpack.DefinePlugin({
+      'process.env.API_URL': JSON.stringify(API_URL),
+      'process.env.ACCOUNT_URL': JSON.stringify(ACCOUNT_URL),
+      'process.env.PUBLIC_BASE_URL': JSON.stringify(PUBLIC_BASE_URL),
+      'process.env.AUTHENTIK_ISSUER': JSON.stringify(AUTHENTIK_ISSUER),
+      'process.env.AUTHENTIK_CLIENT_ID': JSON.stringify(AUTHENTIK_CLIENT_ID),
+      'process.env.AUTHENTIK_AUTHORIZATION_URL': JSON.stringify(AUTHENTIK_AUTHORIZATION_URL),
+      'process.env.AUTHENTIK_REDIRECT_URI': JSON.stringify(AUTHENTIK_REDIRECT_URI),
+      'process.env.EXTENSION_CALLBACK_PATH': JSON.stringify(EXTENSION_CALLBACK_PATH),
+      'process.env.APP_ENV': JSON.stringify(app_env),
+      'process.env.BROWSER': JSON.stringify(browser),
+    }),
     new VueLoaderPlugin(),
     new HtmlWebpackPlugin({
       template: path.join(__dirname, 'public', 'index.html'),

@@ -3,11 +3,13 @@ export interface ActiveServer {
     host?: string | null;
     proxy_port?: number | string | null;
     supports_proxy?: boolean;
+    proxy_scheme?: string | null;
 }
 
 export interface ProxyServer {
     host: string;
     port: number;
+    scheme: 'https' | 'http';
 }
 
 export interface BypassConfig {
@@ -21,14 +23,16 @@ export function resolveProxyServer(activeServer: ActiveServer | null | undefined
 
     const raw = activeServer.endpoint || activeServer.host || '';
     const host = String(raw).split(':')[0];
-    const rawPort = activeServer.proxy_port ?? 8888;
+    const rawPort = activeServer.proxy_port ?? 443;
     const port = Number(rawPort);
 
     if (!host || !Number.isFinite(port) || port <= 0) {
         return null;
     }
 
-    return { host, port };
+    const scheme: 'https' | 'http' = activeServer.proxy_scheme === 'http' ? 'http' : 'https';
+
+    return { host, port, scheme };
 }
 
 export function buildBypassDomains({ apiUrl, authentikIssuer }: BypassConfig = {}): string[] {

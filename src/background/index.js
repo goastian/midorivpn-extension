@@ -242,29 +242,47 @@ const proxyErrorHandler = (error) => {
   log.error('proxy-error', error);
 };
 
-const oauthNavigationHandler = async (details) => {
-  if (details.frameId !== 0) return;
+const processingCallbacks = new Set();
 
-  const redirectUri = REDIRECT_URI;
-  if (!redirectUri) return;
+const oauthNavigationHandler = async (details) => {
+  if (details.frameId !== 0 || !details.url) return;
 
   try {
     const callbackURL = new URL(details.url);
-    const expectedURL = new URL(redirectUri);
-    if (callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname) {
+    const expectedURL = REDIRECT_URI ? new URL(REDIRECT_URI) : null;
+
+    const isCallback = (expectedURL && callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname) ||
+      (callbackURL.pathname === '/extension/callback' && (callbackURL.hostname === 'vpn.astian.org' || callbackURL.hostname === 'vpn.dorrejo.com'));
+
+    if (isCallback && callbackURL.searchParams.has('code')) {
+      const code = callbackURL.searchParams.get('code');
+      if (code && processingCallbacks.has(code)) return;
+      if (code) processingCallbacks.add(code);
+
+      log.info('auth', 'OAuth callback detected on URL:', details.url);
       const token = new Token();
       const success = await token.exchangeCode(details.url);
       if (success) {
+        log.info('auth', 'Token exchange successful, syncing session and closing tab');
         await syncTokenSession();
-        chrome.tabs.remove(details.tabId);
+        if (details.tabId && typeof chrome !== 'undefined' && chrome.tabs?.remove) {
+          try {
+            chrome.tabs.remove(details.tabId);
+          } catch (_) { /* tab might already be closed */ }
+        }
+      } else {
+        log.error('auth', 'Token exchange failed for URL:', details.url);
       }
     }
-  } catch (_) { /* invalid URL — ignore */ }
+  } catch (err) {
+    log.error('auth', 'Error in oauthNavigationHandler:', err);
+  }
 };
 
 let proxyListenersRegistered = false;
 let webRequestListenersRegistered = false;
 let webNavigationListenerRegistered = false;
+let tabListenerRegistered = false;
 
 function registerProxyListeners() {
   if (proxyListenersRegistered) return;
@@ -285,17 +303,18 @@ function registerProxyListeners() {
 function registerWebRequestListeners() {
   if (webRequestListenersRegistered) return;
   try {
-    if (!browser?.webRequest?.onAuthRequired?.addListener) {
-      log.warn('boot', 'browser.webRequest unavailable — skipping onAuthRequired registration');
+    const webReq = (typeof browser !== 'undefined' && browser?.webRequest) || (typeof chrome !== 'undefined' && chrome?.webRequest);
+    if (!webReq?.onAuthRequired?.addListener) {
+      log.warn('boot', 'webRequest.onAuthRequired unavailable — skipping onAuthRequired registration');
       return;
     }
-    browser.webRequest.onAuthRequired.addListener(
+    webReq.onAuthRequired.addListener(
       proxyAuthHandler,
       { urls: ['<all_urls>'] },
       ['blocking']
     );
     webRequestListenersRegistered = true;
-    log.info('boot', 'webRequest.onAuthRequired registered');
+    log.info('boot', 'webRequest.onAuthRequired registered for Chromium/Firefox');
   } catch (err) {
     log.warn('boot', 'failed to register webRequest listener:', err?.message || err);
   }
@@ -309,8 +328,6 @@ function registerWebNavigationListener() {
       return;
     }
 
-    // Restrict the listener to the exact OAuth callback URL so we don't
-    // receive events for every top-frame navigation the user makes.
     let filter;
     try {
       if (REDIRECT_URI) {
@@ -333,10 +350,29 @@ function registerWebNavigationListener() {
   }
 }
 
+function registerOAuthTabListener() {
+  if (tabListenerRegistered) return;
+  try {
+    if (typeof chrome !== 'undefined' && chrome.tabs?.onUpdated?.addListener) {
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        const url = changeInfo.url || tab?.url;
+        if (url && url.includes('/extension/callback') && url.includes('code=')) {
+          oauthNavigationHandler({ frameId: 0, url, tabId });
+        }
+      });
+      tabListenerRegistered = true;
+      log.info('boot', 'tabs.onUpdated registered for OAuth callback');
+    }
+  } catch (err) {
+    log.warn('boot', 'failed to register tabs listener:', err);
+  }
+}
+
 function registerAllListeners() {
   registerProxyListeners();
   registerWebRequestListeners();
   registerWebNavigationListener();
+  registerOAuthTabListener();
 }
 
 registerAllListeners();

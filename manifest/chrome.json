@@ -1,7 +1,8 @@
 {
-  "permissions": ["webRequestAuthProvider", "offscreen"],
+  "permissions": ["webRequestAuthProvider"],
   "background": {
     "service_worker": "background.js",
+    "scripts": ["background.js"],
     "type": "module"
   },
   "icons": {

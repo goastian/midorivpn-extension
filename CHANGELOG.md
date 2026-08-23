@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0] — 2026-08-23
+
+### Features & Enhancements
+- **Complete UI/UX Refresh**:
+  - Modern, sleek interface with an interactive power switch featuring animated pulse states (Connected, Connecting, Disconnected).
+  - Enhanced server picker with national flags, real-time latency ping indicators, and instant search capability.
+  - User account drawer displaying profile avatar, active subscription tier, and one-click session management.
+  - Smooth micro-interactions and transitions with full dark and light mode adaptation.
+- **Enhanced Authentication & Security**:
+  - Direct PKCE OAuth 2.0 integration with Astian Accounts (`accounts.astian.org`) for unified single sign-on.
+  - Resilient token lifecycle management featuring automatic background refresh and encrypted token persistence.
+  - Smart callback resolution that automatically verifies state integrity and closes the authentication tab upon success.
+  - Granular session recovery ensuring uninterrupted connectivity across browser restarts.
+- **High-Performance Proxy Tunneling**:
+  - High-speed HTTP CONNECT proxy tunneling providing full IP obfuscation and location shielding.
+  - Dynamic PAC-based traffic routing that automatically routes web browsing while preserving direct local network access.
+  - Scoped authentication tokens preventing unauthorized proxy usage and ensuring private communication.
+  - Real-time connection health monitoring with automatic reconnection handling.
+- **Platform & Permission Refinements**:
+  - Full compatibility across modern Chromium-based browsers (Chrome, Midori, Brave, Edge) and Mozilla Firefox.
+  - Transparent, on-demand permission handling requesting only necessary network capabilities during active tunneling.
+  - Optimized lightweight memory footprint with efficient background service worker execution.
+
 ## [1.0.18] — 2026-06-05
 
 ### Fixes

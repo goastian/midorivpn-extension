@@ -36,9 +36,14 @@ config.optimization = {
     ],
 };
 
+const targetBrowser = process.env.BROWSER;
+const zipFilename = targetBrowser
+    ? `${packageInfo.name}-${packageInfo.version}-${targetBrowser}.zip`
+    : `${packageInfo.name}-${packageInfo.version}.zip`;
+
 config.plugins = (config.plugins || []).concat(
     new ZipPlugin({
-        filename: `${packageInfo.name}-${packageInfo.version}.zip`,
+        filename: zipFilename,
         path: path.join(__dirname, '../', 'zip'),
     }),
     new BundleAnalyzerPlugin({ analyzerMode: 'disabled' }),

@@ -2,10 +2,15 @@
   "manifest_version": 3,
   "name": "MidoriVPN",
   "description": "Surf the web safely and privately with Midori VPN",
-  "version": "1.0.20",
+  "version": "2.0.0",
   "author": "Astian, Inc.",
   "action": {
     "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": ["background.js"],
+    "service_worker": "background.js",
+    "type": "module"
   },
   "permissions": [
     "alarms",
@@ -18,6 +23,12 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "midorivpn@astian.org",
+      "strict_min_version": "114.0"
+    }
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }

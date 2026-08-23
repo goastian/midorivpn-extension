@@ -11,6 +11,10 @@ const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
 const AUTHENTIK_AUTHORIZATION_URL = process.env.AUTHENTIK_AUTHORIZATION_URL || '';
 const CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID || '';
 
+if (!AUTHENTIK_ISSUER || !CLIENT_ID) {
+  log.warn('auth', 'Missing AUTHENTIK_ISSUER or AUTHENTIK_CLIENT_ID in .env configuration');
+}
+
 // REDIRECT_URI resolution order:
 //   1. AUTHENTIK_REDIRECT_URI (legacy full URL — kept for backward compat)
 //   2. PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH (new configurable scheme)
@@ -73,23 +77,35 @@ async function codeChallenge(): Promise<{ verifier: string; challenge: string }>
   return { verifier, challenge: base64urlencode(hashed) };
 }
 
+async function storePkce(state: string, verifier: string): Promise<void> {
+  const data = { pkce_state: state, pkce_verifier: verifier };
+  if (typeof chrome !== 'undefined' && chrome.storage?.local?.set) {
+    await chrome.storage.local.set(data);
+  }
+  if (typeof chrome !== 'undefined' && chrome.storage?.session?.set) {
+    try {
+      await chrome.storage.session.set(data);
+    } catch (_) { /* ignore */ }
+  }
+}
+
 class Auth {
   async signIn() {
     const state = generateCode(40);
     const { verifier, challenge } = await codeChallenge();
 
-    // Store PKCE + state in session storage (cleared on browser close)
-    await chrome.storage.session.set({ pkce_state: state, pkce_verifier: verifier });
+    // Store PKCE + state safely
+    await storePkce(state, verifier);
 
     const authorizationEndpoint = resolveAuthorizationEndpoint();
     if (!authorizationEndpoint) {
-      log.error('auth', 'Missing or invalid AUTHENTIK_ISSUER/AUTHENTIK_AUTHORIZATION_URL');
-      return;
+      log.error('auth', 'Missing or invalid AUTHENTIK_ISSUER/AUTHENTIK_AUTHORIZATION_URL. Current config:', { AUTHENTIK_ISSUER, AUTHENTIK_AUTHORIZATION_URL });
+      throw new Error('Configuración de autenticación no encontrada (AUTHENTIK_ISSUER)');
     }
 
     if (!REDIRECT_URI) {
       log.error('auth', 'Missing redirect URI: set AUTHENTIK_REDIRECT_URI or PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH');
-      return;
+      throw new Error('Configuración de URL de redirección no encontrada (REDIRECT_URI)');
     }
 
     const queryParams = new URLSearchParams({
@@ -103,7 +119,17 @@ class Auth {
     });
 
     const url = `${authorizationEndpoint}?${queryParams.toString()}`;
-    chrome.tabs.create({ url }, () => window.close());
+    log.info('auth', 'Opening sign in URL:', url);
+
+    if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+      chrome.tabs.create({ url }, () => {
+        if (typeof window !== 'undefined' && window.close) {
+          window.close();
+        }
+      });
+    } else if (typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    }
   }
 
   async logout() {
@@ -112,9 +138,13 @@ class Auth {
     } catch { /* ignore */ }
 
     await clearTokens();
-    await chrome.storage.local.clear();
+    if (typeof chrome !== 'undefined' && chrome.storage?.local?.clear) {
+      await chrome.storage.local.clear();
+    }
     disableBadge();
-    window.close();
+    if (typeof window !== 'undefined' && window.close) {
+      window.close();
+    }
   }
 }
 

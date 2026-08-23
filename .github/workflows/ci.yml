@@ -1,0 +1,45 @@
+name: CI - Web Extension
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Lint, Test & Build Extension
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
+      API_URL: ${{ secrets.API_URL || vars.API_URL }}
+      PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
+      AUTHENTIK_ISSUER: ${{ secrets.AUTHENTIK_ISSUER || vars.AUTHENTIK_ISSUER }}
+      AUTHENTIK_AUTHORIZATION_URL: ${{ secrets.AUTHENTIK_AUTHORIZATION_URL || vars.AUTHENTIK_AUTHORIZATION_URL }}
+      AUTHENTIK_CLIENT_ID: ${{ secrets.AUTHENTIK_CLIENT_ID || vars.AUTHENTIK_CLIENT_ID }}
+      AUTHENTIK_REDIRECT_URI: ${{ secrets.AUTHENTIK_REDIRECT_URI || vars.AUTHENTIK_REDIRECT_URI }}
+      EXTENSION_CALLBACK_PATH: ${{ secrets.EXTENSION_CALLBACK_PATH || vars.EXTENSION_CALLBACK_PATH }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeCheck (tsc)
+        run: npm run typecheck
+
+      - name: Run Vitest Suite (26 tests)
+        run: npm test
+
+      - name: Build Firefox Extension
+        run: npm run build:firefox
+
+      - name: Build Chrome Extension
+        run: npm run build:chrome

@@ -2,6 +2,22 @@
   padding: 0;
   margin: 0;
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --primary: #0EA5E9;
+  --primary-hover: #0284C7;
+  --success: #10B981;
+  --success-dark: #059669;
+  --danger: #F43F5E;
+  --danger-dark: #E11D48;
+  --bg-main: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --border-color: #E2E8F0;
 }
 
 html,
@@ -10,19 +26,35 @@ body,
   width: 330px;
   height: 460px;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
 }
 
 body {
-  background: #F1F5F9;
+  background: var(--bg-main);
+  color: var(--text-main);
 }
 
-/*
- * Desktop browsers size the extension popup from these fixed dimensions.
- * GeckoView displays the same document inside a full mobile viewport, so a
- * fixed popup leaves unused space.  Limit the fluid layout to touch devices
- * to keep the desktop popup's established dimensions unchanged.
- */
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Mobile responsive view for mobile browsers (GeckoView / Android) */
 @media screen and (min-width: 360px) and (pointer: coarse) {
   html,
   body,
@@ -43,6 +75,7 @@ textarea {
 
 .row {
   display: flex;
+  flex-direction: row;
 }
 
 .column {
@@ -56,6 +89,14 @@ textarea {
 
 .justify-center {
   justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.ga-xs {
+  gap: .25rem;
 }
 
 .ga-sm {

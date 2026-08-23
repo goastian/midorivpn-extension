@@ -39,23 +39,46 @@ export default {
   },
 
   async created() {
-    try {
-      const token = new Token();
-      const accessToken = await token.getDecryptedToken();
+    await this.checkAuth();
+  },
 
-      if (accessToken) {
-        this.isLoggedIn = true;
-        await this.vpn.loadServers();
-      }
-    } catch (err) {
-      log.error('app', 'init error:', err);
-      this.isLoggedIn = false;
+  mounted() {
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      this._storageListener = (changes, area) => {
+        if (area === 'local' && (changes.access_token || changes.store || changes.logged_in_at)) {
+          this.checkAuth();
+        }
+      };
+      chrome.storage.onChanged.addListener(this._storageListener);
+    }
+  },
+
+  beforeUnmount() {
+    if (this._storageListener && typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.removeListener(this._storageListener);
     }
   },
 
   methods: {
+    async checkAuth() {
+      try {
+        const token = new Token();
+        const accessToken = await token.getDecryptedToken();
+
+        if (accessToken) {
+          this.isLoggedIn = true;
+          await this.vpn.loadServers();
+        } else {
+          this.isLoggedIn = false;
+        }
+      } catch (err) {
+        log.error('app', 'auth check error:', err);
+        this.isLoggedIn = false;
+      }
+    },
+
     removeNotification() {
-      this.notifications.remove()
+      this.notifications.remove();
     }
   }
 }

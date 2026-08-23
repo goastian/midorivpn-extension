@@ -1,4 +1,4 @@
-import { ensureValidAccessToken } from '../lib/api';
+import { ensureValidAccessToken, getProxyScopedToken } from '../lib/api';
 import log from './logger.js';
 import { hasRequiredVpnPermissions } from './permissions.js';
 import { resolveProxyServer, buildBypassDomains } from './proxy-routing';
@@ -12,7 +12,7 @@ const getLocalStorage = (keys) => new Promise((resolve) => {
     chrome.storage.local.get(keys, (storage) => resolve(storage || {}));
 });
 
-const blockProxyRequest = () => ({ type: 'http', host: '127.0.0.1', port: 1 });
+const blockProxyRequest = () => ({ type: 'https', host: '127.0.0.1', port: 1 });
 
 export const validateProxyReady = async () => {
     const storage = await getLocalStorage(['server']);
@@ -65,10 +65,11 @@ export const handleProxy = async (details) => {
             return blockProxyRequest();
         }
 
-        log.info('proxy:dbg', `resolved → ${proxyServer.host}:${proxyServer.port}`);
+        log.info('proxy:dbg', `resolved → http://${proxyServer.host}:${proxyServer.port}`);
 
+        // HTTP CONNECT tunnel
         const proxyInfo = {
-            type: 'http',
+            type: proxyServer.scheme || 'http',
             host: proxyServer.host,
             port: proxyServer.port,
         };
@@ -76,46 +77,41 @@ export const handleProxy = async (details) => {
         let token;
         let tokenErr;
         try {
-            token = await ensureValidAccessToken();
+            token = await getProxyScopedToken();
         } catch (e) {
             tokenErr = e;
         }
 
-        // If token is temporarily unavailable (e.g. mid-refresh), retry briefly
-        // rather than falling back to direct — a direct request leaks the real IP.
+        // Retry token if momentarily renewing
         if (!token) {
             for (let i = 0; i < 3 && !token; i++) {
                 await new Promise(r => setTimeout(r, 300));
-                try { token = await ensureValidAccessToken(); } catch { /* retry */ }
+                try { token = await getProxyScopedToken(); } catch { /* retry */ }
             }
         }
 
         if (!token) {
-            // VPN is ON but token is unavailable — BLOCK instead of going direct.
-            // Returning a connection that will be refused prevents IP leaks (kill switch).
             log.warn('proxy', 'No access token for', hostname, '— blocking to prevent IP leak', tokenErr?.message || '');
             return blockProxyRequest();
         }
 
-        log.info('proxy:dbg', 'token OK, routing', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
+        log.info('proxy:dbg', 'token OK, routing', proxyServer.scheme?.toUpperCase() || 'HTTP', 'CONNECT', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
 
-        // username/password → Firefox sends Proxy-Authorization: Basic
+        // username/password → Proxy-Authorization: Basic (for Firefox & Chrome onAuthRequired)
         proxyInfo.username = 'midorivpn';
         proxyInfo.password = token;
-        // proxyAuthorizationHeader → Firefox 128+ sends custom header value
+        // proxyAuthorizationHeader → Firefox 128+ custom header value
         proxyInfo.proxyAuthorizationHeader = `Bearer ${token}`;
 
-        log.info('proxy', 'route', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
+        log.info('proxy', 'route', proxyServer.scheme?.toUpperCase() || 'HTTP', 'CONNECT', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
         return proxyInfo;
     } catch (e) {
         log.error('proxy', 'handleProxy error:', e);
-        // On unexpected errors, block rather than leak the real IP.
-        return { type: 'http', host: '127.0.0.1', port: 1 };
+        return blockProxyRequest();
     }
 };
 
-// ── Debug helper — call from background inspector console: ──────────────────
-// await debugProxyState()
+// ── Debug helper ─────────────────────────────────────────────────────────────
 export const debugProxyState = async () => {
     const storage = await getLocalStorage(['store', 'server', 'connection', 'access_token']);
     const active = storage.server?.active;
@@ -132,10 +128,43 @@ export const debugProxyState = async () => {
     return report;
 };
 
-// Firefox: proxy.onRequest handles routing. enableProxy/disableProxy only gate
-// whether UI state may change; the actual proxy decision is in handleProxy.
+// ── Dual Engine Enable / Disable (Chromium + Firefox) ────────────────────────
 export const enableProxy = async () => {
     const result = await validateProxyReady();
-    return result.ok;
+    if (!result.ok) return false;
+
+    // If running in Chromium (chrome.proxy.settings API available)
+    if (typeof chrome !== 'undefined' && chrome?.proxy?.settings?.set) {
+        const config = {
+            mode: 'fixed_servers',
+            rules: {
+                singleProxy: {
+                    scheme: result.proxy.scheme || 'http',
+                    host: result.proxy.host,
+                    port: Number(result.proxy.port),
+                },
+                bypassList: bypassDomains,
+            },
+        };
+        await new Promise((resolve) => {
+            chrome.proxy.settings.set({ value: config, scope: 'regular' }, () => {
+                log.info('proxy', 'Chromium chrome.proxy.settings configured with', result.proxy.scheme?.toUpperCase() || 'HTTP', 'CONNECT');
+                resolve(true);
+            });
+        });
+    }
+
+    return true;
 };
-export const disableProxy = async () => true;
+
+export const disableProxy = async () => {
+    if (typeof chrome !== 'undefined' && chrome?.proxy?.settings?.set) {
+        await new Promise((resolve) => {
+            chrome.proxy.settings.set({ value: { mode: 'direct' }, scope: 'regular' }, () => {
+                log.info('proxy', 'Chromium chrome.proxy.settings reset to direct');
+                resolve(true);
+            });
+        });
+    }
+    return true;
+};

@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('../utils/authentification', () => ({
     API_URL: 'https://api.example.com',
     REDIRECT_URI: 'https://app.example.com/extension/callback',
+    CLIENT_ID: 'test-client-id',
+    AUTH_URL: 'https://accounts.example.com/application/o/authorize/',
 }));
 
 const { saveTokens } = vi.hoisted(() => ({ saveTokens: vi.fn() }));

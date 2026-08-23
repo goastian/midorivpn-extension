@@ -9,6 +9,7 @@ import { parseRetryAfterMs } from '../utils/http';
 import log from '../utils/logger.js';
 
 const API_URL = process.env.API_URL || '';
+const CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID || 'Wbc5hsIaK6kDp4cCFvzTtgAnEc5qNfWWARMmYXTn';
 
 interface ApiResponse<T = any> {
     ok: boolean;
@@ -211,6 +212,36 @@ async function tryRefreshToken(): Promise<string> {
 
     log.info('api', 'refreshing access token…');
 
+    // 1. Direct Authentik token refresh (standard for public OAuth clients)
+    try {
+        const form = new URLSearchParams();
+        form.set('grant_type', 'refresh_token');
+        form.set('client_id', CLIENT_ID);
+        form.set('refresh_token', refresh_token);
+
+        const directRes = await fetch('https://accounts.astian.org/application/o/token/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: form.toString(),
+        });
+
+        if (directRes.ok) {
+            const authJson = await directRes.json();
+            if (authJson?.access_token) {
+                await saveTokens(authJson.access_token, authJson.refresh_token || refresh_token, authJson.expires_in);
+                resetRefreshBackoff();
+                log.info('api', 'Authentik direct refresh OK, expires_in=', authJson.expires_in);
+                return authJson.access_token;
+            }
+        } else {
+            const directErr = await directRes.text();
+            log.warn('api', 'Direct Authentik refresh response:', directRes.status, directErr);
+        }
+    } catch (directErr) {
+        log.warn('api', 'Direct Authentik refresh network error:', (directErr as Error)?.message || directErr);
+    }
+
+    // 2. Fallback to vpn-core proxy refresh
     let res: Response;
     try {
         res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
@@ -495,6 +526,43 @@ export const meshApi = {
     autoDelete: (): Promise<{ deleted: number }> =>
         request<{ deleted: number }>('/api/v1/control/mesh/auto', { method: 'DELETE' }),
 };
+
+export interface ProxyCredentialsResponse {
+    proxy_token: string;
+    expires_in: number;
+    proxy_endpoints: Array<{
+        host: string;
+        port: number;
+        country_code: string;
+        location: string;
+    }>;
+}
+
+let cachedProxyToken: string | null = null;
+let proxyTokenExpiresAt = 0;
+
+export async function getProxyScopedToken(): Promise<string | null> {
+    const now = Date.now();
+    // Cache and reuse if more than 2 minutes of validity remain
+    if (cachedProxyToken && proxyTokenExpiresAt > now + 2 * 60 * 1000) {
+        return cachedProxyToken;
+    }
+
+    try {
+        const res = await request<ProxyCredentialsResponse>('/api/v1/control/proxy-credentials', {
+            method: 'POST',
+        });
+        if (res && res.proxy_token) {
+            cachedProxyToken = res.proxy_token;
+            proxyTokenExpiresAt = now + (res.expires_in || 900) * 1000;
+            return cachedProxyToken;
+        }
+    } catch (e) {
+        log.warn('api', 'failed to fetch scoped proxy token, falling back to access token', e);
+    }
+
+    return ensureValidAccessToken();
+}
 
 export {
     API_URL,

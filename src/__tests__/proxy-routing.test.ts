@@ -12,13 +12,20 @@ describe('resolveProxyServer', () => {
     });
 
     it('strips port suffix from endpoint and uses proxy_port', () => {
-        expect(resolveProxyServer({ endpoint: '1.2.3.4:51820', proxy_port: 8888 }))
-            .toEqual({ host: '1.2.3.4', port: 8888 });
+        expect(resolveProxyServer({ endpoint: '1.2.3.4:51820', proxy_port: 443 }))
+            .toEqual({ host: '1.2.3.4', port: 443, scheme: 'https' });
     });
 
     it('falls back to host when endpoint is missing', () => {
         expect(resolveProxyServer({ host: 'vpn.example.com' }))
-            .toEqual({ host: 'vpn.example.com', port: 8888 });
+            .toEqual({ host: 'vpn.example.com', port: 443, scheme: 'https' });
+    });
+
+    it('returns https scheme for port 443 or explicit https proxy_scheme', () => {
+        expect(resolveProxyServer({ host: 'vpn.example.com', proxy_port: 443 }))
+            .toEqual({ host: 'vpn.example.com', port: 443, scheme: 'https' });
+        expect(resolveProxyServer({ host: 'vpn.example.com', proxy_port: 8443, proxy_scheme: 'https' }))
+            .toEqual({ host: 'vpn.example.com', port: 8443, scheme: 'https' });
     });
 
     it('returns null for invalid port', () => {
@@ -32,7 +39,7 @@ describe('resolveProxyServer', () => {
 
     it('coerces string ports to numbers', () => {
         expect(resolveProxyServer({ endpoint: 'h.example', proxy_port: '3128' }))
-            .toEqual({ host: 'h.example', port: 3128 });
+            .toEqual({ host: 'h.example', port: 3128, scheme: 'https' });
     });
 });
 

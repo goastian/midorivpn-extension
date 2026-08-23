@@ -22,7 +22,8 @@ class User {
 
         try {
             const user = await api.get('/api/v1/control/me');
-            this.__user = user;
+            const userData = user?.data || user || {};
+            this.__user = userData;
             this.__lastFetch = now;
             return this.__user;
         } catch (error) {

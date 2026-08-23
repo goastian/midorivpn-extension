@@ -1,36 +1,43 @@
 <template>
-    <div class="container column">
-        <div class="header">
-            <div class="row items-center ga-sm">
-                <img src="/icons/logo.png" class="logo" />
+    <div class="main-container column">
+        <div class="header row items-center justify-between">
+            <div class="brand-row row items-center ga-xs">
+                <img src="/icons/logo.png" class="header-logo" alt="Midori VPN" />
             </div>
             <Options />
         </div>
-        <div class="center">
+
+        <div class="center-switch-box">
             <v-switch />
         </div>
-        <div class="main column ga-md">
-            <div class="server-picker column ga-sm">
-                <span class="subtitle">Select Server</span>
+
+        <div class="content-card column justify-between">
+            <div class="server-picker column ga-xs">
+                <span class="section-subtitle">Virtual Location</span>
                 <v-select />
             </div>
-            <div v-if="!isMobile" class="desktop-promo column ga-sm">
+
+            <div v-if="!isMobile" class="desktop-card column ga-xs">
                 <div class="row items-center ga-sm">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0">
-                        <rect x="2" y="3" width="20" height="14" rx="2" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" />
-                        <path d="M8 21h8M12 17v4" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" stroke-linecap="round" />
-                    </svg>
-                    <div class="column ga-xs">
-                        <h3 class="promo-title">MidoriVPN Desktop</h3>
-                        <span class="promo-desc">Mesh VPN, always-on protection &amp; full native performance.</span>
+                    <div class="desktop-icon-box row items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                    </div>
+                    <div class="column">
+                        <h3 class="desktop-title">Midori VPN Desktop</h3>
+                        <span class="desktop-desc">System-wide WireGuard &amp; Mesh</span>
                     </div>
                 </div>
-                <button class="btn-download" @click="openDesktop">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="flex-shrink:0">
-                        <path d="M12 3v13M7 12l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        <path d="M3 19h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <button class="btn-desktop-download row items-center justify-center ga-xs" @click="openDesktop">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    Download desktop client
+                    <span>Download App</span>
                 </button>
             </div>
         </div>
@@ -43,6 +50,7 @@ import VSwitchComp from '../components/Switch.vue';
 import OptionsComp from '../components/Options.vue';
 import { getLatestDownloadUrl } from '../utils/download.js';
 import { detectDesktopEnvironment } from '../utils/platform.js';
+
 export default {
   components: {
     VSelect: VSelectComp,
@@ -74,14 +82,13 @@ export default {
 </script>
 
 <style scoped>
-.container {
+.main-container {
   width: 330px;
   height: 460px;
-  background-color: #F1F5F9;
-  background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-color: #F8FAFC;
+  background-image: radial-gradient(circle, #E2E8F0 1px, transparent 1px);
+  background-size: 16px 16px;
   padding: .5rem;
-  color: #202020;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   position: relative;
   gap: .5rem;
@@ -89,250 +96,116 @@ export default {
 }
 
 .header {
-  background-color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: .4rem .8rem;
-  border-radius: .4rem;
-  height: 48px;
-  flex: 0 0 48px;
+  background-color: #FFFFFF;
+  padding: .35rem .75rem;
+  border-radius: .6rem;
+  height: 46px;
+  flex: 0 0 46px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   position: relative;
   z-index: 100;
 }
 
-.header img {
-  height: 28px;
+.header-logo {
+  height: 24px;
   width: auto;
-  max-width: 130px;
+  max-width: 120px;
   object-fit: contain;
   display: block;
 }
 
-.center {
+.center-switch-box {
   width: 100%;
   flex: 0 0 128px;
   position: relative;
   z-index: 2;
 }
 
-.main {
-  background-color: white;
+.content-card {
+  background-color: #FFFFFF;
   flex: 1;
   min-height: 0;
-  border-radius: .87rem;
-  padding: 48px .85rem .75rem;
+  border-radius: .85rem;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  padding: 48px .75rem .65rem;
   position: relative;
   z-index: 1;
 }
 
-.subtitle {
-  font-size: .72rem;
-  color: #64748b;
+.section-subtitle {
+  font-size: .68rem;
+  color: #64748B;
   font-weight: 700;
-  letter-spacing: .02em;
+  letter-spacing: .03em;
   text-transform: uppercase;
 }
 
 .server-picker {
   position: relative;
   z-index: 80;
+  margin-top: .15rem;
 }
 
-/* Desktop promo banner */
-.desktop-promo {
-  background: linear-gradient(135deg, #1a7a4a 0%, #25a060 60%, #2db56e 100%);
-  border-radius: .6rem;
-  padding: .75rem;
+/* Desktop card banner */
+.desktop-card {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  border-radius: .65rem;
+  padding: .65rem .75rem;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
-.promo-title {
-  color: #fff;
-  font-size: .88rem;
+.desktop-icon-box {
+  width: 30px;
+  height: 30px;
+  border-radius: .4rem;
+  background: rgba(14, 165, 233, 0.15);
+  color: #38BDF8;
+  flex-shrink: 0;
+}
+
+.desktop-title {
+  color: #FFFFFF;
+  font-size: .8rem;
   font-weight: 600;
   line-height: 1.2;
   margin: 0;
 }
 
-.promo-desc {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: .72rem;
-  line-height: 1.35;
+.desktop-desc {
+  color: #94A3B8;
+  font-size: .68rem;
+  line-height: 1.2;
 }
 
-.btn-download {
-  background-color: white;
-  color: #1a7a4a;
+.btn-desktop-download {
+  background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
+  color: #FFFFFF;
   border: none;
-  padding: .42rem 0;
-  border-radius: .4rem;
-  font-size: .82rem;
+  padding: .38rem 0;
+  border-radius: .45rem;
+  font-size: .78rem;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .4rem;
-  transition: background-color .15s;
+  margin-top: .25rem;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.3);
+  transition: all .15s ease;
 }
 
-.btn-download:hover {
-  background-color: #f0fdf4;
+.btn-desktop-download:hover {
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  box-shadow: 0 3px 8px rgba(14, 165, 233, 0.4);
 }
-
-/* Utility */
-.row { display: flex; flex-direction: row; }
-.column { display: flex; flex-direction: column; }
-.items-center { align-items: center; }
-.ga-xs { gap: 0.25rem; }
-.ga-sm { gap: 0.5rem; }
-.ga-md { gap: 0.75rem; }
 
 @media screen and (min-width: 360px) and (pointer: coarse) {
-  .container {
+  .main-container {
     width: 100%;
     min-width: 0;
     height: 100vh;
     height: 100dvh;
   }
-}
-</style>
-
-
-<style scoped>
-.container {
-  width: 330px;
-  height: 460px;
-  background-color: #F1F5F9;
-  background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px);
-  background-size: 20px 20px;
-  padding: .5rem;
-  box-shadow: none;
-  color: #202020;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  position: relative;
-  gap: .5rem;
-  overflow: hidden;
-}
-
-.header {
-  background-color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: .4rem .8rem;
-  border-radius: .4rem;
-  height: 48px;
-  flex: 0 0 48px;
-  /* position + z-index ensure the Options dropdown renders above .center and .main */
-  position: relative;
-  z-index: 100;
-}
-
-.header img,
-.header-logo {
-  height: 28px;
-  width: auto;
-  max-width: 130px;
-  object-fit: contain;
-  display: block;
-}
-
-.center {
-  width: 100%;
-  flex: 0 0 128px;
-  position: relative;
-  z-index: 2;
-}
-
-.btn {
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.btn-settings {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: #64748b;
-  padding: 2px;
-  border-radius: 0.3rem;
-  transition: color 0.15s;
-}
-
-.btn-settings:hover {
-  color: #49B9FF;
-}
-
-.text-md {
-  font-size: 1.7rem;
-}
-
-.main {
-  background-color: white;
-  flex: 1;
-  min-height: 0;
-  border-radius: .87rem;
-  padding: 48px .85rem .75rem;
-  position: relative;
-  z-index: 1;
-}
-
-.subtitle {
-  font-size: .72rem;
-  color: #64748b;
-  font-weight: 700;
-  letter-spacing: .02em;
-  text-transform: uppercase;
-}
-
-.server-picker {
-  position: relative;
-  z-index: 80;
-}
-
-.main-footer {
-  box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 5px 0px, rgba(0, 0, 0, 0.1) 0px 0px 1px 0px;
-  padding: .75rem;
-  border-radius: .5rem;
-  min-height: 0;
-}
-
-.primary-text {
-  font-size: .9rem;
-  line-height: 1.2;
-}
-
-.description {
-  font-size: .74rem;
-  line-height: 1.35;
-  color: #64748b;
-}
-
-.btn.update {
-  background-color: #49B9FF;
-  color: white;
-  padding: .42rem 0;
-  border-radius: .4rem;
-  font-size: .82rem;
-  font-weight: 600;
-}
-
-.icon-gem {
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 2px;
-}
-
-/* Settings overlay: fills same container dimensions as the main popup */
-.settings-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 200;
 }
 </style>

@@ -6,7 +6,7 @@ import log from './logger.js';
 const COMMON_API_PERMISSIONS = ['proxy', 'tabs', 'webRequest', 'webNavigation'];
 const BROWSER_SPECIFIC_PERMISSIONS = isFirefox
     ? ['webRequestBlocking']
-    : ['webRequestAuthProvider', 'offscreen'];
+    : ['webRequestAuthProvider'];
 
 const REQUIRED_VPN_PERMISSION = {
     permissions: [...COMMON_API_PERMISSIONS, ...BROWSER_SPECIFIC_PERMISSIONS],
@@ -26,26 +26,38 @@ const callbackResult = (fn) => new Promise((resolve) => {
 });
 
 export const hasRequiredVpnPermissions = async () => {
-    if (!chrome.permissions?.contains) return false;
+    if (!chrome?.permissions?.contains) return true;
 
-    const containsAllUrls = await callbackResult((done) => {
-        chrome.permissions.contains(REQUIRED_VPN_PERMISSION, (granted) => {
-            if (chrome.runtime?.lastError) {
-                done(false);
-                return;
-            }
-            done(Boolean(granted));
+    try {
+        const contains = await callbackResult((done) => {
+            chrome.permissions.contains(REQUIRED_VPN_PERMISSION, (granted) => {
+                if (chrome.runtime?.lastError) {
+                    done(false);
+                    return;
+                }
+                done(Boolean(granted));
+            });
         });
-    });
-    if (containsAllUrls) return true;
+        if (contains) return true;
 
-    if (!chrome.permissions?.getAll) return false;
+        if (chrome.permissions?.getAll) {
+            const allPermissions = await callbackResult((done) => chrome.permissions.getAll(done));
+            const hasOrigins = Array.isArray(allPermissions?.origins) &&
+                (allPermissions.origins.includes('<all_urls>') || allPermissions.origins.includes('*://*/*'));
+            const hasApiPerms = Array.isArray(allPermissions?.permissions) &&
+                COMMON_API_PERMISSIONS.every((p) => allPermissions.permissions.includes(p));
+            if (hasOrigins || hasApiPerms) return true;
+        }
+    } catch (_) { /* ignore */ }
 
-    const allPermissions = await callbackResult((done) => chrome.permissions.getAll(done));
-    const hasAllUrls = Array.isArray(allPermissions?.origins) && allPermissions.origins.includes('<all_urls>');
-    const hasApiPerms = Array.isArray(allPermissions?.permissions) &&
-        REQUIRED_VPN_PERMISSION.permissions.every((p) => allPermissions.permissions.includes(p));
-    return hasAllUrls && hasApiPerms;
+    // Fallback: Check if runtime APIs are available
+    const hasProxyApi = (typeof browser !== 'undefined' && Boolean(browser?.proxy)) || (typeof chrome !== 'undefined' && Boolean(chrome?.proxy));
+    const hasWebRequestApi = (typeof browser !== 'undefined' && Boolean(browser?.webRequest)) || (typeof chrome !== 'undefined' && Boolean(chrome?.webRequest));
+    if (hasProxyApi && hasWebRequestApi) {
+        return true;
+    }
+
+    return false;
 };
 
 export const requestRequiredVpnPermissions = async () => {

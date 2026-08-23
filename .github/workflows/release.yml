@@ -1,0 +1,63 @@
+name: Release - Web Extension Store Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package-and-release:
+    name: Package Chrome & Firefox Store Zips
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
+      API_URL: ${{ secrets.API_URL || vars.API_URL }}
+      PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
+      AUTHENTIK_ISSUER: ${{ secrets.AUTHENTIK_ISSUER || vars.AUTHENTIK_ISSUER }}
+      AUTHENTIK_AUTHORIZATION_URL: ${{ secrets.AUTHENTIK_AUTHORIZATION_URL || vars.AUTHENTIK_AUTHORIZATION_URL }}
+      AUTHENTIK_CLIENT_ID: ${{ secrets.AUTHENTIK_CLIENT_ID || vars.AUTHENTIK_CLIENT_ID }}
+      AUTHENTIK_REDIRECT_URI: ${{ secrets.AUTHENTIK_REDIRECT_URI || vars.AUTHENTIK_REDIRECT_URI }}
+      EXTENSION_CALLBACK_PATH: ${{ secrets.EXTENSION_CALLBACK_PATH || vars.EXTENSION_CALLBACK_PATH }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Firefox Extension
+        run: npm run build:firefox
+
+      - name: Build Chrome Extension
+        run: npm run build:chrome
+
+      - name: Create Release Zip Packages
+        run: |
+          mkdir -p dist-release
+          if [ -d "dist-firefox" ]; then
+            cd dist-firefox && zip -r ../dist-release/midorivpn-extension-firefox-${{ github.ref_name }}.zip ./* && cd ..
+          fi
+          if [ -d "dist-chrome" ]; then
+            cd dist-chrome && zip -r ../dist-release/midorivpn-extension-chrome-${{ github.ref_name }}.zip ./* && cd ..
+          fi
+          if [ -d "dist" ]; then
+            cd dist && zip -r ../dist-release/midorivpn-extension-${{ github.ref_name }}.zip ./* && cd ..
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-release/*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -13,6 +13,8 @@ jobs:
   package-and-release:
     name: Package Chrome & Firefox Store Zips
     runs-on: ubuntu-latest
+    # The browser proxy is outside the direct-WireGuard MVP.
+    if: vars.MVP_RELEASE_APPROVED == 'true'
     env:
       APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
       API_URL: ${{ secrets.API_URL || vars.API_URL }}

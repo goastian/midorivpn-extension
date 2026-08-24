@@ -26,7 +26,7 @@ const callbackResult = (fn) => new Promise((resolve) => {
 });
 
 export const hasRequiredVpnPermissions = async () => {
-    if (!chrome?.permissions?.contains) return true;
+    if (typeof chrome === 'undefined' || !chrome.permissions?.contains) return false;
 
     try {
         const contains = await callbackResult((done) => {
@@ -38,25 +38,8 @@ export const hasRequiredVpnPermissions = async () => {
                 done(Boolean(granted));
             });
         });
-        if (contains) return true;
-
-        if (chrome.permissions?.getAll) {
-            const allPermissions = await callbackResult((done) => chrome.permissions.getAll(done));
-            const hasOrigins = Array.isArray(allPermissions?.origins) &&
-                (allPermissions.origins.includes('<all_urls>') || allPermissions.origins.includes('*://*/*'));
-            const hasApiPerms = Array.isArray(allPermissions?.permissions) &&
-                COMMON_API_PERMISSIONS.every((p) => allPermissions.permissions.includes(p));
-            if (hasOrigins || hasApiPerms) return true;
-        }
+        return contains;
     } catch (_) { /* ignore */ }
-
-    // Fallback: Check if runtime APIs are available
-    const hasProxyApi = (typeof browser !== 'undefined' && Boolean(browser?.proxy)) || (typeof chrome !== 'undefined' && Boolean(chrome?.proxy));
-    const hasWebRequestApi = (typeof browser !== 'undefined' && Boolean(browser?.webRequest)) || (typeof chrome !== 'undefined' && Boolean(chrome?.webRequest));
-    if (hasProxyApi && hasWebRequestApi) {
-        return true;
-    }
-
     return false;
 };
 

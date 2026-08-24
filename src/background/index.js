@@ -1,7 +1,7 @@
 import browser from 'webextension-polyfill';
 import badge from '../utils/badge.js';
 import { handleProxy, debugProxyState } from '../utils/proxy';
-import { ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
+import { ensureValidAccessToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens, getProxyScopedToken } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
@@ -24,8 +24,6 @@ if (process.env.NODE_ENV !== 'production') {
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
 // Throttle how often we force a token refresh in response to a 407 so a burst
 // of rejections does not hammer Authentik.
-const PROXY_REFRESH_MIN_INTERVAL_MS = 15 * 1000;
-let lastProxyTriggeredRefresh = 0;
 
 async function markSessionExpired() {
   try {
@@ -202,21 +200,10 @@ syncTokenSession().then(() => {
 // `permissions.onAdded` so the background keeps working in any state.
 const proxyAuthHandler = async (details) => {
   if (!details.isProxy) return {};
-  log.warn('auth', '407 from proxy for', details.url, '- refreshing token and retrying');
+  log.warn('auth', '407 from proxy for', details.url, '- refreshing scoped proxy credential');
 
   try {
-    // Throttle force-refresh so a burst of 407s does not hammer Authentik.
-    const now = Date.now();
-    let token;
-    if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
-      lastProxyTriggeredRefresh = now;
-      token = await refreshAccessToken();
-      log.info('auth', 'forced refresh after 407 OK, retrying with new token');
-      scheduleTokenRefresh().catch(() => { });
-    } else {
-      // Within the throttle window — reuse whatever we have.
-      token = await ensureValidAccessToken();
-    }
+    const token = await getProxyScopedToken();
 
     if (!token) {
       log.warn('auth', 'no token available after 407, cancelling');
@@ -300,6 +287,10 @@ function registerProxyListeners() {
   }
 }
 
+const chromiumProxyAuthHandler = (details, callback) => {
+  proxyAuthHandler(details).then(callback).catch(() => callback({ cancel: true }));
+};
+
 function registerWebRequestListeners() {
   if (webRequestListenersRegistered) return;
   try {
@@ -308,10 +299,11 @@ function registerWebRequestListeners() {
       log.warn('boot', 'webRequest.onAuthRequired unavailable — skipping onAuthRequired registration');
       return;
     }
+    const chromium = typeof browser === 'undefined' || !browser.runtime?.getBrowserInfo;
     webReq.onAuthRequired.addListener(
-      proxyAuthHandler,
+      chromium ? chromiumProxyAuthHandler : proxyAuthHandler,
       { urls: ['<all_urls>'] },
-      ['blocking']
+      chromium ? ['asyncBlocking'] : ['blocking']
     );
     webRequestListenersRegistered = true;
     log.info('boot', 'webRequest.onAuthRequired registered for Chromium/Firefox');

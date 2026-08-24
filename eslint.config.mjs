@@ -61,7 +61,7 @@ export default [
         },
     },
     {
-        files: ['webpack.config.js', 'config/**/*.js', 'compress-pngs.js', 'vitest.config.ts'],
+        files: ['webpack.config.js', 'config/**/*.js', 'compress-pngs.js'],
         languageOptions: {
             globals: { ...globals.node },
         },

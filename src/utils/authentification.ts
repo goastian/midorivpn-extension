@@ -6,30 +6,17 @@ import { disableProxy } from './proxy';
 // @ts-expect-error untyped JS module
 import log from './logger.js';
 
-const API_URL = process.env.API_URL || '';
-const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER || '';
-const AUTHENTIK_AUTHORIZATION_URL = process.env.AUTHENTIK_AUTHORIZATION_URL || '';
-const CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID || '';
+// webpack.config.js rejects the build unless all of these values are present.
+const API_URL = process.env.API_URL as string;
+const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER as string;
+const AUTHENTIK_AUTHORIZATION_URL = process.env.AUTHENTIK_AUTHORIZATION_URL as string;
+const CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID as string;
 
 if (!AUTHENTIK_ISSUER || !CLIENT_ID) {
   log.warn('auth', 'Missing AUTHENTIK_ISSUER or AUTHENTIK_CLIENT_ID in .env configuration');
 }
 
-// REDIRECT_URI resolution order:
-//   1. AUTHENTIK_REDIRECT_URI (legacy full URL — kept for backward compat)
-//   2. PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH (new configurable scheme)
-// One of the two must be set; the build will silently use an empty string
-// otherwise, which will be caught by the PKCE state-mismatch error at runtime.
-function resolveRedirectURI(): string {
-  if (process.env.AUTHENTIK_REDIRECT_URI) {
-    return process.env.AUTHENTIK_REDIRECT_URI;
-  }
-  const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
-  const path = process.env.EXTENSION_CALLBACK_PATH || '/extension/callback';
-  return base ? base + path : '';
-}
-
-const REDIRECT_URI = resolveRedirectURI();
+const REDIRECT_URI = process.env.AUTHENTIK_REDIRECT_URI as string;
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
@@ -104,7 +91,7 @@ class Auth {
     }
 
     if (!REDIRECT_URI) {
-      log.error('auth', 'Missing redirect URI: set AUTHENTIK_REDIRECT_URI or PUBLIC_BASE_URL + EXTENSION_CALLBACK_PATH');
+      log.error('auth', 'Missing redirect URI: set AUTHENTIK_REDIRECT_URI');
       throw new Error('Configuración de URL de redirección no encontrada (REDIRECT_URI)');
     }
 

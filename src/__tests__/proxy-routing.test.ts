@@ -7,39 +7,37 @@ describe('resolveProxyServer', () => {
         expect(resolveProxyServer(undefined)).toBeNull();
     });
 
-    it('returns null when supports_proxy is false', () => {
-        expect(resolveProxyServer({ endpoint: '1.2.3.4', supports_proxy: false })).toBeNull();
+    it('returns null without an explicitly healthy proxy transport', () => {
+        expect(resolveProxyServer({ transports: [] })).toBeNull();
+        expect(resolveProxyServer({ transports: [
+            { protocol: 'proxy', host: 'vpn.example.com', port: 443, enabled: true, health_status: 'degraded' },
+        ] })).toBeNull();
+        expect(resolveProxyServer({ transports: [
+            { protocol: 'proxy', host: 'vpn.example.com', port: 443, enabled: false, health_status: 'healthy' },
+        ] })).toBeNull();
     });
 
-    it('strips port suffix from endpoint and uses proxy_port', () => {
-        expect(resolveProxyServer({ endpoint: '1.2.3.4:51820', proxy_port: 443 }))
-            .toEqual({ host: '1.2.3.4', port: 443, scheme: 'https' });
-    });
-
-    it('falls back to host when endpoint is missing', () => {
-        expect(resolveProxyServer({ host: 'vpn.example.com' }))
+    it('returns the normalized healthy proxy transport', () => {
+        expect(resolveProxyServer({ transports: [
+            { protocol: 'wireguard', host: 'vpn.example.com', port: 51820, enabled: true, health_status: 'healthy' },
+            { protocol: 'proxy', host: 'vpn.example.com', port: 443, enabled: true, health_status: 'healthy' },
+        ] }))
             .toEqual({ host: 'vpn.example.com', port: 443, scheme: 'https' });
-    });
-
-    it('returns https scheme for port 443 or explicit https proxy_scheme', () => {
-        expect(resolveProxyServer({ host: 'vpn.example.com', proxy_port: 443 }))
-            .toEqual({ host: 'vpn.example.com', port: 443, scheme: 'https' });
-        expect(resolveProxyServer({ host: 'vpn.example.com', proxy_port: 8443, proxy_scheme: 'https' }))
-            .toEqual({ host: 'vpn.example.com', port: 8443, scheme: 'https' });
     });
 
     it('returns null for invalid port', () => {
-        expect(resolveProxyServer({ endpoint: '1.2.3.4', proxy_port: 'NaN' as any })).toBeNull();
-        expect(resolveProxyServer({ endpoint: '1.2.3.4', proxy_port: -1 })).toBeNull();
+        expect(resolveProxyServer({ transports: [
+            { protocol: 'proxy', host: 'vpn.example.com', port: 0, enabled: true, health_status: 'healthy' },
+        ] })).toBeNull();
+        expect(resolveProxyServer({ transports: [
+            { protocol: 'proxy', host: 'vpn.example.com', port: 65536, enabled: true, health_status: 'healthy' },
+        ] })).toBeNull();
     });
 
-    it('returns null when both endpoint and host are empty', () => {
-        expect(resolveProxyServer({ endpoint: '', host: '' })).toBeNull();
-    });
-
-    it('coerces string ports to numbers', () => {
-        expect(resolveProxyServer({ endpoint: 'h.example', proxy_port: '3128' }))
-            .toEqual({ host: 'h.example', port: 3128, scheme: 'https' });
+    it('keeps an IPv6 hostname from the normalized contract intact', () => {
+        expect(resolveProxyServer({ transports: [
+            { protocol: 'proxy', host: '2001:db8::10', port: 443, enabled: true, health_status: 'healthy' },
+        ] })).toEqual({ host: '2001:db8::10', port: 443, scheme: 'https' });
     });
 });
 

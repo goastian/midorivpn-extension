@@ -7,7 +7,7 @@
 
 import { detectDesktopEnvironment } from './platform.js';
 
-const ACCOUNT_URL = (process.env.ACCOUNT_URL || 'https://vpn.astian.org').replace(/\/+$/, '');
+const ACCOUNT_URL = (process.env.ACCOUNT_URL || '').replace(/\/+$/, '');
 const DOWNLOAD_URL = `${ACCOUNT_URL}/download`;
 
 /**

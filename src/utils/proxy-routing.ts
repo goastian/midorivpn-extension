@@ -1,15 +1,19 @@
 export interface ActiveServer {
-    endpoint?: string | null;
-    host?: string | null;
-    proxy_port?: number | string | null;
-    supports_proxy?: boolean;
-    proxy_scheme?: string | null;
+    transports?: TransportCapability[] | null;
+}
+
+export interface TransportCapability {
+    protocol: string;
+    host: string;
+    port: number;
+    enabled: boolean;
+    health_status: string;
 }
 
 export interface ProxyServer {
     host: string;
     port: number;
-    scheme: 'https' | 'http';
+    scheme: 'https';
 }
 
 export interface BypassConfig {
@@ -19,20 +23,19 @@ export interface BypassConfig {
 
 export function resolveProxyServer(activeServer: ActiveServer | null | undefined): ProxyServer | null {
     if (!activeServer) return null;
-    if (activeServer.supports_proxy === false) return null;
+    const transport = activeServer.transports?.find((item) =>
+        item.protocol === 'proxy' && item.enabled && item.health_status === 'healthy'
+    );
+    if (!transport) return null;
 
-    const raw = activeServer.endpoint || activeServer.host || '';
-    const host = String(raw).split(':')[0];
-    const rawPort = activeServer.proxy_port ?? 443;
-    const port = Number(rawPort);
+    const host = String(transport.host || '').trim();
+    const port = Number(transport.port);
 
-    if (!host || !Number.isFinite(port) || port <= 0) {
+    if (!host || !Number.isInteger(port) || port <= 0 || port > 65535) {
         return null;
     }
 
-    const scheme: 'https' | 'http' = activeServer.proxy_scheme === 'http' ? 'http' : 'https';
-
-    return { host, port, scheme };
+    return { host, port, scheme: 'https' };
 }
 
 export function buildBypassDomains({ apiUrl, authentikIssuer }: BypassConfig = {}): string[] {

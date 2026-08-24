@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import serverManager from '../service/servers.js';
 import log from '../utils/logger.js';
+import { resolveProxyServer } from '../utils/proxy-routing';
 
 function sendBackgroundMessage(message) {
     return new Promise((resolve, reject) => {
@@ -76,8 +77,7 @@ const useServerStore = defineStore('server', {
             log.diag('vpn-store', 'setActive', {
                 activeId: this.active?.id || null,
                 name: this.active?.name || null,
-                proxyPort: this.active?.proxy_port || null,
-                supportsProxy: this.active?.supports_proxy,
+                proxyEndpoint: resolveProxyServer(this.active),
             });
             // Persistence is handled by chromeStoragePlugin via $subscribe.
         },
@@ -85,11 +85,10 @@ const useServerStore = defineStore('server', {
         async provisionConnection() {
             log.diag('vpn-store', 'provisionConnection:start', {
                 activeId: this.active?.id || null,
-                proxyPort: this.active?.proxy_port || null,
-                supportsProxy: this.active?.supports_proxy,
+                proxyEndpoint: resolveProxyServer(this.active),
             });
             if (!this.active) return 'No server selected';
-            if (this.active.supports_proxy === false || !this.active.proxy_port) {
+            if (!resolveProxyServer(this.active)) {
                 return 'Selected server does not support browser proxy mode';
             }
 

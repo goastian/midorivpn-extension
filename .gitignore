@@ -52,12 +52,4 @@ ehthumbs.db
 .syncthing.*
 .syncthing*.tmp
 
-# Asistentes locales
-.gemini/
-.agents/
-.opencode/
-.claude/
-.cursor/
-.windsurf/
-*.prompt
-*.ai
+# Los metadatos de asistentes locales se excluyen manualmente al preparar commits.

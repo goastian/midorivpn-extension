@@ -15,11 +15,6 @@ const DB_VERSION = 1;
 const STORE_NAME = 'keys';
 const KEY_ID = 'token_encryption_key';
 
-// Legacy keys persisted by the previous PBKDF2-based implementation. We read
-// them once to migrate ciphertext, then delete them from chrome.storage.local.
-const LEGACY_SALT_KEY = 'encryptionSalt';
-const LEGACY_INSTALL_KEY = 'installEncryptionKey';
-
 let keyPromise: Promise<CryptoKey> | null = null;
 
 function openDB(): Promise<IDBDatabase> {
@@ -100,52 +95,6 @@ export async function encryptToken(token: string): Promise<EncryptedData> {
   };
 }
 
-// Legacy migration: decrypt ciphertext written by the previous PBKDF2-based
-// implementation that stored its key material in chrome.storage.local. Used as
-// a one-shot fallback; the caller is expected to re-encrypt with the new key.
-async function deriveLegacyKey(passphrase: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
-  const material = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(passphrase),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveKey'],
-  );
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    material,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt'],
-  );
-}
-
-async function tryLegacyDecrypt(encryptedData: EncryptedData): Promise<string | null> {
-  try {
-    const stored = await new Promise<Record<string, any>>((resolve) => {
-      chrome.storage.local.get([LEGACY_SALT_KEY, LEGACY_INSTALL_KEY], (r) => resolve(r || {}));
-    });
-    const legacyKeyB64 = stored[LEGACY_INSTALL_KEY];
-    const legacySaltB64 = stored[LEGACY_SALT_KEY];
-    if (!legacyKeyB64 || !legacySaltB64) return null;
-
-    const salt = base64ToBuffer(legacySaltB64);
-    const key = await deriveLegacyKey(legacyKeyB64, salt);
-    const iv = base64ToBuffer(encryptedData.iv);
-    const ciphertext = base64ToBuffer(encryptedData.ciphertext);
-    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
-    return new TextDecoder().decode(decrypted);
-  } catch {
-    return null;
-  }
-}
-
-export async function purgeLegacyKeyMaterial(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    chrome.storage.local.remove([LEGACY_SALT_KEY, LEGACY_INSTALL_KEY], () => resolve());
-  });
-}
-
 export async function decryptToken(encryptedData: EncryptedData): Promise<string> {
   try {
     const key = await getOrCreateKey();
@@ -154,8 +103,6 @@ export async function decryptToken(encryptedData: EncryptedData): Promise<string
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
     return new TextDecoder().decode(decrypted);
   } catch (err) {
-    const legacy = await tryLegacyDecrypt(encryptedData);
-    if (legacy !== null) return legacy;
     log.error('crypto', 'Decryption error:', err);
     throw new Error('Failed to decrypt token', { cause: err });
   }

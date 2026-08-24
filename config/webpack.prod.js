@@ -1,3 +1,5 @@
+process.env.APP_ENV = 'production';
+
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const TerserPlugin = require('terser-webpack-plugin');
@@ -70,6 +72,19 @@ webpack(config, (err, stats) => {
 
     if (stats.hasWarnings()) {
         info.warnings.forEach(w => console.warn('⚠️ ', w.message));
+    }
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(config.output.path, 'manifest.json'), 'utf-8'));
+    const background = manifest.background || {};
+    if (targetBrowser === 'firefox' && background.service_worker) {
+        throw new Error('Firefox package must not contain background.service_worker');
+    }
+    if (targetBrowser === 'chrome' && (background.scripts || manifest.browser_specific_settings)) {
+        throw new Error('Chrome package contains Firefox-only manifest fields');
+    }
+    const extensionCsp = manifest.content_security_policy?.extension_pages || '';
+    if (/localhost|127\.0\.0\.1|\bws:|\bhttp:/.test(extensionCsp)) {
+        throw new Error('Production extension CSP contains development origins');
     }
 
     console.log('✅ Build & ZIP completado correctamente.');

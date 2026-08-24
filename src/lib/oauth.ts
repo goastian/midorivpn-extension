@@ -1,4 +1,4 @@
-import { API_URL, REDIRECT_URI, CLIENT_ID } from '../utils/authentification';
+import { API_URL, REDIRECT_URI } from '../utils/authentification';
 import { saveTokens } from './api';
 import { parseRetryAfterMs } from '../utils/http';
 // @ts-expect-error untyped JS module
@@ -57,8 +57,7 @@ export async function exchangeCode(url: string): Promise<boolean> {
     return false;
   }
 
-  const isMatchingCallback = (expectedURL && urlObj.origin === expectedURL.origin && urlObj.pathname === expectedURL.pathname) ||
-    (urlObj.pathname === '/extension/callback' && (urlObj.hostname === 'vpn.astian.org' || urlObj.hostname === 'vpn.dorrejo.com'));
+  const isMatchingCallback = expectedURL && urlObj.origin === expectedURL.origin && urlObj.pathname === expectedURL.pathname;
 
   if (!isMatchingCallback) {
     log.error('oauth', 'Callback URL does not match configured REDIRECT_URI');
@@ -81,41 +80,8 @@ export async function exchangeCode(url: string): Promise<boolean> {
 
   const redirectUriForExchange = `${urlObj.origin}${urlObj.pathname}`;
 
-  // 1. Direct PKCE exchange with Authentik token endpoint (standard for public OAuth clients)
-  try {
-    log.info('oauth', 'Performing PKCE token exchange with Authentik endpoint');
-    const form = new URLSearchParams();
-    form.set('grant_type', 'authorization_code');
-    form.set('client_id', CLIENT_ID || 'Wbc5hsIaK6kDp4cCFvzTtgAnEc5qNfWWARMmYXTn');
-    form.set('code', code);
-    form.set('redirect_uri', redirectUriForExchange);
-    if (pkce_verifier) {
-      form.set('code_verifier', pkce_verifier);
-    }
-
-    const directRes = await fetch('https://accounts.astian.org/application/o/token/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
-    });
-
-    if (directRes.ok) {
-      const authJson = await directRes.json();
-      if (authJson?.access_token) {
-        await saveTokens(authJson.access_token, authJson.refresh_token, authJson.expires_in);
-        await clearPkce();
-        log.info('oauth', 'Authentik PKCE token exchange succeeded');
-        return true;
-      }
-    } else {
-      const directErr = await directRes.text();
-      log.warn('oauth', 'Direct Authentik token exchange response:', directRes.status, directErr);
-    }
-  } catch (directError) {
-    log.warn('oauth', 'Direct Authentik token exchange network error:', directError);
-  }
-
-  // 2. Fallback: Proxy exchange via vpn-core backend
+  // Exchange through vpn-core so the identity-provider endpoint and client
+  // policy have one configured source of truth.
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/callback`, {

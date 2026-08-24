@@ -24,22 +24,38 @@ jobs:
       EXTENSION_CALLBACK_PATH: ${{ secrets.EXTENSION_CALLBACK_PATH || vars.EXTENSION_CALLBACK_PATH }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '22.x'
+          node-version: '24.x'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Build Firefox Extension
         run: npm run build:firefox
 
       - name: Build Chrome Extension
         run: npm run build:chrome
+
+      - name: Extract Release Notes from CHANGELOG
+        run: |
+          node -e "
+            const fs = require('fs');
+            const tag = '${{ github.ref_name }}' || '2.0.0';
+            const version = tag.replace(/^v/, '');
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const regex = new RegExp('## \\\[' + version + '\\\][^\\\n]*\\\n([\\\s\\\S]*?)(?=\\\n## \\\[|$)');
+            const match = changelog.match(regex);
+            const body = match ? match[1].trim() : 'Release ' + tag;
+            fs.writeFileSync('RELEASE_NOTES.md', body);
+          "
 
       - name: Create Release Zip Packages
         run: |
@@ -58,6 +74,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist-release/*.zip
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
-          generate_release_notes: true

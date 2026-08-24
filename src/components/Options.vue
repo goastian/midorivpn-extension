@@ -108,7 +108,11 @@ export default {
         },
 
         account() {
-            const url = process.env.ACCOUNT_URL || process.env.API_URL || 'https://accounts.astian.org';
+            const url = process.env.ACCOUNT_URL;
+            if (!url) {
+                log.error('options', 'ACCOUNT_URL is not configured');
+                return;
+            }
             chrome.tabs.create({ url }, function () {
                 window.close();
             });

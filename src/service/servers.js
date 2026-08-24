@@ -1,5 +1,6 @@
 import { api } from '../lib/api';
 import log from '../utils/logger.js';
+import { resolveProxyServer } from '../utils/proxy-routing';
 
 // Background-only thin cache for the server list. Storage persistence of the
 // active server is owned by the Pinia chromeStoragePlugin on the popup side;
@@ -38,9 +39,8 @@ class ServerManager {
                 return this.__serversCache;
             }
 
-            // Never stick to an empty cache for the full TTL: if an admin
-            // fixes proxy_port/support on the backend, the popup should pick
-            // it up on the next open without waiting 5 minutes.
+            // Never stick to an empty cache for the full TTL: a transport may
+            // become healthy on the next backend probe.
             log.diag('servers', 'cache-empty -> refetch', {
                 ageMs: now - this.__lastFetch,
                 ttlMs: this.__TTL,
@@ -53,9 +53,7 @@ class ServerManager {
             const total = Array.isArray(servers) ? servers.length : 0;
 
             if (Array.isArray(servers) && servers.length > 0) {
-                const proxyServers = servers.filter((server) =>
-                    server?.supports_proxy !== false && Number(server?.proxy_port || 0) > 0
-                );
+                const proxyServers = servers.filter((server) => resolveProxyServer(server) !== null);
                 log.diag('servers', 'fetched', {
                     total,
                     eligibleProxy: proxyServers.length,
@@ -102,4 +100,3 @@ class ServerManager {
 
 const serverManager = new ServerManager();
 export default serverManager;
-

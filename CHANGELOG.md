@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] — 2026-08-23
+## [2.0.0] — 2026-08-24
 
 ### Features & Enhancements
 - **Complete UI/UX Refresh**:
@@ -14,14 +14,21 @@
   - Smart callback resolution that automatically verifies state integrity and closes the authentication tab upon success.
   - Granular session recovery ensuring uninterrupted connectivity across browser restarts.
 - **High-Performance Proxy Tunneling**:
-  - High-speed HTTP CONNECT proxy tunneling providing full IP obfuscation and location shielding.
+  - HTTPS CONNECT proxy tunneling selected only from a healthy, enabled `proxy` transport advertised by Core; there is no implicit fallback port.
   - Dynamic PAC-based traffic routing that automatically routes web browsing while preserving direct local network access.
   - Scoped authentication tokens preventing unauthorized proxy usage and ensuring private communication.
   - Real-time connection health monitoring with automatic reconnection handling.
+  - Rejects non-HTTPS proxy schemes and never falls back to a general access token when scoped proxy credentials are unavailable.
+  - Removed the extractable PBKDF2 token-key fallback; tokens use only a non-extractable IndexedDB AES-GCM key.
 - **Platform & Permission Refinements**:
   - Full compatibility across modern Chromium-based browsers (Chrome, Midori, Brave, Edge) and Mozilla Firefox.
   - Transparent, on-demand permission handling requesting only necessary network capabilities during active tunneling.
   - Optimized lightweight memory footprint with efficient background service worker execution.
+- **Toolchain**:
+  - Updated direct dependencies to their compatible stable majors, including Babel 8, Pinia 4, jsdom 30 and webpack-dev-server 6.
+- Node 24/npm 12 are enforced; Firefox and Chrome production bundles pass strict typecheck, lint, tests and audit with no known vulnerabilities.
+- Production packages now remove browser-incompatible background fields, reject development origins in CSP, and validate those invariants during each build.
+- Removed redundant `dotenv-webpack`; environment values are injected once through the validated Webpack configuration.
 
 ## [1.0.18] — 2026-06-05
 

@@ -3,13 +3,12 @@
  * Adapted for browser extension context (chrome.storage.local).
  */
 
-import { encryptToken, decryptToken, purgeLegacyKeyMaterial } from '../utils/crypto-utils';
+import { encryptToken, decryptToken } from '../utils/crypto-utils';
 import { parseRetryAfterMs } from '../utils/http';
 // @ts-expect-error untyped JS module
 import log from '../utils/logger.js';
 
 const API_URL = process.env.API_URL || '';
-const CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID || 'Wbc5hsIaK6kDp4cCFvzTtgAnEc5qNfWWARMmYXTn';
 
 interface ApiResponse<T = any> {
     ok: boolean;
@@ -121,44 +120,27 @@ function storageRemove(keys: string[]): Promise<void> {
 }
 
 async function getTokens(): Promise<StoredTokens> {
-    const raw = await storageGet(['access_token_enc', 'refresh_token_enc', 'token_expires_at', 'access_token', 'refresh_token']);
+    const raw = await storageGet(['access_token_enc', 'refresh_token_enc', 'token_expires_at']);
     const result: StoredTokens = { token_expires_at: raw.token_expires_at };
-    // Decrypt if encrypted versions exist; fall back to legacy plaintext for migration.
     if (raw.access_token_enc) {
         try { result.access_token = await decryptToken(raw.access_token_enc); } catch { /* skip */ }
-    } else if (raw.access_token) {
-        result.access_token = raw.access_token;
     }
     if (raw.refresh_token_enc) {
         try { result.refresh_token = await decryptToken(raw.refresh_token_enc); } catch { /* skip */ }
-    } else if (raw.refresh_token) {
-        result.refresh_token = raw.refresh_token;
     }
     return result;
 }
 
 async function saveTokens(accessToken: string, refreshToken?: string, expiresIn?: number): Promise<void> {
-    const data: Record<string, any> = {};
-    try {
-        data.access_token_enc = await encryptToken(accessToken);
-        // Remove any legacy plaintext key
-        await storageRemove(['access_token']);
-    } catch {
-        data.access_token = accessToken; // fallback if SubtleCrypto unavailable
-    }
+    const data: Record<string, any> = {
+        access_token_enc: await encryptToken(accessToken),
+    };
     if (refreshToken) {
-        try {
-            data.refresh_token_enc = await encryptToken(refreshToken);
-            await storageRemove(['refresh_token']);
-        } catch {
-            data.refresh_token = refreshToken;
-        }
+        data.refresh_token_enc = await encryptToken(refreshToken);
     }
     if (expiresIn) data.token_expires_at = Date.now() + expiresIn * 1000;
     await storageSet(data);
-    // Once we've re-encrypted with the new (non-extractable) key, drop any
-    // legacy PBKDF2 key material that may still be sitting in storage.
-    purgeLegacyKeyMaterial().catch(() => { /* ignore */ });
+    await storageRemove(['access_token', 'refresh_token']);
 }
 
 async function clearTokens(): Promise<void> {
@@ -212,36 +194,6 @@ async function tryRefreshToken(): Promise<string> {
 
     log.info('api', 'refreshing access token…');
 
-    // 1. Direct Authentik token refresh (standard for public OAuth clients)
-    try {
-        const form = new URLSearchParams();
-        form.set('grant_type', 'refresh_token');
-        form.set('client_id', CLIENT_ID);
-        form.set('refresh_token', refresh_token);
-
-        const directRes = await fetch('https://accounts.astian.org/application/o/token/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: form.toString(),
-        });
-
-        if (directRes.ok) {
-            const authJson = await directRes.json();
-            if (authJson?.access_token) {
-                await saveTokens(authJson.access_token, authJson.refresh_token || refresh_token, authJson.expires_in);
-                resetRefreshBackoff();
-                log.info('api', 'Authentik direct refresh OK, expires_in=', authJson.expires_in);
-                return authJson.access_token;
-            }
-        } else {
-            const directErr = await directRes.text();
-            log.warn('api', 'Direct Authentik refresh response:', directRes.status, directErr);
-        }
-    } catch (directErr) {
-        log.warn('api', 'Direct Authentik refresh network error:', (directErr as Error)?.message || directErr);
-    }
-
-    // 2. Fallback to vpn-core proxy refresh
     let res: Response;
     try {
         res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
@@ -558,10 +510,10 @@ export async function getProxyScopedToken(): Promise<string | null> {
             return cachedProxyToken;
         }
     } catch (e) {
-        log.warn('api', 'failed to fetch scoped proxy token, falling back to access token', e);
+        log.warn('api', 'failed to fetch scoped proxy token', e);
     }
 
-    return ensureValidAccessToken();
+    return null;
 }
 
 export {

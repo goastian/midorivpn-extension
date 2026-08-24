@@ -8,6 +8,7 @@ import Token from '../utils/token.ts';
 import { REDIRECT_URI } from '../utils/authentification';
 import log from '../utils/logger.js';
 import { hasRequiredVpnPermissions } from '../utils/permissions.js';
+import { resolveProxyServer } from '../utils/proxy-routing';
 import {
   getMidoriPrivacyStatus,
   isTrustedMidoriPrivacyRequest,
@@ -152,8 +153,7 @@ const handlers = {
     log.diag('background', 'handler:provisionConnection:start', {
       serverId: msg?.serverId || null,
       activeId: msg?.activeServer?.id || null,
-      proxyPort: msg?.activeServer?.proxy_port || null,
-      supportsProxy: msg?.activeServer?.supports_proxy,
+      proxyEndpoint: resolveProxyServer(msg?.activeServer),
     });
     const serverId = msg.serverId;
     const active = msg.activeServer;
@@ -161,7 +161,8 @@ const handlers = {
     if (!active || active.id !== serverId) {
       throw new Error('Selected server is not active');
     }
-    if (active.supports_proxy === false || !active.proxy_port) {
+    const proxyEndpoint = resolveProxyServer(active);
+    if (!proxyEndpoint) {
       throw new Error('Selected server does not support browser proxy mode');
     }
 
@@ -170,13 +171,13 @@ const handlers = {
 
     log.diag('background', 'handler:provisionConnection:ok', {
       serverId,
-      proxyPort: active.proxy_port,
+      proxyEndpoint,
     });
     return {
       id: null,
       server_id: serverId,
       mode: 'proxy',
-      proxy_port: active.proxy_port,
+      proxy_endpoint: proxyEndpoint,
     };
   },
 };
@@ -251,8 +252,7 @@ const oauthNavigationHandler = async (details) => {
     const callbackURL = new URL(details.url);
     const expectedURL = REDIRECT_URI ? new URL(REDIRECT_URI) : null;
 
-    const isCallback = (expectedURL && callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname) ||
-      (callbackURL.pathname === '/extension/callback' && (callbackURL.hostname === 'vpn.astian.org' || callbackURL.hostname === 'vpn.dorrejo.com'));
+    const isCallback = expectedURL && callbackURL.origin === expectedURL.origin && callbackURL.pathname === expectedURL.pathname;
 
     if (isCallback && callbackURL.searchParams.has('code')) {
       const code = callbackURL.searchParams.get('code');

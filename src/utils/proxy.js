@@ -1,4 +1,4 @@
-import { ensureValidAccessToken, getProxyScopedToken } from '../lib/api';
+import { getProxyScopedToken } from '../lib/api';
 import log from './logger.js';
 import { hasRequiredVpnPermissions } from './permissions.js';
 import { resolveProxyServer, buildBypassDomains } from './proxy-routing';
@@ -26,9 +26,9 @@ export const validateProxyReady = async () => {
         return { ok: false, error: 'Missing browser permissions' };
     }
 
-    const token = await ensureValidAccessToken();
+    const token = await getProxyScopedToken();
     if (!token) {
-        return { ok: false, error: 'Login session expired' };
+        return { ok: false, error: 'Proxy credentials are unavailable' };
     }
 
     return { ok: true, proxy: proxyServer };
@@ -46,30 +46,25 @@ export const handleProxy = async (details) => {
         const storage = await getLocalStorage(['store', 'server']);
 
         if (!storage.store?.state) {
-            log.info('proxy', 'VPN toggle OFF, direct ->', hostname);
+            log.info('proxy', 'VPN toggle OFF');
             return { type: 'direct' };
         }
 
         const hasVpnPermission = await hasRequiredVpnPermissions();
         if (!hasVpnPermission) {
-            log.warn('proxy', 'Missing <all_urls> permission for', hostname, '— blocking to prevent IP leak');
+            log.warn('proxy', 'Missing <all_urls> permission — blocking to prevent IP leak');
             return blockProxyRequest();
         }
-
-        log.info('proxy:dbg', 'state=ON host=', hostname,
-            '| server.active=', JSON.stringify(storage.server?.active));
 
         const proxyServer = resolveProxyServer(storage.server?.active);
         if (!proxyServer) {
-            log.warn('proxy', 'No proxy server resolved from storage:', storage.server?.active);
+            log.warn('proxy', 'No secure proxy server is configured');
             return blockProxyRequest();
         }
 
-        log.info('proxy:dbg', `resolved → http://${proxyServer.host}:${proxyServer.port}`);
-
-        // HTTP CONNECT tunnel
+        // HTTPS CONNECT tunnel
         const proxyInfo = {
-            type: proxyServer.scheme || 'http',
+            type: 'https',
             host: proxyServer.host,
             port: proxyServer.port,
         };
@@ -91,11 +86,9 @@ export const handleProxy = async (details) => {
         }
 
         if (!token) {
-            log.warn('proxy', 'No access token for', hostname, '— blocking to prevent IP leak', tokenErr?.message || '');
+            log.warn('proxy', 'No scoped proxy token — blocking to prevent IP leak', tokenErr?.message || '');
             return blockProxyRequest();
         }
-
-        log.info('proxy:dbg', 'token OK, routing', proxyServer.scheme?.toUpperCase() || 'HTTP', 'CONNECT', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
 
         // username/password → Proxy-Authorization: Basic (for Firefox & Chrome onAuthRequired)
         proxyInfo.username = 'midorivpn';
@@ -103,7 +96,7 @@ export const handleProxy = async (details) => {
         // proxyAuthorizationHeader → Firefox 128+ custom header value
         proxyInfo.proxyAuthorizationHeader = `Bearer ${token}`;
 
-        log.info('proxy', 'route', proxyServer.scheme?.toUpperCase() || 'HTTP', 'CONNECT', hostname, '->', `${proxyServer.host}:${proxyServer.port}`);
+        log.info('proxy', 'secure proxy route established');
         return proxyInfo;
     } catch (e) {
         log.error('proxy', 'handleProxy error:', e);
@@ -139,7 +132,7 @@ export const enableProxy = async () => {
             mode: 'fixed_servers',
             rules: {
                 singleProxy: {
-                    scheme: result.proxy.scheme || 'http',
+                    scheme: 'https',
                     host: result.proxy.host,
                     port: Number(result.proxy.port),
                 },
@@ -148,7 +141,7 @@ export const enableProxy = async () => {
         };
         await new Promise((resolve) => {
             chrome.proxy.settings.set({ value: config, scope: 'regular' }, () => {
-                log.info('proxy', 'Chromium chrome.proxy.settings configured with', result.proxy.scheme?.toUpperCase() || 'HTTP', 'CONNECT');
+                log.info('proxy', 'Chromium secure proxy settings configured');
                 resolve(true);
             });
         });

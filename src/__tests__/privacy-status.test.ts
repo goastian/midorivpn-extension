@@ -25,12 +25,16 @@ describe('Midori Privacy status bridge', () => {
     })).toBe(false);
   });
 
-  it('derives the public state from the proxy toggle', () => {
-    expect(getMidoriPrivacyStatus({ store: { state: true } }, 42)).toEqual({
-      state: 'connected',
+  it('requires verified proxy routing before reporting protection', () => {
+    expect(getMidoriPrivacyStatus({ store: { state: true } }, true, 42)).toEqual({
+      state: 'configured',
       updatedAt: 42,
     });
-    expect(getMidoriPrivacyStatus({ store: { state: false } }, 42)).toEqual({
+    expect(getMidoriPrivacyStatus({ store: { state: true } }, false, 42)).toEqual({
+      state: 'off',
+      updatedAt: 42,
+    });
+    expect(getMidoriPrivacyStatus({ store: { state: false } }, true, 42)).toEqual({
       state: 'off',
       updatedAt: 42,
     });

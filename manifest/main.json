@@ -14,19 +14,19 @@
   },
   "permissions": [
     "alarms",
-    "storage",
+    "storage"
+  ],
+  "optional_permissions": [
     "proxy",
     "tabs",
     "webRequest",
     "webNavigation"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "optional_host_permissions": ["<all_urls>"],
   "browser_specific_settings": {
     "gecko": {
       "id": "midorivpn@astian.org",
-      "strict_min_version": "114.0"
+      "strict_min_version": "128.0"
     }
   },
   "content_security_policy": {

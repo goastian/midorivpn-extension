@@ -84,24 +84,9 @@ function manifestMerge(fileMain, fileBrowser) {
     delete manifest.browser_specific_settings;
   }
 
-  // All MidoriVPN permissions are required at install time. Promote anything
-  // that may still live under optional_* into the required sets so the browser
-  // prompts the user up front instead of running with a half-broken background
-  // that crashes when proxy/webRequest/webNavigation are unavailable.
-  if (Array.isArray(manifest.optional_permissions)) {
-    manifest.permissions = Array.from(new Set([
-      ...(manifest.permissions || []),
-      ...manifest.optional_permissions,
-    ]));
-    delete manifest.optional_permissions;
-  }
-
-  manifest.host_permissions = Array.from(new Set([
-    ...(manifest.host_permissions || []),
-    ...(manifest.optional_host_permissions || []),
-    '<all_urls>',
-  ]));
-  delete manifest.optional_host_permissions;
+  // Network/proxy access is an explicit user decision. Keep these entries
+  // optional in the built manifest so an install cannot silently receive
+  // global browsing access before VPN mode is enabled.
 
   manifest.content_security_policy = {
     ...(manifest.content_security_policy || {}),

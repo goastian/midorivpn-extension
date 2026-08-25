@@ -2,22 +2,19 @@
     <div class="containerApp">
         <Home v-if="!isLoggedIn" />
         <Main v-else />
-        <Notification
-            @close="removeNotification"
-        />
+        <Notification @close="removeNotification" />
     </div>
 </template>
 
 <script>
 import useNotificationStore from "./stores/useNotificationStore.js";
-import useVpnStore from './stores/useVpnStore';
-import Token from './utils/token.ts';
-import Home from './pages/Home.vue';
-import Main from './pages/Main.vue';
-import Notification from './components/Notification.vue';
-import log from './utils/logger.js';
+import useVpnStore from "./stores/useVpnStore";
+import Token from "./utils/token.ts";
+import Home from "./pages/Home.vue";
+import Main from "./pages/Main.vue";
+import Notification from "./components/Notification.vue";
+import log from "./utils/logger.js";
 export default {
-
   components: {
     Home,
     Main,
@@ -27,7 +24,7 @@ export default {
   provide() {
     return {
       app_name: process.env.APP_NAME,
-    }
+    };
   },
   data() {
     return {
@@ -35,7 +32,7 @@ export default {
       initError: false,
       vpn: useVpnStore(),
       notifications: useNotificationStore(),
-    }
+    };
   },
 
   async created() {
@@ -43,9 +40,16 @@ export default {
   },
 
   mounted() {
-    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
       this._storageListener = (changes, area) => {
-        if (area === 'local' && (changes.access_token || changes.store || changes.logged_in_at)) {
+        if (
+          area === "local" &&
+          (changes.access_token_enc ||
+            changes.refresh_token_enc ||
+            changes.token_expires_at ||
+            changes.store ||
+            changes.logged_in_at)
+        ) {
           this.checkAuth();
         }
       };
@@ -54,7 +58,11 @@ export default {
   },
 
   beforeUnmount() {
-    if (this._storageListener && typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    if (
+      this._storageListener &&
+      typeof chrome !== "undefined" &&
+      chrome.storage?.onChanged
+    ) {
       chrome.storage.onChanged.removeListener(this._storageListener);
     }
   },
@@ -72,17 +80,16 @@ export default {
           this.isLoggedIn = false;
         }
       } catch (err) {
-        log.error('app', 'auth check error:', err);
+        log.error("app", "auth check error:", err);
         this.isLoggedIn = false;
       }
     },
 
     removeNotification() {
       this.notifications.remove();
-    }
-  }
-}
-
+    },
+  },
+};
 </script>
 
 <style scoped>

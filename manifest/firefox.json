@@ -19,13 +19,13 @@
       "128": "icons/icon128.png"
     }
   },
-  "permissions": [
+  "optional_permissions": [
     "webRequestBlocking"
   ],
   "browser_specific_settings": {
     "gecko": {
       "id": "midorivpn@astian.org",
-      "strict_min_version": "114.0"
+      "strict_min_version": "128.0"
     }
   }
 }

@@ -31,10 +31,11 @@ export function isTrustedMidoriPrivacyRequest(
 
 export function getMidoriPrivacyStatus(
     storage: VpnStorage | undefined,
+    proxyConfigured = false,
     updatedAt = Date.now(),
 ) {
     return {
-        state: storage?.store?.state === true ? 'connected' : 'off',
+        state: storage?.store?.state === true && proxyConfigured ? 'configured' : 'off',
         updatedAt,
     };
 }

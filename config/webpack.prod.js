@@ -86,6 +86,13 @@ webpack(config, (err, stats) => {
     if (/localhost|127\.0\.0\.1|\bws:|\bhttp:/.test(extensionCsp)) {
         throw new Error('Production extension CSP contains development origins');
     }
+    const emittedJavaScript = fs.readdirSync(config.output.path)
+        .filter((name) => name.endsWith('.js'))
+        .map((name) => fs.readFileSync(path.join(config.output.path, name), 'utf8'))
+        .join('\n');
+    if (/\bprocess(?:\.|\[)/.test(emittedJavaScript)) {
+        throw new Error('Production extension bundle contains a Node.js process reference');
+    }
 
     console.log('✅ Build & ZIP completado correctamente.');
 })

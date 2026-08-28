@@ -31,6 +31,9 @@ const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER.trim();
 const AUTHENTIK_AUTHORIZATION_URL = process.env.AUTHENTIK_AUTHORIZATION_URL.trim();
 const AUTHENTIK_CLIENT_ID = process.env.AUTHENTIK_CLIENT_ID.trim();
 const AUTHENTIK_REDIRECT_URI = process.env.AUTHENTIK_REDIRECT_URI.trim();
+const APP_NAME = process.env.APP_NAME?.trim() || 'MidoriVPN';
+const DEBUG_DIAG = process.env.DEBUG_DIAG === 'true';
+const PERMISSIONS_CLOSE_DELAY_SECONDS = process.env.PERMISSIONS_CLOSE_DELAY_SECONDS?.trim() || '5';
 
 function safeOrigin(value) {
   if (!value) return null;
@@ -170,6 +173,10 @@ const config = {
       'process.env.AUTHENTIK_REDIRECT_URI': JSON.stringify(AUTHENTIK_REDIRECT_URI),
       'process.env.APP_ENV': JSON.stringify(app_env),
       'process.env.BROWSER': JSON.stringify(browser),
+      'process.env.APP_NAME': JSON.stringify(APP_NAME),
+      'process.env.NODE_ENV': JSON.stringify(app_env),
+      'process.env.DEBUG_DIAG': JSON.stringify(String(DEBUG_DIAG)),
+      'process.env.PERMISSIONS_CLOSE_DELAY_SECONDS': JSON.stringify(PERMISSIONS_CLOSE_DELAY_SECONDS),
     }),
     new VueLoaderPlugin(),
     new HtmlWebpackPlugin({

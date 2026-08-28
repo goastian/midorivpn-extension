@@ -202,7 +202,7 @@ syncTokenSession().then(() => {
 // `permissions.onAdded` so the background keeps working in any state.
 const proxyAuthHandler = async (details) => {
   if (!details.isProxy) return {};
-  log.warn('auth', '407 from proxy for', details.url, '- refreshing token and retrying');
+  log.warn('auth', 'Proxy credentials were rejected; refreshing and retrying');
 
   try {
     // Throttle force-refresh so a burst of 407s does not hammer Authentik.
@@ -259,7 +259,7 @@ const oauthNavigationHandler = async (details) => {
       if (code && processingCallbacks.has(code)) return;
       if (code) processingCallbacks.add(code);
 
-      log.info('auth', 'OAuth callback detected on URL:', details.url);
+      log.info('auth', 'OAuth callback detected');
       const token = new Token();
       const success = await token.exchangeCode(details.url);
       if (success) {
@@ -271,7 +271,7 @@ const oauthNavigationHandler = async (details) => {
           } catch (_) { /* tab might already be closed */ }
         }
       } else {
-        log.error('auth', 'Token exchange failed for URL:', details.url);
+        log.error('auth', 'OAuth token exchange failed');
       }
     }
   } catch (err) {

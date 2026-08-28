@@ -106,7 +106,7 @@ class Auth {
     });
 
     const url = `${authorizationEndpoint}?${queryParams.toString()}`;
-    log.info('auth', 'Opening sign in URL:', url);
+    log.info('auth', 'Opening the browser sign-in flow');
 
     if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
       chrome.tabs.create({ url }, () => {

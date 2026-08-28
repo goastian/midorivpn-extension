@@ -30,6 +30,7 @@
 - Production packages now remove browser-incompatible background fields, reject development origins in CSP, and validate those invariants during each build.
 - Removed redundant `dotenv-webpack`; environment values are injected once through the validated Webpack configuration.
 - Firefox and Midori packages now replace every supported build-time `process.env` reference, including diagnostics, application name and permission-page timing. Production builds fail if any Node.js `process` reference survives in emitted JavaScript.
+- Authentication and proxy diagnostics no longer print authorization callback URLs, browsing destinations, OAuth codes or state values.
 
 ## [1.0.18] — 2026-06-05
 

@@ -185,7 +185,11 @@ log.info('boot', 'background loaded, initializing token session');
 ensureRequiredVpnPermissions().catch((error) => {
   log.warn('permissions', 'Failed to check required VPN permissions on boot:', error?.message || error);
 });
-syncTokenSession().then(() => {
+syncTokenSession().then((token) => {
+  // Chromium can restore fixed proxy settings before the MV3 worker wakes.
+  // Preload the short-lived credential through the direct API bypass so the
+  // first proxy challenge does not race worker initialization.
+  if (token) return getProxyScopedToken();
 }).catch((error) => {
   log.error('boot', 'Failed to initialize token session:', error);
 });
@@ -405,7 +409,7 @@ if (chrome.alarms?.onAlarm) {
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local') return;
-  if (!changes.access_token && !changes.refresh_token && !changes.token_expires_at) return;
+  if (!changes.access_token_enc && !changes.refresh_token_enc && !changes.token_expires_at) return;
 
   scheduleTokenRefresh().catch((error) => {
     log.error('alarm', 'Failed to reschedule token refresh:', error);

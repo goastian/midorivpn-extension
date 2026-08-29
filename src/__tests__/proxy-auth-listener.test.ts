@@ -95,6 +95,29 @@ describe('createProxyAuthenticationHandler', () => {
     expect(invalidateToken).toHaveBeenCalledOnce();
   });
 
+  it('shares credentials when Chromium repeats a challenge while they are loading', async () => {
+    let resolveToken!: (token: string) => void;
+    const getToken = vi.fn(() => new Promise<string>((resolve) => {
+      resolveToken = resolve;
+    }));
+    const handler = createProxyAuthenticationHandler({
+      getToken,
+      invalidateToken: vi.fn(),
+    });
+
+    const first = handler({ isProxy: true, requestId: 'request-pending' });
+    const duplicate = handler({ isProxy: true, requestId: 'request-pending' });
+    resolveToken('vpn-proxy-token');
+
+    await expect(first).resolves.toEqual({
+      authCredentials: { username: 'midorivpn', password: 'vpn-proxy-token' },
+    });
+    await expect(duplicate).resolves.toEqual({
+      authCredentials: { username: 'midorivpn', password: 'vpn-proxy-token' },
+    });
+    expect(getToken).toHaveBeenCalledOnce();
+  });
+
   it('fails closed without deleting the OAuth session when a scoped token is unavailable', async () => {
     const onUnavailable = vi.fn();
     const handler = createProxyAuthenticationHandler({

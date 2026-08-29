@@ -493,6 +493,7 @@ export interface ProxyCredentialsResponse {
 
 let cachedProxyToken: string | null = null;
 let proxyTokenExpiresAt = 0;
+let proxyTokenRequest: Promise<string | null> | null = null;
 
 export function invalidateProxyScopedToken(): void {
     cachedProxyToken = null;
@@ -506,20 +507,31 @@ export async function getProxyScopedToken(): Promise<string | null> {
         return cachedProxyToken;
     }
 
-    try {
-        const res = await request<ProxyCredentialsResponse>('/api/v1/control/proxy-credentials', {
-            method: 'POST',
+    // A page load can produce several proxy challenges at once. Keep one
+    // credential request in flight so every challenge receives the same
+    // scoped token instead of starting competing OAuth refreshes.
+    if (!proxyTokenRequest) {
+        proxyTokenRequest = (async () => {
+            try {
+                const res = await request<ProxyCredentialsResponse>('/api/v1/control/proxy-credentials', {
+                    method: 'POST',
+                });
+                if (res && res.proxy_token) {
+                    cachedProxyToken = res.proxy_token;
+                    proxyTokenExpiresAt = Date.now() + (res.expires_in || 900) * 1000;
+                    return cachedProxyToken;
+                }
+            } catch (e) {
+                log.warn('api', 'failed to fetch scoped proxy token', e);
+            }
+
+            return null;
+        })().finally(() => {
+            proxyTokenRequest = null;
         });
-        if (res && res.proxy_token) {
-            cachedProxyToken = res.proxy_token;
-            proxyTokenExpiresAt = now + (res.expires_in || 900) * 1000;
-            return cachedProxyToken;
-        }
-    } catch (e) {
-        log.warn('api', 'failed to fetch scoped proxy token', e);
     }
 
-    return null;
+    return proxyTokenRequest;
 }
 
 export {

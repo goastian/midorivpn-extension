@@ -32,7 +32,8 @@ type ProxyAuthDependencies = {
 const AUTH_ATTEMPT_TTL_MS = 60_000;
 
 export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependencies): AuthHandler {
-  const attempts = new Map<string, number>();
+  type Attempt = { startedAt: number; response: Promise<AuthResponse>; submitted: boolean };
+  const attempts = new Map<string, Attempt>();
   const now = dependencies.now || Date.now;
 
   return async (rawDetails: unknown): Promise<AuthResponse> => {
@@ -40,36 +41,50 @@ export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependen
     if (!details.isProxy) return {};
 
     const currentTime = now();
-    for (const [requestId, attemptedAt] of attempts) {
-      if (currentTime - attemptedAt >= AUTH_ATTEMPT_TTL_MS) attempts.delete(requestId);
+    for (const [requestId, attempt] of attempts) {
+      if (currentTime - attempt.startedAt >= AUTH_ATTEMPT_TTL_MS) attempts.delete(requestId);
     }
 
     const requestId = details.requestId || '';
-    if (requestId && attempts.has(requestId)) {
+    const existing = requestId ? attempts.get(requestId) : undefined;
+    if (existing) {
+      // Chromium may deliver the same event more than once while an async
+      // callback is still waiting. Share that response. Only a later challenge
+      // after credentials were submitted means the proxy rejected them.
+      if (!existing.submitted) return existing.response;
       attempts.delete(requestId);
       dependencies.invalidateToken();
       return { cancel: true };
     }
-    if (requestId) attempts.set(requestId, currentTime);
 
-    try {
-      const token = await dependencies.getToken();
-      if (!token) {
+    const attempt: Attempt = {
+      startedAt: currentTime,
+      response: Promise.resolve({ cancel: true }),
+      submitted: false,
+    };
+    attempt.response = (async (): Promise<AuthResponse> => {
+      try {
+        const token = await dependencies.getToken();
+        if (!token) {
+          if (requestId) attempts.delete(requestId);
+          await dependencies.onUnavailable?.();
+          return { cancel: true };
+        }
+        if (requestId) attempt.submitted = true;
+        return {
+          authCredentials: {
+            username: 'midorivpn',
+            password: token,
+          },
+        };
+      } catch {
         if (requestId) attempts.delete(requestId);
         await dependencies.onUnavailable?.();
         return { cancel: true };
       }
-      return {
-        authCredentials: {
-          username: 'midorivpn',
-          password: token,
-        },
-      };
-    } catch {
-      if (requestId) attempts.delete(requestId);
-      await dependencies.onUnavailable?.();
-      return { cancel: true };
-    }
+    })();
+    if (requestId) attempts.set(requestId, attempt);
+    return attempt.response;
   };
 }
 

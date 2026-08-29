@@ -10,6 +10,16 @@ type AuthEvent = {
     extraInfoSpec: string[],
   ) => void;
 };
+type WebRequestAPI = { onAuthRequired?: AuthEvent };
+
+export function selectProxyWebRequestAPI(
+  browserTarget: string,
+  nativeChromium: WebRequestAPI | undefined,
+  webExtensionPolyfill: WebRequestAPI | undefined,
+): WebRequestAPI | undefined {
+  if (browserTarget === 'chrome') return nativeChromium;
+  return webExtensionPolyfill || nativeChromium;
+}
 
 type ProxyAuthDetails = { isProxy?: boolean; requestId?: string };
 type ProxyAuthDependencies = {
@@ -64,7 +74,7 @@ export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependen
 }
 
 export function registerProxyAuthentication(
-  webRequest: { onAuthRequired?: AuthEvent } | undefined,
+  webRequest: WebRequestAPI | undefined,
   handler: AuthHandler,
   browserTarget: string,
 ): boolean {

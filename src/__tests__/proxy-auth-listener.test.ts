@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createProxyAuthenticationHandler, registerProxyAuthentication } from '../utils/proxy-auth-listener';
+import { createProxyAuthenticationHandler, registerProxyAuthentication, selectProxyWebRequestAPI } from '../utils/proxy-auth-listener';
 
 function registration() {
   const addListener = vi.fn();
@@ -52,6 +52,20 @@ describe('registerProxyAuthentication', () => {
       { urls: ['<all_urls>'] },
       ['blocking'],
     );
+  });
+});
+
+describe('selectProxyWebRequestAPI', () => {
+  it('uses the native Chrome API for asyncBlocking callbacks', () => {
+    const native = registration().webRequest;
+    const polyfill = registration().webRequest;
+    expect(selectProxyWebRequestAPI('chrome', native, polyfill)).toBe(native);
+  });
+
+  it('uses the Promise-capable polyfill for Firefox and Midori', () => {
+    const native = registration().webRequest;
+    const polyfill = registration().webRequest;
+    expect(selectProxyWebRequestAPI('firefox', native, polyfill)).toBe(polyfill);
   });
 });
 

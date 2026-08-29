@@ -7,7 +7,7 @@
 - Proxy challenges now receive only short-lived `vpn-proxy` credentials, never refreshed OAuth access tokens. Repeated challenges fail closed without clearing the login session or creating an authentication loop.
 - Chromium registers `asyncBlocking` on the native `chrome.webRequest` API; Firefox and Midori use the Promise-capable WebExtension polyfill.
 - Concurrent proxy challenges now share one scoped-credential request and one pending authentication response, preventing duplicate OAuth refreshes and callback races during busy page loads.
-- Chromium restores `fixed_servers` when the browser restarts with VPN enabled; if credentials, permissions, or the selected transport cannot be restored, the visible connection state fails closed instead of allowing a false connected state.
+- Chromium restores `fixed_servers` when the browser restarts with VPN enabled; if credentials, permissions, or the selected transport cannot be restored, it resets the browser to direct mode and clears the visible connected state.
 - Chromium end-to-end certification covers clean OAuth, authenticated HTTPS CONNECT, direct disconnect, reconnect, and persistence across browser restart.
 - **Complete UI/UX Refresh**:
   - Modern, sleek interface with an interactive power switch featuring animated pulse states (Connected, Connecting, Disconnected).

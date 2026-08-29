@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import badge from '../utils/badge.js';
-import { handleProxy, debugProxyState } from '../utils/proxy';
+import { handleProxy, debugProxyState, enableProxy } from '../utils/proxy';
 import { ensureValidAccessToken, getProxyScopedToken, invalidateProxyScopedToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
@@ -52,7 +52,7 @@ async function markSessionExpired() {
   }
 }
 
-async function turnOffVpnForMissingPermissions() {
+async function turnOffVpn() {
   try {
     const { store } = await new Promise((resolve) =>
       chrome.storage.local.get(['store'], resolve)
@@ -82,7 +82,7 @@ async function ensureRequiredVpnPermissions() {
   const granted = await hasRequiredVpnPermissions();
   if (granted) return true;
 
-  await turnOffVpnForMissingPermissions();
+  await turnOffVpn();
   return false;
 }
 
@@ -131,6 +131,31 @@ async function syncTokenSession(forceRefresh = false) {
     await markSessionExpired();
   }
   return token;
+}
+
+let sessionInitialization = null;
+
+async function initializeProxySession() {
+  if (sessionInitialization) return sessionInitialization;
+
+  sessionInitialization = (async () => {
+    const token = await syncTokenSession();
+    if (!token) return;
+
+    const { store } = await new Promise((resolve) =>
+      chrome.storage.local.get(['store'], resolve)
+    );
+    if (!store?.state) return;
+
+    const credential = await getProxyScopedToken();
+    if (!credential || !(await ensureRequiredVpnPermissions()) || !(await enableProxy())) {
+      await turnOffVpn();
+    }
+  })().finally(() => {
+    sessionInitialization = null;
+  });
+
+  return sessionInitialization;
 }
 
 const handlers = {
@@ -185,12 +210,7 @@ log.info('boot', 'background loaded, initializing token session');
 ensureRequiredVpnPermissions().catch((error) => {
   log.warn('permissions', 'Failed to check required VPN permissions on boot:', error?.message || error);
 });
-syncTokenSession().then((token) => {
-  // Chromium can restore fixed proxy settings before the MV3 worker wakes.
-  // Preload the short-lived credential through the direct API bypass so the
-  // first proxy challenge does not race worker initialization.
-  if (token) return getProxyScopedToken();
-}).catch((error) => {
+initializeProxySession().catch((error) => {
   log.error('boot', 'Failed to initialize token session:', error);
 });
 
@@ -204,7 +224,7 @@ syncTokenSession().then((token) => {
 const proxyAuthHandler = createProxyAuthenticationHandler({
   getToken: getProxyScopedToken,
   invalidateToken: invalidateProxyScopedToken,
-  onUnavailable: turnOffVpnForMissingPermissions,
+  onUnavailable: turnOffVpn,
 });
 
 const proxyErrorHandler = (error) => {
@@ -360,8 +380,7 @@ if (chrome.runtime?.onStartup) {
     ensureRequiredVpnPermissions().catch((error) => {
       log.warn('permissions', 'Failed to check required VPN permissions on startup:', error?.message || error);
     });
-    syncTokenSession().then(() => {
-    }).catch((error) => {
+    initializeProxySession().catch((error) => {
       log.error('boot', 'Failed to restore token session on startup:', error);
     });
   });
@@ -381,7 +400,7 @@ if (chrome.runtime?.onInstalled) {
         log.warn('permissions', 'Failed to check required VPN permissions after update:', error?.message || error);
       });
     }
-    syncTokenSession().catch((error) => {
+    initializeProxySession().catch((error) => {
       log.error('boot', 'Failed to sync token session after install/update:', error);
     });
   });
@@ -391,7 +410,7 @@ if (chrome.permissions?.onRemoved) {
   chrome.permissions.onRemoved.addListener((removed) => {
     if (!removed?.origins?.includes('<all_urls>')) return;
     log.warn('permissions', '<all_urls> permission removed; turning VPN off');
-    turnOffVpnForMissingPermissions().catch((error) => {
+    turnOffVpn().catch((error) => {
       log.warn('permissions', 'Failed to handle removed VPN permission:', error?.message || error);
     });
   });

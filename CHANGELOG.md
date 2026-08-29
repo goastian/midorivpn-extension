@@ -3,6 +3,7 @@
 ## [2.0.0] — 2026-08-24
 
 ### Features & Enhancements
+- Chromium proxy authentication now uses the Manifest V3 `asyncBlocking` callback contract, while Firefox and Midori retain their supported Promise-based blocking listener.
 - **Complete UI/UX Refresh**:
   - Modern, sleek interface with an interactive power switch featuring animated pulse states (Connected, Connecting, Disconnected).
   - Enhanced server picker with national flags, real-time latency ping indicators, and instant search capability.

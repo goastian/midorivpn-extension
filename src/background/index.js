@@ -9,6 +9,7 @@ import { REDIRECT_URI } from '../utils/authentification';
 import log from '../utils/logger.js';
 import { hasRequiredVpnPermissions } from '../utils/permissions.js';
 import { resolveProxyServer } from '../utils/proxy-routing';
+import { registerProxyAuthentication } from '../utils/proxy-auth-listener';
 import {
   getMidoriPrivacyStatus,
   isTrustedMidoriPrivacyRequest,
@@ -308,13 +309,9 @@ function registerWebRequestListeners() {
       log.warn('boot', 'webRequest.onAuthRequired unavailable — skipping onAuthRequired registration');
       return;
     }
-    webReq.onAuthRequired.addListener(
-      proxyAuthHandler,
-      { urls: ['<all_urls>'] },
-      ['blocking']
-    );
+    registerProxyAuthentication(webReq, proxyAuthHandler, process.env.BROWSER);
     webRequestListenersRegistered = true;
-    log.info('boot', 'webRequest.onAuthRequired registered for Chromium/Firefox');
+    log.info('boot', 'webRequest.onAuthRequired registered', process.env.BROWSER);
   } catch (err) {
     log.warn('boot', 'failed to register webRequest listener:', err?.message || err);
   }

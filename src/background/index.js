@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import badge from '../utils/badge.js';
-import { handleProxy, debugProxyState, enableProxy } from '../utils/proxy';
+import { handleProxy, debugProxyState, enableProxy, disableProxy } from '../utils/proxy';
 import { ensureValidAccessToken, getProxyScopedToken, invalidateProxyScopedToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
@@ -30,29 +30,15 @@ async function markSessionExpired() {
   } catch (_) {
     // ignore
   }
-  try {
-    // Flip the user-facing "connected" toggle off so handleProxy routes direct
-    // and the popup no longer lies about being connected.
-    const { store } = await new Promise((resolve) =>
-      chrome.storage.local.get(['store'], resolve)
-    );
-    if (store?.state) {
-      await chrome.storage.local.set({ store: { ...store, state: false } });
-    }
-  } catch (_) {
-    // ignore
-  }
-  try {
-    if (chrome.action?.setBadgeText) {
-      chrome.action.setBadgeText({ text: '!' });
-      chrome.action.setBadgeBackgroundColor({ color: '#E67B7B' });
-    }
-  } catch (_) {
-    // ignore
-  }
+  await turnOffVpn();
 }
 
 async function turnOffVpn() {
+  try {
+    await disableProxy();
+  } catch (_) {
+    // A failed reset must not prevent the visible state from failing closed.
+  }
   try {
     const { store } = await new Promise((resolve) =>
       chrome.storage.local.get(['store'], resolve)

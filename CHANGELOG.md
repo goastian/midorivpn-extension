@@ -4,6 +4,7 @@
 
 ### Features & Enhancements
 - Chromium proxy authentication now uses the Manifest V3 `asyncBlocking` callback contract, while Firefox and Midori retain their supported Promise-based blocking listener.
+- Proxy challenges now receive only short-lived `vpn-proxy` credentials, never refreshed OAuth access tokens. Repeated challenges fail closed without clearing the login session or creating an authentication loop.
 - **Complete UI/UX Refresh**:
   - Modern, sleek interface with an interactive power switch featuring animated pulse states (Connected, Connecting, Disconnected).
   - Enhanced server picker with national flags, real-time latency ping indicators, and instant search capability.

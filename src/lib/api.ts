@@ -144,6 +144,7 @@ async function saveTokens(accessToken: string, refreshToken?: string, expiresIn?
 }
 
 async function clearTokens(): Promise<void> {
+    invalidateProxyScopedToken();
     await storageRemove(['access_token', 'access_token_enc', 'refresh_token', 'refresh_token_enc', 'token_expires_at', 'encryptedToken', 'tokenExpiry', 'encryptionSalt', 'installEncryptionKey']);
 }
 
@@ -492,6 +493,11 @@ export interface ProxyCredentialsResponse {
 
 let cachedProxyToken: string | null = null;
 let proxyTokenExpiresAt = 0;
+
+export function invalidateProxyScopedToken(): void {
+    cachedProxyToken = null;
+    proxyTokenExpiresAt = 0;
+}
 
 export async function getProxyScopedToken(): Promise<string | null> {
     const now = Date.now();

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { registerProxyAuthentication } from '../utils/proxy-auth-listener';
+import { createProxyAuthenticationHandler, registerProxyAuthentication } from '../utils/proxy-auth-listener';
 
 function registration() {
   const addListener = vi.fn();
@@ -52,5 +52,44 @@ describe('registerProxyAuthentication', () => {
       { urls: ['<all_urls>'] },
       ['blocking'],
     );
+  });
+});
+
+describe('createProxyAuthenticationHandler', () => {
+  it('supplies only the scoped proxy credential', async () => {
+    const getToken = vi.fn().mockResolvedValue('vpn-proxy-token');
+    const handler = createProxyAuthenticationHandler({
+      getToken,
+      invalidateToken: vi.fn(),
+    });
+
+    await expect(handler({ isProxy: true, requestId: 'request-1' })).resolves.toEqual({
+      authCredentials: { username: 'midorivpn', password: 'vpn-proxy-token' },
+    });
+    expect(getToken).toHaveBeenCalledOnce();
+  });
+
+  it('cancels a repeated challenge instead of entering an authentication loop', async () => {
+    const invalidateToken = vi.fn();
+    const handler = createProxyAuthenticationHandler({
+      getToken: vi.fn().mockResolvedValue('vpn-proxy-token'),
+      invalidateToken,
+    });
+
+    await handler({ isProxy: true, requestId: 'request-2' });
+    await expect(handler({ isProxy: true, requestId: 'request-2' })).resolves.toEqual({ cancel: true });
+    expect(invalidateToken).toHaveBeenCalledOnce();
+  });
+
+  it('fails closed without deleting the OAuth session when a scoped token is unavailable', async () => {
+    const onUnavailable = vi.fn();
+    const handler = createProxyAuthenticationHandler({
+      getToken: vi.fn().mockResolvedValue(null),
+      invalidateToken: vi.fn(),
+      onUnavailable,
+    });
+
+    await expect(handler({ isProxy: true, requestId: 'request-3' })).resolves.toEqual({ cancel: true });
+    expect(onUnavailable).toHaveBeenCalledOnce();
   });
 });

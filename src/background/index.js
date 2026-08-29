@@ -1,7 +1,7 @@
 import browser from 'webextension-polyfill';
 import badge from '../utils/badge.js';
 import { handleProxy, debugProxyState } from '../utils/proxy';
-import { ensureValidAccessToken, refreshAccessToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
+import { ensureValidAccessToken, getProxyScopedToken, invalidateProxyScopedToken, getRefreshAlarmTimestamp, getNextRefreshAttemptTimestamp, clearTokens } from '../lib/api';
 import serverManager from '../service/servers.js';
 import user from '../service/User.js';
 import Token from '../utils/token.ts';
@@ -9,7 +9,7 @@ import { REDIRECT_URI } from '../utils/authentification';
 import log from '../utils/logger.js';
 import { hasRequiredVpnPermissions } from '../utils/permissions.js';
 import { resolveProxyServer } from '../utils/proxy-routing';
-import { registerProxyAuthentication } from '../utils/proxy-auth-listener';
+import { createProxyAuthenticationHandler, registerProxyAuthentication } from '../utils/proxy-auth-listener';
 import {
   getMidoriPrivacyStatus,
   isTrustedMidoriPrivacyRequest,
@@ -23,10 +23,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
-// Throttle how often we force a token refresh in response to a 407 so a burst
-// of rejections does not hammer Authentik.
-const PROXY_REFRESH_MIN_INTERVAL_MS = 15 * 1000;
-let lastProxyTriggeredRefresh = 0;
 
 async function markSessionExpired() {
   try {
@@ -201,44 +197,11 @@ syncTokenSession().then(() => {
 // service worker — which would also kill the OAuth callback handler below,
 // making login impossible. Instead, we register lazily and re-register on
 // `permissions.onAdded` so the background keeps working in any state.
-const proxyAuthHandler = async (details) => {
-  if (!details.isProxy) return {};
-  log.warn('auth', 'Proxy credentials were rejected; refreshing and retrying');
-
-  try {
-    // Throttle force-refresh so a burst of 407s does not hammer Authentik.
-    const now = Date.now();
-    let token;
-    if (now - lastProxyTriggeredRefresh > PROXY_REFRESH_MIN_INTERVAL_MS) {
-      lastProxyTriggeredRefresh = now;
-      token = await refreshAccessToken();
-      log.info('auth', 'forced refresh after 407 OK, retrying with new token');
-      scheduleTokenRefresh().catch(() => { });
-    } else {
-      // Within the throttle window — reuse whatever we have.
-      token = await ensureValidAccessToken();
-    }
-
-    if (!token) {
-      log.warn('auth', 'no token available after 407, cancelling');
-      await markSessionExpired();
-      return { cancel: true };
-    }
-
-    return {
-      authCredentials: {
-        username: 'midorivpn',
-        password: token,
-      },
-    };
-  } catch (err) {
-    log.warn('auth', 'refresh after 407 failed:', err?.message || err);
-    if (err && err.shouldClear) {
-      await markSessionExpired();
-    }
-    return { cancel: true };
-  }
-};
+const proxyAuthHandler = createProxyAuthenticationHandler({
+  getToken: getProxyScopedToken,
+  invalidateToken: invalidateProxyScopedToken,
+  onUnavailable: turnOffVpnForMissingPermissions,
+});
 
 const proxyErrorHandler = (error) => {
   log.error('proxy-error', error);

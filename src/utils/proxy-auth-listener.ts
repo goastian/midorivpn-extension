@@ -11,6 +11,58 @@ type AuthEvent = {
   ) => void;
 };
 
+type ProxyAuthDetails = { isProxy?: boolean; requestId?: string };
+type ProxyAuthDependencies = {
+  getToken: () => Promise<string | null>;
+  invalidateToken: () => void;
+  onUnavailable?: () => void | Promise<void>;
+  now?: () => number;
+};
+
+const AUTH_ATTEMPT_TTL_MS = 60_000;
+
+export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependencies): AuthHandler {
+  const attempts = new Map<string, number>();
+  const now = dependencies.now || Date.now;
+
+  return async (rawDetails: unknown): Promise<AuthResponse> => {
+    const details = (rawDetails || {}) as ProxyAuthDetails;
+    if (!details.isProxy) return {};
+
+    const currentTime = now();
+    for (const [requestId, attemptedAt] of attempts) {
+      if (currentTime - attemptedAt >= AUTH_ATTEMPT_TTL_MS) attempts.delete(requestId);
+    }
+
+    const requestId = details.requestId || '';
+    if (requestId && attempts.has(requestId)) {
+      attempts.delete(requestId);
+      dependencies.invalidateToken();
+      return { cancel: true };
+    }
+    if (requestId) attempts.set(requestId, currentTime);
+
+    try {
+      const token = await dependencies.getToken();
+      if (!token) {
+        if (requestId) attempts.delete(requestId);
+        await dependencies.onUnavailable?.();
+        return { cancel: true };
+      }
+      return {
+        authCredentials: {
+          username: 'midorivpn',
+          password: token,
+        },
+      };
+    } catch {
+      if (requestId) attempts.delete(requestId);
+      await dependencies.onUnavailable?.();
+      return { cancel: true };
+    }
+  };
+}
+
 export function registerProxyAuthentication(
   webRequest: { onAuthRequired?: AuthEvent } | undefined,
   handler: AuthHandler,

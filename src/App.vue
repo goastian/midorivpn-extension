@@ -45,7 +45,7 @@ export default {
   mounted() {
     if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
       this._storageListener = (changes, area) => {
-        if (area === 'local' && (changes.access_token || changes.store || changes.logged_in_at)) {
+        if (area === 'local' && (changes.access_token_enc || changes.refresh_token_enc || changes.token_expires_at || changes.store || changes.logged_in_at)) {
           this.checkAuth();
         }
       };

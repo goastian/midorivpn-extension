@@ -101,12 +101,4 @@ export default {
     height: 100dvh;
   }
 }
-
-@media screen and (min-width: 600px) and (pointer: fine) {
-  .containerApp {
-    margin: 24px auto;
-    border-radius: 16px;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
-  }
-}
 </style>

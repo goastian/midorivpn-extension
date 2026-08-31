@@ -10,7 +10,6 @@ import log from '../utils/logger.js';
 import { hasRequiredVpnPermissions } from '../utils/permissions.js';
 import { resolveProxyServer } from '../utils/proxy-routing';
 import { createProxyAuthenticationHandler, registerProxyAuthentication, selectProxyWebRequestAPI } from '../utils/proxy-auth-listener';
-import { showExtensionAfterOAuth } from '../utils/oauth-tab';
 import {
   getMidoriPrivacyStatus,
   isTrustedMidoriPrivacyRequest,
@@ -238,15 +237,19 @@ const oauthNavigationHandler = async (details) => {
       const token = new Token();
       const success = await token.exchangeCode(details.url);
       if (success) {
-        log.info('auth', 'Token exchange successful, syncing session and showing extension');
+        log.info('auth', 'Token exchange successful, syncing session and closing tab');
         await syncTokenSession();
-        if (!(await showExtensionAfterOAuth(details.tabId, chrome))) {
-          log.warn('auth', 'Could not show the extension in the callback tab');
+        if (details.tabId && typeof chrome !== 'undefined' && chrome.tabs?.remove) {
+          try {
+            chrome.tabs.remove(details.tabId);
+          } catch (_) { /* tab might already be closed */ }
         }
       } else {
         log.error('auth', 'OAuth token exchange failed');
-        if (!(await showExtensionAfterOAuth(details.tabId, chrome))) {
-          log.warn('auth', 'Could not show the authentication error in the callback tab');
+        if (details.tabId && typeof chrome !== 'undefined' && chrome.tabs?.remove) {
+          try {
+            chrome.tabs.remove(details.tabId);
+          } catch (_) { /* tab might already be closed */ }
         }
       }
     }

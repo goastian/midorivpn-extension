@@ -78,6 +78,9 @@ async function storePkce(state: string, verifier: string): Promise<void> {
 
 class Auth {
   async signIn() {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local?.remove) {
+      await chrome.storage.local.remove(['auth_error']);
+    }
     const state = generateCode(40);
     const { verifier, challenge } = await codeChallenge();
 

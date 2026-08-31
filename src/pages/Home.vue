@@ -10,6 +10,8 @@
             </div>
             <h2 class="title">Secure &amp; Private Browsing</h2>
             <p class="description">One-click encrypted connection powered by Astian Network.</p>
+
+            <p v-if="authError" class="auth-error" role="alert">{{ authError }}</p>
             
             <div class="features-row row ga-xs">
                 <div class="feature-chip row items-center ga-xs">
@@ -64,13 +66,25 @@ export default {
     inject: ['app_name'],
 
     data() {
-        return { loading: false };
+        return { loading: false, authError: '' };
+    },
+
+    async created() {
+        if (typeof chrome === 'undefined' || !chrome.storage?.local?.get) return;
+        const { auth_error: error } = await chrome.storage.local.get(['auth_error']);
+        const messages = {
+            origin_revoked: 'This browser is no longer authorized. Ask an administrator to restore access.',
+            invalid_callback: 'The sign-in response could not be verified. Please try again.',
+            service_unavailable: 'The sign-in service is temporarily unavailable. Please try again.',
+        };
+        this.authError = messages[error?.code] || '';
     },
 
     methods: {
         async login() {
             if (this.loading) return;
             this.loading = true;
+            this.authError = '';
             try {
                 const auth = new Auth();
                 await auth.signIn();
@@ -146,6 +160,19 @@ export default {
     margin: 0;
     max-width: 26ch;
     line-height: 1.4;
+}
+
+.auth-error {
+    width: 100%;
+    margin: 0;
+    padding: .55rem .65rem;
+    border: 1px solid #FECACA;
+    border-radius: .55rem;
+    background: #FEF2F2;
+    color: #B91C1C;
+    font-size: .72rem;
+    line-height: 1.35;
+    text-align: center;
 }
 
 .features-row {

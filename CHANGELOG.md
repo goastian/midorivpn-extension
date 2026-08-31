@@ -9,6 +9,7 @@
 - Concurrent proxy challenges now share one scoped-credential request and one pending authentication response, preventing duplicate OAuth refreshes and callback races during busy page loads.
 - Chromium restores `fixed_servers` when the browser restarts with VPN enabled; if credentials, permissions, or the selected transport cannot be restored, it resets the browser to direct mode and clears the visible connected state.
 - Chromium end-to-end certification covers clean OAuth, authenticated HTTPS CONNECT, direct disconnect, reconnect, and persistence across browser restart.
+- Revoked or invalid extension origins now close the OAuth callback tab and leave a persistent, user-facing explanation in the popup instead of failing silently.
 - **Complete UI/UX Refresh**:
   - Modern, sleek interface with an interactive power switch featuring animated pulse states (Connected, Connecting, Disconnected).
   - Enhanced server picker with national flags, real-time latency ping indicators, and instant search capability.

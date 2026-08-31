@@ -8,6 +8,23 @@ declare const chrome: any;
 
 const TRANSIENT_EXCHANGE_STATUSES = new Set([502, 503, 504]);
 const DEFAULT_EXCHANGE_RETRY_MS = 1000;
+const AUTH_ERROR_KEY = 'auth_error';
+
+type AuthErrorCode = 'origin_revoked' | 'invalid_callback' | 'service_unavailable';
+
+async function saveAuthError(code: AuthErrorCode): Promise<void> {
+  if (typeof chrome !== 'undefined' && chrome.storage?.local?.set) {
+    await chrome.storage.local.set({
+      [AUTH_ERROR_KEY]: { code, occurred_at: Date.now() },
+    });
+  }
+}
+
+async function clearAuthError(): Promise<void> {
+  if (typeof chrome !== 'undefined' && chrome.storage?.local?.remove) {
+    await chrome.storage.local.remove([AUTH_ERROR_KEY]);
+  }
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -71,10 +88,12 @@ export async function exchangeCode(url: string): Promise<boolean> {
 
   if (!state || !pkce_state || state !== pkce_state) {
     log.error('oauth', 'State mismatch');
+    await saveAuthError('invalid_callback');
     return false;
   }
   if (!code) {
     log.error('oauth', 'No authorization code');
+    await saveAuthError('invalid_callback');
     return false;
   }
 
@@ -104,6 +123,7 @@ export async function exchangeCode(url: string): Promise<boolean> {
           continue;
         }
         log.error('oauth', 'Backend token exchange failed:', res.status, errText);
+        await saveAuthError(res.status === 403 ? 'origin_revoked' : 'service_unavailable');
         if (!transient) {
           await clearPkce();
         }
@@ -113,12 +133,14 @@ export async function exchangeCode(url: string): Promise<boolean> {
       const json = await res.json();
       if (json.data?.access_token) {
         await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
+        await clearAuthError();
         await clearPkce();
         log.info('oauth', 'Backend token exchange succeeded');
         return true;
       }
 
       log.error('oauth', 'Backend token exchange response missing access token');
+      await saveAuthError('service_unavailable');
       await clearPkce();
       return false;
     } catch (error) {
@@ -128,6 +150,7 @@ export async function exchangeCode(url: string): Promise<boolean> {
         continue;
       }
       log.error('oauth', 'Backend token exchange error:', error);
+      await saveAuthError('service_unavailable');
       return false;
     }
   }

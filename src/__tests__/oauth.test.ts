@@ -11,8 +11,15 @@ const { saveTokens } = vi.hoisted(() => ({ saveTokens: vi.fn() }));
 vi.mock('../lib/api', () => ({ saveTokens }));
 
 const sessionStore: Record<string, any> = {};
+const localStore: Record<string, any> = {};
 const chromeMock = {
     storage: {
+        local: {
+            set: vi.fn(async (data: Record<string, any>) => Object.assign(localStore, data)),
+            remove: vi.fn(async (keys: string[]) => {
+                for (const k of keys) delete localStore[k];
+            }),
+        },
         session: {
             get: vi.fn(async (keys: string[]) => {
                 const out: Record<string, any> = {};
@@ -33,9 +40,12 @@ const REDIRECT = 'https://app.example.com/extension/callback';
 
 beforeEach(() => {
     for (const k of Object.keys(sessionStore)) delete sessionStore[k];
+    for (const k of Object.keys(localStore)) delete localStore[k];
     saveTokens.mockReset();
     chromeMock.storage.session.get.mockClear();
     chromeMock.storage.session.remove.mockClear();
+    chromeMock.storage.local.set.mockClear();
+    chromeMock.storage.local.remove.mockClear();
     vi.restoreAllMocks();
 });
 
@@ -84,5 +94,20 @@ describe('exchangeCode', () => {
         expect(ok).toBe(true);
         expect(saveTokens).toHaveBeenCalledWith('a', 'r', 60);
         expect(chromeMock.storage.session.remove).toHaveBeenCalledWith(['pkce_state', 'pkce_verifier']);
+        expect(chromeMock.storage.local.remove).toHaveBeenCalledWith(['auth_error']);
+    });
+
+    it('stores a user-visible error when the extension origin is revoked', async () => {
+        sessionStore.pkce_state = 's';
+        sessionStore.pkce_verifier = 'v';
+        (globalThis as any).fetch = vi.fn(async () => ({
+            ok: false,
+            status: 403,
+            text: async () => '{"error":"extension origin revoked"}',
+            headers: { get: () => null },
+        } as any));
+
+        await expect(exchangeCode(`${REDIRECT}?code=c&state=s`)).resolves.toBe(false);
+        expect(localStore.auth_error?.code).toBe('origin_revoked');
     });
 });

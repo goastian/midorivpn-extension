@@ -246,6 +246,11 @@ const oauthNavigationHandler = async (details) => {
         }
       } else {
         log.error('auth', 'OAuth token exchange failed');
+        if (details.tabId && typeof chrome !== 'undefined' && chrome.tabs?.remove) {
+          try {
+            chrome.tabs.remove(details.tabId);
+          } catch (_) { /* tab might already be closed */ }
+        }
       }
     }
   } catch (err) {

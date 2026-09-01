@@ -10,10 +10,43 @@ import log from '../utils/logger.js';
 
 const API_URL = process.env.API_URL || '';
 
-interface ApiResponse<T = any> {
-    ok: boolean;
+interface ApiSuccess<T> {
+    ok: true;
     data: T;
-    error?: string;
+}
+
+interface ApiFailure {
+    ok: false;
+    error: string;
+    code: string;
+}
+
+type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
+
+export class APIError extends Error {
+    readonly status: number;
+    readonly code: string;
+
+    constructor(status: number, code: string, message: string, options?: ErrorOptions) {
+        super(message, options);
+        this.name = 'APIError';
+        this.status = status;
+        this.code = code;
+    }
+}
+
+async function responseError(res: Response, fallback: string): Promise<APIError> {
+    let payload: Partial<ApiFailure> = {};
+    try {
+        payload = await res.json() as Partial<ApiFailure>;
+    } catch {
+        // Keep the fallback for non-JSON gateway failures.
+    }
+    return new APIError(
+        res.status,
+        typeof payload.code === 'string' && payload.code ? payload.code : 'request_failed',
+        typeof payload.error === 'string' && payload.error ? payload.error : fallback,
+    );
 }
 
 interface StoredTokens {
@@ -27,14 +60,16 @@ class RefreshTokenError extends Error {
     transient: boolean;
     retryAfterMs: number;
     cooldownActive: boolean;
+    code: string;
 
-    constructor(message: string, shouldClear = false, transient = false, retryAfterMs = 0, cooldownActive = false) {
+    constructor(message: string, shouldClear = false, transient = false, retryAfterMs = 0, cooldownActive = false, code = 'request_failed') {
         super(message);
         this.name = 'RefreshTokenError';
         this.shouldClear = shouldClear;
         this.transient = transient;
         this.retryAfterMs = retryAfterMs;
         this.cooldownActive = cooldownActive;
+        this.code = code;
     }
 }
 
@@ -211,8 +246,9 @@ async function tryRefreshToken(): Promise<string> {
         const shouldClear = [400, 401, 403].includes(res.status);
         const transient = TRANSIENT_REFRESH_STATUSES.has(res.status);
         const retryAfterMs = transient ? parseRetryAfterMs(res.headers.get('Retry-After'), MAX_REFRESH_COOLDOWN_MS) : 0;
-        log.warn('api', 'refresh HTTP', res.status, 'shouldClear=', shouldClear);
-        throw new RefreshTokenError(`Token refresh failed: ${res.status}`, shouldClear, transient, retryAfterMs);
+        const apiError = await responseError(res, `Token refresh failed: ${res.status}`);
+        log.warn('api', 'refresh HTTP', res.status, 'code=', apiError.code, 'shouldClear=', shouldClear);
+        throw new RefreshTokenError(apiError.message, shouldClear, transient, retryAfterMs, false, apiError.code);
     }
 
     const json: ApiResponse<{ access_token: string; refresh_token?: string; expires_in?: number }> = await res.json();
@@ -345,21 +381,21 @@ async function request<T>(path: string, options: RequestInit = {}, _isRetry = fa
                 await clearTokens();
             }
 
-            throw new Error('Unauthorized', { cause: err });
+            throw new APIError(401, 'unauthorized', 'Unauthorized', { cause: err });
         }
     }
 
     if (res.status === 401 && _isRetry) {
         await clearTokens();
-        throw new Error('Unauthorized');
+        throw new APIError(401, 'unauthorized', 'Unauthorized');
+    }
+
+    if (!res.ok) {
+        throw await responseError(res, `Request failed: ${res.status}`);
     }
 
     const json: ApiResponse<T> = await res.json();
-
-    if (!res.ok || json.error) {
-        throw new Error(json.error || `Request failed: ${res.status}`);
-    }
-
+    if (!json.ok) throw new APIError(res.status, json.code, json.error);
     return json.data;
 }
 

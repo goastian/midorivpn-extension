@@ -3,6 +3,8 @@
 ## [2.0.0] — 2026-08-24
 
 ### Features & Enhancements
+- Core API failures now retain their machine-readable code and HTTP status
+  across normal requests and token refreshes.
 - Chromium proxy authentication now uses the Manifest V3 `asyncBlocking` callback contract, while Firefox and Midori retain their supported Promise-based blocking listener.
 - Proxy challenges now receive only short-lived `vpn-proxy` credentials, never refreshed OAuth access tokens. Repeated challenges fail closed without clearing the login session or creating an authentication loop.
 - Chromium registers `asyncBlocking` on the native `chrome.webRequest` API; Firefox and Midori use the Promise-capable WebExtension polyfill.

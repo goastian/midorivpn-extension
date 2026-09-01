@@ -12,6 +12,7 @@
     "build": "node compress-pngs.js && node ./config/webpack.prod.js",
     "build:firefox": "BROWSER=firefox node compress-pngs.js && BROWSER=firefox node ./config/webpack.prod.js",
     "build:chrome": "BROWSER=chrome node compress-pngs.js && BROWSER=chrome node ./config/webpack.prod.js",
+    "release:build": "bash scripts/build-release-artifacts.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

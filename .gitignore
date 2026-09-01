@@ -1,6 +1,9 @@
 # Dependencias y compilación
 node_modules/
 dist/
+dist-chrome/
+dist-firefox/
+release-artifacts/
 build/
 zip/
 compressed-assets/

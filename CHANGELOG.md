@@ -3,6 +3,9 @@
 ## [2.0.0] — 2026-08-24
 
 ### Features & Enhancements
+- Release preparation now creates deterministic, browser-specific Firefox and
+  Chromium ZIPs, an AMO reviewer source archive, SPDX documents, provenance and
+  checksums without publishing to GitHub or either browser store.
 - Core API failures now retain their machine-readable code and HTTP status
   across normal requests and token refreshes.
 - Chromium proxy authentication now uses the Manifest V3 `asyncBlocking` callback contract, while Firefox and Midori retain their supported Promise-based blocking listener.

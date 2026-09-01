@@ -8,6 +8,9 @@ export default [
     {
         ignores: [
             'dist/**',
+            'dist-chrome/**',
+            'dist-firefox/**',
+            'release-artifacts/**',
             'zip/**',
             'compressed-assets/**',
             'node_modules/**',

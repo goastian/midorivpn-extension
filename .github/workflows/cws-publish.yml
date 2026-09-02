@@ -1,0 +1,51 @@
+name: Publish - Chromium package in CWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type PUBLISH_MIDORIVPN_2.0.0_TO_CWS
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Submit uploaded Chromium package for review
+    runs-on: ubuntu-latest
+    environment: extension-store-publish
+    steps:
+      - name: Checkout annotated release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Require the immutable 2.0.0 release tag
+        run: |
+          test "$GITHUB_REF" = refs/tags/v2.0.0
+          test "$(git cat-file -t v2.0.0)" = tag
+          test "$(git rev-list -n 1 v2.0.0)" = "$GITHUB_SHA"
+          test '${{ inputs.confirmation }}' = PUBLISH_MIDORIVPN_2.0.0_TO_CWS
+
+      - name: Verify the uploaded item state
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PRIVACY_POLICY_URL: ${{ vars.CWS_PRIVACY_POLICY_URL }}
+        run: bash scripts/chrome-web-store-api.sh status
+
+      - name: Submit the uploaded item for review and publication
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PRIVACY_POLICY_URL: ${{ vars.CWS_PRIVACY_POLICY_URL }}
+          CWS_CONFIRM_PUBLISH: ${{ inputs.confirmation }}
+        run: bash scripts/chrome-web-store-api.sh publish

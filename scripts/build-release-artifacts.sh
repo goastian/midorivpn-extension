@@ -70,6 +70,7 @@ create_zip() {
 cd "${ROOT_DIR}"
 npm run build:firefox
 cp -a dist dist-firefox
+npm run lint:firefox-package
 npm run build:chrome
 cp -a dist dist-chrome
 
@@ -77,6 +78,8 @@ firefox_zip="${OUTPUT_DIR}/midorivpn-extension-${VERSION}-firefox.zip"
 chrome_zip="${OUTPUT_DIR}/midorivpn-extension-${VERSION}-chrome.zip"
 create_zip "${ROOT_DIR}/dist-firefox" "${firefox_zip}"
 create_zip "${ROOT_DIR}/dist-chrome" "${chrome_zip}"
+cp "${ROOT_DIR}/store/amo/metadata.json" "${OUTPUT_DIR}/amo-metadata.json"
+cp "${ROOT_DIR}/store/chrome/listing.json" "${OUTPUT_DIR}/chrome-listing.json"
 
 if [[ "${has_git}" == "true" ]]; then
   source_dir="$(mktemp -d)"
@@ -128,6 +131,8 @@ for browser in firefox chrome; do
     }' > "${provenance}"
 done
 rm -f -- "${raw_sbom}"
+
+bash "${ROOT_DIR}/scripts/validate-store-release.sh" "${OUTPUT_DIR}"
 
 (
   cd "${OUTPUT_DIR}"

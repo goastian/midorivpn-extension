@@ -48,5 +48,11 @@ jobs:
       - name: Build Firefox Extension
         run: npm run build:firefox
 
+      - name: Preserve and lint Firefox package for AMO
+        run: |
+          rm -rf dist-firefox
+          cp -a dist dist-firefox
+          npm run lint:firefox-package
+
       - name: Build Chrome Extension
         run: npm run build:chrome

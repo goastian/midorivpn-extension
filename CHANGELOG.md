@@ -3,6 +3,12 @@
 ## [2.0.0] — 2026-08-24
 
 ### Features & Enhancements
+- Firefox packages now declare required authentication, account identity and
+  browsing-activity transmission through the built-in consent contract and
+  require Firefox 140 or newer.
+- Store preparation pins Mozilla `web-ext` 10.6.0, validates reviewed linter
+  findings, ships AMO/CWS listing metadata and keeps AMO submission, CWS upload
+  and CWS publication behind distinct protected confirmations.
 - Release preparation now creates deterministic, browser-specific Firefox and
   Chromium ZIPs, an AMO reviewer source archive, SPDX documents, provenance and
   checksums without publishing to GitHub or either browser store.

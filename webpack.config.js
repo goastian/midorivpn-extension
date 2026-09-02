@@ -123,6 +123,10 @@ const config = {
   },
   output: {
     path: path.join(__dirname, 'dist'),
+    globalObject: 'globalThis',
+    environment: {
+      globalThis: true,
+    },
     filename: ({ chunk }) => {
       if (chunk.name == 'background') {
         return '[name].js';

@@ -1,0 +1,76 @@
+name: Upload - Chromium package to CWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type UPLOAD_MIDORIVPN_2.0.0_TO_CWS
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: Upload Chromium package without publishing
+    runs-on: ubuntu-latest
+    environment: extension-store-upload
+    env:
+      APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
+      API_URL: ${{ secrets.API_URL || vars.API_URL }}
+      ACCOUNT_URL: ${{ secrets.ACCOUNT_URL || vars.ACCOUNT_URL }}
+      PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
+      AUTHENTIK_ISSUER: ${{ secrets.AUTHENTIK_ISSUER || vars.AUTHENTIK_ISSUER }}
+      AUTHENTIK_AUTHORIZATION_URL: ${{ secrets.AUTHENTIK_AUTHORIZATION_URL || vars.AUTHENTIK_AUTHORIZATION_URL }}
+      AUTHENTIK_CLIENT_ID: ${{ secrets.AUTHENTIK_CLIENT_ID || vars.AUTHENTIK_CLIENT_ID }}
+      AUTHENTIK_REDIRECT_URI: ${{ secrets.AUTHENTIK_REDIRECT_URI || vars.AUTHENTIK_REDIRECT_URI }}
+      EXTENSION_CALLBACK_PATH: ${{ secrets.EXTENSION_CALLBACK_PATH || vars.EXTENSION_CALLBACK_PATH }}
+    steps:
+      - name: Checkout annotated release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Require the immutable 2.0.0 release tag
+        run: |
+          test "$GITHUB_REF" = refs/tags/v2.0.0
+          test "$(git cat-file -t v2.0.0)" = tag
+          test "$(git rev-list -n 1 v2.0.0)" = "$GITHUB_SHA"
+          test '${{ inputs.confirmation }}' = UPLOAD_MIDORIVPN_2.0.0_TO_CWS
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build and validate store evidence
+        run: |
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          export SOURCE_DATE_EPOCH
+          npm run release:build
+
+      - name: Upload package without publishing
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PRIVACY_POLICY_URL: ${{ vars.CWS_PRIVACY_POLICY_URL }}
+          CWS_CONFIRM_UPLOAD: ${{ inputs.confirmation }}
+        run: bash scripts/chrome-web-store-api.sh upload
+
+      - name: Read upload status
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PRIVACY_POLICY_URL: ${{ vars.CWS_PRIVACY_POLICY_URL }}
+        run: bash scripts/chrome-web-store-api.sh status

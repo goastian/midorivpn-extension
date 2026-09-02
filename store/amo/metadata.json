@@ -1,0 +1,35 @@
+{
+  "name": {
+    "en-US": "MidoriVPN",
+    "es": "MidoriVPN"
+  },
+  "summary": {
+    "en-US": "Route browser traffic through the authenticated MidoriVPN proxy.",
+    "es": "Protege el tráfico del navegador con el proxy autenticado de MidoriVPN."
+  },
+  "description": {
+    "en-US": "MidoriVPN is a browser-only VPN proxy client. After the user signs in and explicitly enables protection, the extension routes browser requests through a selected healthy MidoriVPN HTTPS CONNECT gateway. It does not inject ads, execute remote code, or sell user data.",
+    "es": "MidoriVPN es un cliente proxy VPN exclusivo para el navegador. Después de iniciar sesión y activar explícitamente la protección, la extensión dirige las solicitudes del navegador por un gateway HTTPS CONNECT saludable de MidoriVPN. No inyecta anuncios, ejecuta código remoto ni vende datos del usuario."
+  },
+  "categories": [
+    "privacy-security"
+  ],
+  "default_locale": "en-US",
+  "homepage": {
+    "en-US": "https://astian.org/",
+    "es": "https://astian.org/"
+  },
+  "support_url": {
+    "en-US": "https://github.com/goastian/midorivpn-extension/issues",
+    "es": "https://github.com/goastian/midorivpn-extension/issues"
+  },
+  "requires_payment": false,
+  "version": {
+    "license": "AGPL-3.0-only",
+    "release_notes": {
+      "en-US": "MidoriVPN 2.0 adds PKCE authentication, encrypted token storage, scoped proxy credentials, browser-specific packages, strict fail-closed routing, and Chromium service-worker recovery.",
+      "es": "MidoriVPN 2.0 incorpora autenticación PKCE, almacenamiento cifrado de tokens, credenciales limitadas al proxy, paquetes específicos por navegador, protección fail-closed y recuperación del service worker de Chromium."
+    },
+    "approval_notes": "The submitted source archive includes release-build-inputs.json with the public endpoints and SOURCE_DATE_EPOCH used for the package. Follow docs/AMO_REVIEWER_BUILD.md to reproduce the Firefox ZIP. The add-on executes no remote code. The manifest declares authenticationInfo, personallyIdentifyingInfo, and browsingActivity because login returns the account name/email and browser destinations transit the selected VPN proxy. OAuth starts only after Sign in; proxy transmission starts only after the user enables the clearly labelled VPN switch. No reviewer credentials are included in source or metadata."
+  }
+}

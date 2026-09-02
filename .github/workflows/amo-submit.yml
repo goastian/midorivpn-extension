@@ -1,0 +1,62 @@
+name: Submit - Firefox extension to AMO
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type SUBMIT_MIDORIVPN_2.0.0_TO_AMO
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    name: Submit listed Firefox package and reviewer source
+    runs-on: ubuntu-latest
+    environment: extension-store-submit
+    env:
+      APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
+      API_URL: ${{ secrets.API_URL || vars.API_URL }}
+      ACCOUNT_URL: ${{ secrets.ACCOUNT_URL || vars.ACCOUNT_URL }}
+      PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
+      AUTHENTIK_ISSUER: ${{ secrets.AUTHENTIK_ISSUER || vars.AUTHENTIK_ISSUER }}
+      AUTHENTIK_AUTHORIZATION_URL: ${{ secrets.AUTHENTIK_AUTHORIZATION_URL || vars.AUTHENTIK_AUTHORIZATION_URL }}
+      AUTHENTIK_CLIENT_ID: ${{ secrets.AUTHENTIK_CLIENT_ID || vars.AUTHENTIK_CLIENT_ID }}
+      AUTHENTIK_REDIRECT_URI: ${{ secrets.AUTHENTIK_REDIRECT_URI || vars.AUTHENTIK_REDIRECT_URI }}
+      EXTENSION_CALLBACK_PATH: ${{ secrets.EXTENSION_CALLBACK_PATH || vars.EXTENSION_CALLBACK_PATH }}
+    steps:
+      - name: Checkout annotated release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Require the immutable 2.0.0 release tag
+        run: |
+          test "$GITHUB_REF" = refs/tags/v2.0.0
+          test "$(git cat-file -t v2.0.0)" = tag
+          test "$(git rev-list -n 1 v2.0.0)" = "$GITHUB_SHA"
+          test '${{ inputs.confirmation }}' = SUBMIT_MIDORIVPN_2.0.0_TO_AMO
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build and validate store evidence
+        run: |
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          export SOURCE_DATE_EPOCH
+          npm run release:build
+
+      - name: Submit to AMO
+        env:
+          AMO_CONFIRM_SUBMISSION: ${{ inputs.confirmation }}
+          WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+        run: bash scripts/submit-amo.sh

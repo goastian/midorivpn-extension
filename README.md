@@ -22,7 +22,10 @@ TypeScript 7 remains blocked by the current `typescript-eslint` `<6.1` peer cont
 
 ## Rootless development
 
-Create the local `.env` from `.env.example`; never commit client IDs, callback origins or API endpoints that belong only to a deployment.
+Create the local `.env` from `.env.example`; never commit client IDs, callback
+origins or API endpoints that belong only to a deployment. The pinned rootless
+runner mounts the Core checkout as one coordinated source tree. Place this
+repository at `<core>/midorivpn-extension`, then run from this directory:
 
 ```bash
 bash ../scripts/pod.sh npm ci

@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] — 2026-08-24
+## [2.0.0] — Unreleased
 
 ### Features & Enhancements
 - Firefox packages now declare required authentication, account identity and
@@ -23,9 +23,9 @@
 - Revoked or invalid extension origins now close the OAuth callback tab and leave a persistent, user-facing explanation in the popup instead of failing silently.
 - **Complete UI/UX Refresh**:
   - Modern, sleek interface with an interactive power switch featuring animated pulse states (Connected, Connecting, Disconnected).
-  - Enhanced server picker with national flags, real-time latency ping indicators, and instant search capability.
-  - User account drawer displaying profile avatar, active subscription tier, and one-click session management.
-  - Smooth micro-interactions and transitions with full dark and light mode adaptation.
+  - Server picker with country flags, explicit loading and empty states, and no fabricated latency measurements.
+  - User account drawer displaying account identity and direct session management.
+  - Responsive popup layout with focused transitions and visible authentication failures.
 - **Enhanced Authentication & Security**:
   - Direct PKCE OAuth 2.0 integration with Astian Accounts (`accounts.astian.org`) for unified single sign-on.
   - Resilient token lifecycle management featuring automatic background refresh and encrypted token persistence.
@@ -39,7 +39,7 @@
   - Rejects non-HTTPS proxy schemes and never falls back to a general access token when scoped proxy credentials are unavailable.
   - Removed the extractable PBKDF2 token-key fallback; tokens use only a non-extractable IndexedDB AES-GCM key.
 - **Platform & Permission Refinements**:
-  - Full compatibility across modern Chromium-based browsers (Chrome, Midori, Brave, Edge) and Mozilla Firefox.
+  - Separate validated packages for Mozilla Firefox/Midori and Chromium; other Chromium-based browsers use the Chromium package but are not part of the certified matrix.
   - Transparent, on-demand permission handling requesting only necessary network capabilities during active tunneling.
   - Optimized lightweight memory footprint with efficient background service worker execution.
 - **Toolchain**:
@@ -49,6 +49,11 @@
 - Removed redundant `dotenv-webpack`; environment values are injected once through the validated Webpack configuration.
 - Firefox and Midori packages now replace every supported build-time `process.env` reference, including diagnostics, application name and permission-page timing. Production builds fail if any Node.js `process` reference survives in emitted JavaScript.
 - Authentication and proxy diagnostics no longer print authorization callback URLs, browsing destinations, OAuth codes or state values.
+
+## Archived releases
+
+The entries below describe their original contracts. Retired fields and ports
+such as `proxy_port` or the former clear HTTP proxy are not part of 2.0.0.
 
 ## [1.0.18] — 2026-06-05
 

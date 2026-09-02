@@ -2,8 +2,7 @@
 
 Building release evidence never contacts AMO or the Chrome Web Store. Store
 operations are separate manual workflows protected by GitHub environments and
-literal confirmations. The working branch `dev-wedc` is local-only and must not
-be used to run them.
+literal confirmations. Working branches must not be used as release refs.
 
 ## Immutable package inputs
 

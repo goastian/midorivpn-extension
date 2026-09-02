@@ -43,6 +43,15 @@ for artifact in "${firefox_zip}" "${chrome_zip}"; do
     echo "error: Node.js process reference found in ${artifact}" >&2
     exit 1
   }
+  extension_csp="$(unzip -p "${artifact}" manifest.json | jq -r '.content_security_policy.extension_pages // ""')"
+  [[ -n "${extension_csp}" ]] || {
+    echo "error: extension CSP is missing from ${artifact}" >&2
+    exit 1
+  }
+  grep -Eq 'localhost|127[.]0[.]0[.]1|(^|[[:space:]])ws:|(^|[[:space:]])http:' <<<"${extension_csp}" && {
+    echo "error: development origin found in extension CSP: ${artifact}" >&2
+    exit 1
+  }
 done
 
 [[ "$(unzip -p "${firefox_zip}" manifest.json | jq -r '.browser_specific_settings.gecko.id')" == "midorivpn@astian.org" ]] || {
@@ -71,6 +80,10 @@ if [[ -e "${source_zip}" ]]; then
   }
   grep -Fxq 'docs/AMO_REVIEWER_BUILD.md' <<<"${source_entries}" || {
     echo "error: reviewer source archive lacks build instructions" >&2
+    exit 1
+  }
+  [[ "$(unzip -p "${source_zip}" release-build-inputs.json | jq -r '.APP_ENV // ""')" == "production" ]] || {
+    echo "error: reviewer source archive was not built with APP_ENV=production" >&2
     exit 1
   }
 fi

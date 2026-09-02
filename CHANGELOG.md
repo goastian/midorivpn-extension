@@ -3,6 +3,9 @@
 ## [2.0.0] — Unreleased
 
 ### Features & Enhancements
+
+- Release and store builds now require an explicit production environment, and
+  reviewer validation rejects development build inputs or CSP origins.
 - Firefox packages now declare required authentication, account identity and
   browsing-activity transmission through the built-in consent contract and
   require Firefox 140 or newer.

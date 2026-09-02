@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: extension-store-submit
     env:
-      APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
+      APP_ENV: production
       API_URL: ${{ secrets.API_URL || vars.API_URL }}
       ACCOUNT_URL: ${{ secrets.ACCOUNT_URL || vars.ACCOUNT_URL }}
       PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}

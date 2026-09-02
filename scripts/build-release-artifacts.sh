@@ -16,6 +16,10 @@ done
 for variable_name in "${REQUIRED_ENV[@]}"; do
   [[ -n "${!variable_name:-}" ]] || { echo "error: ${variable_name} is required" >&2; exit 1; }
 done
+[[ "${APP_ENV}" == "production" ]] || {
+  echo "error: APP_ENV must be production for release artifacts" >&2
+  exit 1
+}
 
 has_git=false
 if git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

@@ -26,6 +26,9 @@ publication action rather than a harmless package upload.
 
 Required protected environment: `extension-store-submit`.
 
+Release and store workflows set `APP_ENV=production` directly. It is an
+immutable build mode, not an environment variable or credential to configure.
+
 - Secrets: `AMO_API_KEY`, `AMO_API_SECRET`.
 - Approval: required reviewer before deployment.
 - Branch/tag policy: annotated release tag only.

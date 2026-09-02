@@ -29,6 +29,10 @@ npm ci
 npm run release:build
 ```
 
+`APP_ENV` must be `production`. The release command rejects any other value,
+and package validation rejects reviewer inputs or extension CSP origins that
+belong to a development build.
+
 The command creates separate Firefox and Chromium packages, SPDX JSON SBOMs,
 local in-toto/SLSA provenance statements and `SHA256SUMS` under
 `release-artifacts/`. The source archive itself is omitted when rebuilding from

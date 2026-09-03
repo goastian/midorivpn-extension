@@ -519,41 +519,109 @@ export const meshApi = {
 export interface ProxyCredentialsResponse {
     proxy_token: string;
     expires_in: number;
-    proxy_endpoints: Array<{
+    device_id: string;
+    proxy_endpoint: {
+        server_id: string;
         host: string;
         port: number;
         country_code: string;
         location: string;
-    }>;
+    };
 }
 
 let cachedProxyToken: string | null = null;
 let proxyTokenExpiresAt = 0;
-let proxyTokenRequest: Promise<string | null> | null = null;
+const proxyTokenRequests = new Map<string, Promise<string | null>>();
+let cachedProxyServerID: string | null = null;
+let proxyCredentialGeneration = 0;
+
+const PROXY_DEVICE_IDENTITY_KEY = 'midori_proxy_device_identity_v1';
+let proxyDeviceIdentityRequest: Promise<ProxyDeviceIdentity> | null = null;
+
+interface ProxyDeviceIdentity {
+    client_instance_id: string;
+    reported_name: string;
+    device_type: 'extension';
+}
+
+function randomUUID(): string {
+    if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function proxyDeviceIdentity(): Promise<ProxyDeviceIdentity> {
+    if (!proxyDeviceIdentityRequest) {
+        proxyDeviceIdentityRequest = (async (): Promise<ProxyDeviceIdentity> => {
+            const stored = await storageGet([PROXY_DEVICE_IDENTITY_KEY]);
+            const existing = stored[PROXY_DEVICE_IDENTITY_KEY] as Partial<ProxyDeviceIdentity> | undefined;
+            if (existing?.device_type === 'extension' && typeof existing.client_instance_id === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(existing.client_instance_id)) {
+                return {
+                    client_instance_id: existing.client_instance_id,
+                    reported_name: 'MidoriVPN Browser Extension',
+                    device_type: 'extension',
+                };
+            }
+            const identity: ProxyDeviceIdentity = {
+                client_instance_id: randomUUID(),
+                reported_name: 'MidoriVPN Browser Extension',
+                device_type: 'extension',
+            };
+            await storageSet({ [PROXY_DEVICE_IDENTITY_KEY]: identity });
+            return identity;
+        })().catch((error) => {
+            proxyDeviceIdentityRequest = null;
+            throw error;
+        });
+    }
+    return proxyDeviceIdentityRequest!;
+}
+
+async function selectedProxyServerID(explicit?: string): Promise<string | null> {
+    if (explicit) return explicit;
+    const stored = await storageGet(['server']);
+    const candidate = stored.server?.active?.id;
+    return typeof candidate === 'string' && candidate ? candidate : null;
+}
 
 export function invalidateProxyScopedToken(): void {
     cachedProxyToken = null;
     proxyTokenExpiresAt = 0;
+    cachedProxyServerID = null;
+    proxyCredentialGeneration += 1;
+    proxyTokenRequests.clear();
 }
 
-export async function getProxyScopedToken(): Promise<string | null> {
+export async function getProxyScopedToken(serverID?: string): Promise<string | null> {
+    const selectedServerID = await selectedProxyServerID(serverID);
+    if (!selectedServerID) return null;
     const now = Date.now();
     // Cache and reuse if more than 2 minutes of validity remain
-    if (cachedProxyToken && proxyTokenExpiresAt > now + 2 * 60 * 1000) {
+    if (cachedProxyToken && cachedProxyServerID === selectedServerID && proxyTokenExpiresAt > now + 2 * 60 * 1000) {
         return cachedProxyToken;
     }
 
     // A page load can produce several proxy challenges at once. Keep one
     // credential request in flight so every challenge receives the same
     // scoped token instead of starting competing OAuth refreshes.
-    if (!proxyTokenRequest) {
-        proxyTokenRequest = (async () => {
+    if (!proxyTokenRequests.has(selectedServerID)) {
+        const requestGeneration = proxyCredentialGeneration;
+        const requestForServer = (async () => {
             try {
+                const device = await proxyDeviceIdentity();
                 const res = await request<ProxyCredentialsResponse>('/api/v1/control/proxy-credentials', {
                     method: 'POST',
+                    body: JSON.stringify({ server_id: selectedServerID, device }),
                 });
-                if (res && res.proxy_token) {
+                if (requestGeneration === proxyCredentialGeneration && res && res.proxy_token.startsWith('mvpn2.') &&
+                    res.proxy_endpoint?.server_id === selectedServerID && Number.isInteger(res.expires_in) &&
+                    res.expires_in > 0 && res.expires_in <= 900) {
                     cachedProxyToken = res.proxy_token;
+                    cachedProxyServerID = selectedServerID;
                     proxyTokenExpiresAt = Date.now() + (res.expires_in || 900) * 1000;
                     return cachedProxyToken;
                 }
@@ -562,12 +630,16 @@ export async function getProxyScopedToken(): Promise<string | null> {
             }
 
             return null;
-        })().finally(() => {
-            proxyTokenRequest = null;
+        })();
+        proxyTokenRequests.set(selectedServerID, requestForServer);
+        requestForServer.finally(() => {
+            if (proxyTokenRequests.get(selectedServerID) === requestForServer) {
+                proxyTokenRequests.delete(selectedServerID);
+            }
         });
     }
 
-    return proxyTokenRequest;
+    return proxyTokenRequests.get(selectedServerID)!;
 }
 
 export {

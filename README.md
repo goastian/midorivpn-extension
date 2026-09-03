@@ -67,9 +67,12 @@ normal build never uploads or publishes anything.
 1. The background worker restores the encrypted OAuth session.
 2. `/api/v1/control/servers` is filtered to servers with a healthy `proxy` transport.
 3. The user selects a server and enables browser proxy mode.
-4. `/api/v1/control/proxy-credentials` returns a scoped token and verified proxy endpoints.
-5. Browser proxy APIs receive the normalized TLS host/port and authenticate CONNECT requests.
-6. A `407` triggers a throttled scoped-token refresh; definitive auth failure disables the user-visible session.
+4. The extension reuses one private installation UUID and sends it with the
+   selected server to `/api/v1/control/proxy-credentials`.
+5. Control returns one opaque Ed25519 `mvpn2` token bound to that user,
+   installation, server, cluster and the `vpn-proxy` audience.
+6. Browser proxy APIs receive the normalized TLS host/port and authenticate CONNECT requests.
+7. A `407` triggers a throttled scoped-token refresh; definitive auth failure disables the user-visible session.
 
 ## License
 

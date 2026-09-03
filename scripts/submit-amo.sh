@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(jq -r .version "${ROOT_DIR}/package.json")"
 ARTIFACT_DIR="${RELEASE_OUTPUT_DIR:-${ROOT_DIR}/release-artifacts}"
 EXPECTED_CONFIRMATION="SUBMIT_MIDORIVPN_${VERSION}_TO_AMO"
+IMAGE_HARDENING="${ROOT_DIR}/scripts/web-ext-image-hardening.cjs"
 
 [[ "${AMO_CONFIRM_SUBMISSION:-}" == "${EXPECTED_CONFIRMATION}" ]] || {
   echo "error: set AMO_CONFIRM_SUBMISSION=${EXPECTED_CONFIRMATION}" >&2
@@ -16,6 +17,12 @@ EXPECTED_CONFIRMATION="SUBMIT_MIDORIVPN_${VERSION}_TO_AMO"
 }
 
 bash "${ROOT_DIR}/scripts/validate-store-release.sh" "${ARTIFACT_DIR}"
+
+web_ext_node_options="--require=${IMAGE_HARDENING}"
+if [[ -n "${NODE_OPTIONS:-}" ]]; then
+  web_ext_node_options="${NODE_OPTIONS} ${web_ext_node_options}"
+fi
+export NODE_OPTIONS="${web_ext_node_options}"
 
 exec "${ROOT_DIR}/node_modules/.bin/web-ext" sign \
   --source-dir "${ROOT_DIR}/dist-firefox" \

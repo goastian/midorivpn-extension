@@ -8,13 +8,20 @@ literal confirmations. Working branches must not be used as release refs.
 
 - Version: `2.0.0` in `package.json` and both generated manifests.
 - Firefox add-on ID: `midorivpn@astian.org`.
-- `web-ext`: exactly `10.6.0` from `package-lock.json`.
+- `web-ext`: exactly `10.6.0`, the latest compatible release at the recorded
+  baseline, from `package-lock.json`.
+- Before local lint or AMO signing, the preload in
+  `scripts/web-ext-image-hardening.cjs` disables the unused ICNS, JXL and HEIF
+  parsers affected by `GHSA-w3rx-r6r6-pgpr` and
+  `GHSA-5p2g-fcmc-qvqq`. `scripts/test-web-ext-image-hardening.cjs` proves
+  those formats fail closed while PNG remains usable.
 - Firefox/Midori package: `midorivpn-extension-2.0.0-firefox.zip`.
 - Chromium package: `midorivpn-extension-2.0.0-chrome.zip`.
 - AMO source: `midorivpn-extension-2.0.0-source.zip`.
 
-Run `npm run release:build` first. It applies `web-ext lint`, failing on errors
-or warnings outside the reviewed source-guarded allowlist; validates both ZIP
+Run `npm run release:build` first. It verifies the image-parser hardening and
+applies `web-ext lint`, failing on errors or warnings outside the reviewed
+source-guarded allowlist; validates both ZIP
 manifests; rejects Node.js `process` references; checks store metadata; and
 produces SPDX, provenance and `SHA256SUMS`.
 

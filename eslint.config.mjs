@@ -73,4 +73,15 @@ export default [
             '@typescript-eslint/no-require-imports': 'off',
         },
     },
+    {
+        files: ['scripts/**/*.cjs'],
+        languageOptions: {
+            sourceType: 'commonjs',
+            globals: { ...globals.node },
+        },
+        rules: {
+            'no-console': 'off',
+            '@typescript-eslint/no-require-imports': 'off',
+        },
+    },
 ];

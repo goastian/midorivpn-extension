@@ -47,6 +47,10 @@
   - Optimized lightweight memory footprint with efficient background service worker execution.
 - **Toolchain**:
   - Updated direct dependencies to their compatible stable majors, including Babel 8, Pinia 4, jsdom 30 and webpack-dev-server 6.
+  - Refreshed every compatible direct patch/minor dependency to the latest
+    published version. `web-ext` remains at the latest 10.6.0 release and now
+    disables the unused vulnerable ICNS/JXL/HEIF parsers before local lint and
+    AMO signing, with a directed fail-closed test.
 - Node 24/npm 12 are enforced; Firefox and Chrome production bundles pass strict typecheck, lint, tests and audit with no known vulnerabilities.
 - Production packages now remove browser-incompatible background fields, reject development origins in CSP, and validate those invariants during each build.
 - Removed redundant `dotenv-webpack`; environment values are injected once through the validated Webpack configuration.

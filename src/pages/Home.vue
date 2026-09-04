@@ -60,7 +60,8 @@
 
 <script>
 import Auth from '../utils/authentification.ts';
-import log from '../utils/logger.js';
+import log from '../utils/logger';
+import { authErrorMessage } from '../i18n/popup';
 
 export default {
     inject: ['app_name'],
@@ -72,12 +73,7 @@ export default {
     async created() {
         if (typeof chrome === 'undefined' || !chrome.storage?.local?.get) return;
         const { auth_error: error } = await chrome.storage.local.get(['auth_error']);
-        const messages = {
-            origin_revoked: 'This browser is no longer authorized. Ask an administrator to restore access.',
-            invalid_callback: 'The sign-in response could not be verified. Please try again.',
-            service_unavailable: 'The sign-in service is temporarily unavailable. Please try again.',
-        };
-        this.authError = messages[error?.code] || '';
+        this.authError = authErrorMessage(error);
     },
 
     methods: {

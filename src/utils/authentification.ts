@@ -1,10 +1,8 @@
-// @ts-expect-error untyped JS module
 import { disableBadge } from './badge';
 import { clearTokens } from '../lib/api';
 import { storePkceTransaction } from '../lib/pkce';
 import { disableProxy } from './proxy';
-// @ts-expect-error untyped JS module
-import log from './logger.js';
+import log from './logger';
 
 // webpack.config.js rejects the build unless all of these values are present.
 const API_URL = process.env.API_URL as string;

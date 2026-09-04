@@ -1,5 +1,4 @@
-// @ts-expect-error untyped JS module
-import log from './logger.js';
+import log from './logger';
 import { bufferToBase64, base64ToBuffer } from './encoding-utils';
 
 interface EncryptedData {

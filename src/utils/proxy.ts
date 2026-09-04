@@ -1,7 +1,6 @@
 import { getProxyScopedToken } from '../lib/api';
 import { createBrowserRuntimeAdapter } from '../runtime/browser-adapter';
-// @ts-expect-error legacy logger pending the bounded ENG-04 migration
-import log from './logger.js';
+import log from './logger';
 import { hasRequiredVpnPermissions } from './permissions';
 import {
   resolveProxyServer,

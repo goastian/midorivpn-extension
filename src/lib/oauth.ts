@@ -2,8 +2,7 @@ import { API_URL, REDIRECT_URI } from '../utils/authentification';
 import { saveTokens } from './api';
 import { parseRetryAfterMs } from '../utils/http';
 import { consumePkceTransaction, loadPkceTransaction } from './pkce';
-// @ts-expect-error untyped JS module
-import log from '../utils/logger.js';
+import log from '../utils/logger';
 
 declare const chrome: any;
 

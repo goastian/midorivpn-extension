@@ -5,8 +5,7 @@
 
 import { encryptToken, decryptToken } from '../utils/crypto-utils';
 import { parseRetryAfterMs } from '../utils/http';
-// @ts-expect-error untyped JS module
-import log from '../utils/logger.js';
+import log from '../utils/logger';
 
 const API_URL = process.env.API_URL || '';
 

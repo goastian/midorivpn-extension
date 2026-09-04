@@ -7,6 +7,7 @@
 import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions';
 import { getLatestDownloadUrl } from './utils/download.js';
 import { detectDesktopEnvironment } from './utils/platform.js';
+import { WELCOME_MESSAGES, resolveWelcomeLocale } from './i18n/welcome';
 
 (function () {
     const parsedCloseDelay = Number.parseInt(process.env.PERMISSIONS_CLOSE_DELAY_SECONDS || '5', 10);
@@ -14,53 +15,7 @@ import { detectDesktopEnvironment } from './utils/platform.js';
         ? parsedCloseDelay
         : 5;
 
-    // ── i18n ────────────────────────────────────────────────────────────────
-    const STRINGS = {
-        es: {
-            title: 'Bienvenido a MidoriVPN',
-            subtitle: 'Para que la VPN funcione correctamente en todos los sitios web, necesitamos que autorices el acceso al tráfico del navegador.',
-            permTitle: 'Permisos requeridos',
-            perm1: '<b>Leer y modificar datos en todos los sitios</b> — necesario para enrutar el tráfico a través del servidor VPN.',
-            perm2: '<b>Gestionar proxy y solicitudes de red</b> — para conectarte al servidor VPN de forma segura.',
-            perm3: '<b>Almacenamiento local</b> — para guardar tu sesión y configuración.',
-            btnGrant: 'Conceder permisos requeridos',
-            btnSkip: 'Cerrar',
-            statusOk: '¡Permisos concedidos! Ya puedes usar MidoriVPN.',
-            statusClosing: 'Esta pestaña se cerrará en {seconds}s.',
-            statusErr: 'Permisos denegados. La VPN no funcionará correctamente.',
-            desktopBadge: 'Novedad',
-            desktopTitle: 'Tu privacidad, <em>sin límites</em>',
-            desktopDesc: 'La extensión es solo el principio. Con el cliente de escritorio obtienes Mesh VPN, protección siempre activa y rendimiento nativo completo.',
-            desktopBtn: 'Descargar cliente de escritorio',
-            desktopPill2: '🛡️ Siempre activo',
-            desktopPill3: '💻 Multi-plataforma',
-            desktopPlatforms: 'Disponible para Windows · macOS · Linux',
-        },
-        en: {
-            title: 'Welcome to MidoriVPN',
-            subtitle: 'To route your traffic through the VPN on every website, we need you to grant access to browser network requests.',
-            permTitle: 'Required permissions',
-            perm1: '<b>Read and change data on all websites</b> — needed to route traffic through the VPN server.',
-            perm2: '<b>Manage proxy and network requests</b> — to connect securely to the VPN server.',
-            perm3: '<b>Local storage</b> — to save your session and settings.',
-            btnGrant: 'Grant required permissions',
-            btnSkip: 'Close',
-            statusOk: 'Permissions granted! You can now use MidoriVPN.',
-            statusClosing: 'This tab will close in {seconds}s.',
-            statusErr: 'Permissions denied. The VPN will not work correctly.',
-            desktopBadge: 'New',
-            desktopTitle: 'Your privacy, <em>unleashed</em>',
-            desktopDesc: 'The extension is just the beginning. The desktop client gives you Mesh VPN, always-on protection and full native performance.',
-            desktopBtn: 'Download desktop client',
-            desktopPill2: '🛡️ Always-on',
-            desktopPill3: '💻 Multi-platform',
-            desktopPlatforms: 'Available for Windows · macOS · Linux',
-        },
-    };
-
-    // Detect browser language; fall back to 'es'
-    const browserLang = (navigator.language || 'es').slice(0, 2).toLowerCase();
-    let currentLang = STRINGS[browserLang] ? browserLang : 'es';
+    let currentLang = resolveWelcomeLocale(navigator.language);
 
     // Renders a string containing at most one <b>...</b> or <em>...</em> tag as
     // real DOM nodes via textContent. Avoids innerHTML to keep the welcome page
@@ -84,7 +39,7 @@ import { detectDesktopEnvironment } from './utils/platform.js';
 
     function applyLang(lang) {
         currentLang = lang;
-        const t = STRINGS[lang];
+        const t = WELCOME_MESSAGES[lang];
         document.documentElement.lang = lang;
 
         document.getElementById('t-title').textContent = t.title;
@@ -156,7 +111,7 @@ import { detectDesktopEnvironment } from './utils/platform.js';
             showSuccess();
         } else {
             btnGrant.disabled = false;
-            statusErrText.textContent = STRINGS[currentLang].statusErr;
+            statusErrText.textContent = WELCOME_MESSAGES[currentLang].statusErr;
             statusErr.classList.add('visible');
         }
     });
@@ -170,7 +125,7 @@ import { detectDesktopEnvironment } from './utils/platform.js';
 
         let seconds = closeDelaySeconds;
         const renderCountdown = () => {
-            const t = STRINGS[currentLang];
+            const t = WELCOME_MESSAGES[currentLang];
             statusOkText.textContent = `${t.statusOk} ${t.statusClosing.replace('{seconds}', seconds)}`;
         };
 

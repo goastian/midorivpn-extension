@@ -57,7 +57,7 @@
 
 <script>
 import Auth from '../utils/authentification.ts';
-import log from '../utils/logger.js';
+import log from '../utils/logger';
 
 export default {
     data() {

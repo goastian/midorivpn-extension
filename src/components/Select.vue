@@ -68,8 +68,8 @@
 
 <script>
 import useVpnStore from '../stores/useVpnStore.js';
-import badge from '../utils/badge.js';
-import log from '../utils/logger.js';
+import badge from '../utils/badge';
+import log from '../utils/logger';
 
 /** Strips port from an endpoint string ("1.2.3.4:51820" → "1.2.3.4") */
 function stripPort(endpoint) {

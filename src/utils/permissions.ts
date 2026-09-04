@@ -1,5 +1,4 @@
-// @ts-expect-error legacy logger pending the bounded ENG-04 migration
-import log from './logger.js';
+import log from './logger';
 
 const COMMON_API_PERMISSIONS = ['proxy', 'tabs', 'webRequest', 'webNavigation'];
 const BROWSER_SPECIFIC_PERMISSIONS = process.env.BROWSER === 'firefox'

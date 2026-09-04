@@ -15,7 +15,7 @@ import Token from './utils/token.ts';
 import Home from './pages/Home.vue';
 import Main from './pages/Main.vue';
 import Notification from './components/Notification.vue';
-import log from './utils/logger.js';
+import log from './utils/logger';
 export default {
 
   components: {

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
-import serverManager from '../service/servers.js';
-import log from '../utils/logger.js';
+import serverManager from '../service/servers';
+import log from '../utils/logger';
 import { resolveProxyServer } from '../utils/proxy-routing';
 
 function sendBackgroundMessage(message) {

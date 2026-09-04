@@ -1,6 +1,5 @@
 import browser from 'webextension-polyfill';
-// @ts-expect-error legacy UI helper pending the bounded ENG-04 migration
-import badge from '../utils/badge.js';
+import badge from '../utils/badge';
 import { handleProxy, debugProxyState, enableProxy, disableProxy } from '../utils/proxy';
 import {
   clearTokens,
@@ -12,13 +11,10 @@ import {
   invalidateProxyScopedToken,
 } from '../lib/api';
 import { exchangeCode } from '../lib/oauth';
-// @ts-expect-error legacy service pending the bounded ENG-04 migration
-import serverManager from '../service/servers.js';
-// @ts-expect-error legacy service pending the bounded ENG-04 migration
-import user from '../service/User.js';
+import serverManager from '../service/servers';
+import user from '../service/user';
 import { REDIRECT_URI } from '../utils/authentification';
-// @ts-expect-error legacy logger pending the bounded ENG-04 migration
-import log from '../utils/logger.js';
+import log from '../utils/logger';
 import { hasRequiredVpnPermissions } from '../utils/permissions';
 import { resolveProxyServer, type ActiveServer } from '../utils/proxy-routing';
 import { createProxyAuthenticationHandler } from '../utils/proxy-auth-listener';
@@ -127,7 +123,7 @@ type BackgroundMessage = {
 
 const handlers: Record<string, (message: BackgroundMessage) => Promise<unknown>> = {
   loadServers: async () => serverManager.loadServers(),
-  loadUser: async () => user.LoadUser(),
+  loadUser: async () => user.loadUser(),
   provisionConnection: async (message) => {
     const serverId = message.serverId;
     const active = message.activeServer;

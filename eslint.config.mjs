@@ -84,4 +84,14 @@ export default [
             '@typescript-eslint/no-require-imports': 'off',
         },
     },
+    {
+        files: ['scripts/**/*.mjs'],
+        languageOptions: {
+            sourceType: 'module',
+            globals: { ...globals.node },
+        },
+        rules: {
+            'no-console': 'off',
+        },
+    },
 ];

@@ -36,6 +36,9 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Audit full dependency graph with reviewed tooling exceptions
+        run: npm run audit:security
+
       - name: TypeCheck (tsc)
         run: npm run typecheck
 

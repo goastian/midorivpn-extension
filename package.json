@@ -15,6 +15,8 @@
     "release:build": "bash scripts/build-release-artifacts.sh",
     "release:validate": "bash scripts/validate-store-release.sh",
     "lint:firefox-package": "bash scripts/lint-firefox-package.sh",
+    "audit:security": "node scripts/audit-security.mjs",
+    "test:audit-policy": "node --test scripts/audit-policy.test.mjs",
     "test:web-ext-hardening": "node scripts/test-web-ext-image-hardening.cjs",
     "check:no-popup": "node scripts/check-no-programmatic-popup.cjs",
     "typecheck": "tsc --noEmit",

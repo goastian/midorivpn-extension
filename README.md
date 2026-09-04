@@ -2,6 +2,14 @@
 
 Firefox and Chromium extension that routes browser traffic through an authenticated HTTPS CONNECT gateway. It is a browser proxy client, not a device-wide WireGuard client.
 
+## Release status
+
+| Category | Current state |
+|---|---|
+| Implemented | OAuth/PKCE, encrypted session storage, fail-closed proxy runtime and separate Firefox/Midori and Chromium bundles are present and covered by repository checks. |
+| Certified | Existing browser E2E and package-lint evidence is tied to the tested environment and exact candidate; it does not mean the current source is store-published. |
+| Pending | 2.0.0 remains **Unreleased**. Final reproducible packages, store review and independent regional proxy validation remain separate gates. |
+
 ## Security properties
 
 - OAuth 2.0 Authorization Code + PKCE with strict callback origin, path and
@@ -81,3 +89,6 @@ normal build never uploads or publishes anything.
 ## License
 
 AGPL-3.0-or-later; see `LICENSE`.
+
+Security reports and contributions are governed by [SECURITY.md](SECURITY.md)
+and [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -32,7 +32,7 @@
   },
   "keywords": [],
   "author": "Astian Inc",
-  "license": "AGPL-3.0-only",
+  "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/goastian/midorivpn-extension/issues"
   },

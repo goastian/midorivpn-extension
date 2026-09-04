@@ -8,6 +8,11 @@ literal confirmations. Working branches must not be used as release refs.
 
 - Version: `2.0.0` in `package.json` and both generated manifests.
 - Firefox add-on ID: `midorivpn@astian.org`.
+- Repository and npm license: `AGPL-3.0-or-later`. AMO's documented
+  non-theme license choices do not include that SPDX variant, so its API
+  metadata uses the required closest slug, `AGPL-3.0-only`; the source archive
+  includes the full repository `LICENSE` and retains the additional
+  later-version permission.
 - `web-ext`: exactly `10.6.0`, the latest compatible release at the recorded
   baseline, from `package-lock.json`.
 - Before local lint or AMO signing, the preload in

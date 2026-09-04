@@ -4,6 +4,10 @@
 
 ### Features & Enhancements
 
+- Added private vulnerability-reporting and contribution policies, aligned npm
+  licensing with the repository's AGPL-3.0-or-later declaration, documented
+  AMO's constrained license slug and separated implemented, certified and
+  store-published status in public documentation.
 - The service-worker runtime is now split into typed OAuth, proxy lifecycle
   and Firefox/Chromium adapter modules. Restart restoration, concurrent OAuth,
   revocation and permission loss are covered by directed tests.

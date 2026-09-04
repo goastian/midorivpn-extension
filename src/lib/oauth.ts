@@ -1,6 +1,7 @@
 import { API_URL, REDIRECT_URI } from '../utils/authentification';
 import { saveTokens } from './api';
 import { parseRetryAfterMs } from '../utils/http';
+import { consumePkceTransaction, loadPkceTransaction } from './pkce';
 // @ts-expect-error untyped JS module
 import log from '../utils/logger.js';
 
@@ -30,30 +31,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function getPkce(): Promise<{ pkce_state?: string; pkce_verifier?: string }> {
-  if (typeof chrome !== 'undefined' && chrome.storage?.session?.get) {
-    try {
-      const data = await chrome.storage.session.get(['pkce_state', 'pkce_verifier']);
-      if (data?.pkce_state) return data;
-    } catch (_) { /* fallback */ }
-  }
-  if (typeof chrome !== 'undefined' && chrome.storage?.local?.get) {
-    return await chrome.storage.local.get(['pkce_state', 'pkce_verifier']);
-  }
-  return {};
-}
-
-async function clearPkce(): Promise<void> {
-  if (typeof chrome !== 'undefined' && chrome.storage?.session?.remove) {
-    try {
-      await chrome.storage.session.remove(['pkce_state', 'pkce_verifier']);
-    } catch (_) { /* fallback */ }
-  }
-  if (typeof chrome !== 'undefined' && chrome.storage?.local?.remove) {
-    await chrome.storage.local.remove(['pkce_state', 'pkce_verifier']);
-  }
-}
-
 /**
  * Exchanges an OAuth authorization code (received on the configured
  * REDIRECT_URI) for tokens via the vpn-core backend. Validates that the URL
@@ -81,12 +58,17 @@ export async function exchangeCode(url: string): Promise<boolean> {
     return false;
   }
 
-  const { pkce_state, pkce_verifier } = await getPkce();
   const params = new URLSearchParams(urlObj.search);
   const state = params.get('state');
   const code = params.get('code');
 
-  if (!state || !pkce_state || state !== pkce_state) {
+  if (!state) {
+    log.error('oauth', 'State mismatch');
+    await saveAuthError('invalid_callback');
+    return false;
+  }
+  const pkceVerifier = await loadPkceTransaction(state);
+  if (!pkceVerifier) {
     log.error('oauth', 'State mismatch');
     await saveAuthError('invalid_callback');
     return false;
@@ -94,6 +76,7 @@ export async function exchangeCode(url: string): Promise<boolean> {
   if (!code) {
     log.error('oauth', 'No authorization code');
     await saveAuthError('invalid_callback');
+    await consumePkceTransaction(state);
     return false;
   }
 
@@ -107,25 +90,21 @@ export async function exchangeCode(url: string): Promise<boolean> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'omit',
-        body: JSON.stringify({ code, redirect_uri: redirectUriForExchange, code_verifier: pkce_verifier || '' }),
+        body: JSON.stringify({ code, redirect_uri: redirectUriForExchange, code_verifier: pkceVerifier }),
       });
 
       if (!res.ok) {
-        let errText = '';
-        try { errText = await res.text(); } catch (_err) {
-          // ignore parsing error
-        }
         const transient = TRANSIENT_EXCHANGE_STATUSES.has(res.status);
         if (transient && attempt === 0) {
           const retryAfterMs = parseRetryAfterMs(res.headers.get('Retry-After')) || DEFAULT_EXCHANGE_RETRY_MS;
-          log.warn('oauth', 'Token exchange transient failure:', res.status, errText, `retrying in ${retryAfterMs}ms`);
+          log.warn('oauth', 'Token exchange transient failure:', res.status, `retrying in ${retryAfterMs}ms`);
           await sleep(retryAfterMs);
           continue;
         }
-        log.error('oauth', 'Backend token exchange failed:', res.status, errText);
+        log.error('oauth', 'Backend token exchange failed:', res.status);
         await saveAuthError(res.status === 403 ? 'origin_revoked' : 'service_unavailable');
         if (!transient) {
-          await clearPkce();
+          await consumePkceTransaction(state);
         }
         return false;
       }
@@ -134,14 +113,14 @@ export async function exchangeCode(url: string): Promise<boolean> {
       if (json.data?.access_token) {
         await saveTokens(json.data.access_token, json.data.refresh_token, json.data.expires_in);
         await clearAuthError();
-        await clearPkce();
+        await consumePkceTransaction(state);
         log.info('oauth', 'Backend token exchange succeeded');
         return true;
       }
 
       log.error('oauth', 'Backend token exchange response missing access token');
       await saveAuthError('service_unavailable');
-      await clearPkce();
+      await consumePkceTransaction(state);
       return false;
     } catch (error) {
       if (attempt === 0) {
@@ -155,6 +134,6 @@ export async function exchangeCode(url: string): Promise<boolean> {
     }
   }
 
-  await clearPkce();
+  await consumePkceTransaction(state);
   return false;
 }

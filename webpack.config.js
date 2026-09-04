@@ -118,7 +118,7 @@ const config = {
   mode: app_env,
   entry: {
     popup: './src/main.js',
-    background: path.join(__dirname, 'src', 'background', 'index.js'),
+    background: path.join(__dirname, 'src', 'background', 'index.ts'),
     welcome: path.join(__dirname, 'src', 'welcome.js'),
   },
   output: {

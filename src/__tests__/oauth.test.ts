@@ -70,6 +70,7 @@ describe('exchangeCode', () => {
 
     it('rejects when no code is present', async () => {
         sessionStore.pkce_state = 's';
+        sessionStore.pkce_verifier = 'v';
         const ok = await exchangeCode(`${REDIRECT}?state=s`);
         expect(ok).toBe(false);
     });
@@ -93,7 +94,9 @@ describe('exchangeCode', () => {
         const ok = await exchangeCode(`${REDIRECT}?code=c&state=s`);
         expect(ok).toBe(true);
         expect(saveTokens).toHaveBeenCalledWith('a', 'r', 60);
-        expect(chromeMock.storage.session.remove).toHaveBeenCalledWith(['pkce_state', 'pkce_verifier']);
+        expect(chromeMock.storage.session.remove).toHaveBeenCalledWith([
+            'midori_pkce_transaction_v1:s', 'pkce_state', 'pkce_verifier',
+        ]);
         expect(chromeMock.storage.local.remove).toHaveBeenCalledWith(['auth_error']);
     });
 

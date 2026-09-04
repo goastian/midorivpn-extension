@@ -4,7 +4,9 @@ Firefox and Chromium extension that routes browser traffic through an authentica
 
 ## Security properties
 
-- OAuth 2.0 Authorization Code + PKCE with strict callback origin, path and state validation.
+- OAuth 2.0 Authorization Code + PKCE with strict callback origin, path and
+  state validation; simultaneous sign-in flows retain independent, bounded
+  verifier transactions.
 - Access/refresh tokens encrypted with AES-GCM using a non-extractable key stored by IndexedDB; no password-derived or cleartext persistence fallback.
 - Production CSP denies every source by default and permits only configured API/identity origins.
 - Proxy routing is available only when the selected server advertises an enabled, healthy normalized `proxy` transport.
@@ -16,7 +18,7 @@ Firefox and Chromium extension that routes browser traffic through an authentica
 
 - Node.js 24 LTS and npm 12.
 - Vue 3, Pinia 4, Webpack 5 and Babel 8.
-- TypeScript 6.0.3, Vitest 4, jsdom 30 and ESLint 10.
+- TypeScript 6.0.3, Vitest 5, jsdom 30 and ESLint 10.
 
 TypeScript 7 remains blocked by the current `typescript-eslint` `<6.1` peer contract.
 
@@ -34,7 +36,8 @@ bash "$CORE_REPO/scripts/pod.sh" npm run check
 bash "$CORE_REPO/scripts/pod.sh" npm audit --audit-level=high
 ```
 
-The check runs strict type checking, lint with zero warnings, unit tests and both production bundles.
+The check runs strict type checking, lint with zero warnings, the gate against
+programmatic popup opening, unit tests and both production bundles.
 
 Build one browser explicitly:
 
@@ -69,8 +72,9 @@ normal build never uploads or publishes anything.
 3. The user selects a server and enables browser proxy mode.
 4. The extension reuses one private installation UUID and sends it with the
    selected server to `/api/v1/control/proxy-credentials`.
-5. Control returns one opaque Ed25519 `mvpn2` token bound to that user,
-   installation, server, cluster and the `vpn-proxy` audience.
+5. Control returns one opaque regional credential bound to that user,
+   installation, server, cluster and the `vpn-proxy` audience. The extension
+   never parses or decodes its format.
 6. Browser proxy APIs receive the normalized TLS host/port and authenticate CONNECT requests.
 7. A `407` triggers a throttled scoped-token refresh; definitive auth failure disables the user-visible session.
 

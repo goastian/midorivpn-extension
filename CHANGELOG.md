@@ -4,6 +4,15 @@
 
 ### Features & Enhancements
 
+- The service-worker runtime is now split into typed OAuth, proxy lifecycle
+  and Firefox/Chromium adapter modules. Restart restoration, concurrent OAuth,
+  revocation and permission loss are covered by directed tests.
+- PKCE uses independent, expiring and bounded transactions, so overlapping
+  sign-in flows cannot overwrite each other's verifier.
+- Regional proxy credentials remain opaque to the extension and a blocking
+  source gate rejects any attempt to open the extension popup
+  programmatically.
+- Vitest 5 replaces Vitest 4 on its supported Node 24 runtime.
 - Release and store builds now require an explicit production environment, and
   reviewer validation rejects development build inputs or CSP origins.
 - Firefox packages now declare required authentication, account identity and
@@ -43,7 +52,8 @@
   - Removed the extractable PBKDF2 token-key fallback; tokens use only a non-extractable IndexedDB AES-GCM key.
 - **Platform & Permission Refinements**:
   - Separate validated packages for Mozilla Firefox/Midori and Chromium; other Chromium-based browsers use the Chromium package but are not part of the certified matrix.
-  - Transparent, on-demand permission handling requesting only necessary network capabilities during active tunneling.
+  - Required network permissions are declared per browser package and any
+    later host/API revocation disables proxy mode fail-closed.
   - Optimized lightweight memory footprint with efficient background service worker execution.
 - **Toolchain**:
   - Updated direct dependencies to their compatible stable majors, including Babel 8, Pinia 4, jsdom 30 and webpack-dev-server 6.
@@ -51,7 +61,10 @@
     published version. `web-ext` remains at the latest 10.6.0 release and now
     disables the unused vulnerable ICNS/JXL/HEIF parsers before local lint and
     AMO signing, with a directed fail-closed test.
-- Node 24/npm 12 are enforced; Firefox and Chrome production bundles pass strict typecheck, lint, tests and audit with no known vulnerabilities.
+- Node 24/npm 12 are enforced; Firefox and Chrome production bundles pass
+  strict typecheck, lint and tests. Production dependencies audit clean; the
+  reviewed `web-ext` development-only image parser exception remains isolated
+  by its fail-closed gate until upstream publishes a fix.
 - Production packages now remove browser-incompatible background fields, reject development origins in CSP, and validate those invariants during each build.
 - Removed redundant `dotenv-webpack`; environment values are injected once through the validated Webpack configuration.
 - Firefox and Midori packages now replace every supported build-time `process.env` reference, including diagnostics, application name and permission-page timing. Production builds fail if any Node.js `process` reference survives in emitted JavaScript.

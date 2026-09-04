@@ -4,7 +4,7 @@
 // instead of the per-site "Only When Clicked" default.
 // Supports ES / EN via the language switcher buttons.
 
-import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions.js';
+import { hasRequiredVpnPermissions, requestRequiredVpnPermissions } from './utils/permissions';
 import { getLatestDownloadUrl } from './utils/download.js';
 import { detectDesktopEnvironment } from './utils/platform.js';
 

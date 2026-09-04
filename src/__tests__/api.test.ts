@@ -79,4 +79,27 @@ describe('API errors', () => {
             device_type: 'extension',
         });
     });
+
+    it('keeps a regional proxy credential opaque and byte-for-byte intact', async () => {
+        const serverID = '33333333-3333-4333-8333-333333333333';
+        const opaqueCredential = 'future-format://not-a-jwt?segment=%2E&signature=untouched';
+        localStore.server = { active: { id: serverID } };
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            ok: true,
+            data: {
+                proxy_token: opaqueCredential,
+                expires_in: 300,
+                device_id: '44444444-4444-4444-8444-444444444444',
+                proxy_endpoint: {
+                    server_id: serverID,
+                    host: 'regional.example.com',
+                    port: 443,
+                    country_code: 'DO',
+                    location: 'Regional',
+                },
+            },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+        await expect(getProxyScopedToken()).resolves.toBe(opaqueCredential);
+    });
 });

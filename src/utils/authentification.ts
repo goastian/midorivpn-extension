@@ -1,7 +1,7 @@
 // @ts-expect-error untyped JS module
 import { disableBadge } from './badge';
 import { clearTokens } from '../lib/api';
-// @ts-expect-error untyped JS module
+import { storePkceTransaction } from '../lib/pkce';
 import { disableProxy } from './proxy';
 // @ts-expect-error untyped JS module
 import log from './logger.js';
@@ -64,18 +64,6 @@ async function codeChallenge(): Promise<{ verifier: string; challenge: string }>
   return { verifier, challenge: base64urlencode(hashed) };
 }
 
-async function storePkce(state: string, verifier: string): Promise<void> {
-  const data = { pkce_state: state, pkce_verifier: verifier };
-  if (typeof chrome !== 'undefined' && chrome.storage?.local?.set) {
-    await chrome.storage.local.set(data);
-  }
-  if (typeof chrome !== 'undefined' && chrome.storage?.session?.set) {
-    try {
-      await chrome.storage.session.set(data);
-    } catch (_) { /* ignore */ }
-  }
-}
-
 class Auth {
   async signIn() {
     if (typeof chrome !== 'undefined' && chrome.storage?.local?.remove) {
@@ -85,7 +73,7 @@ class Auth {
     const { verifier, challenge } = await codeChallenge();
 
     // Store PKCE + state safely
-    await storePkce(state, verifier);
+    await storePkceTransaction(state, verifier);
 
     const authorizationEndpoint = resolveAuthorizationEndpoint();
     if (!authorizationEndpoint) {

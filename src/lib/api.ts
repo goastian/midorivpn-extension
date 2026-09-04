@@ -617,7 +617,12 @@ export async function getProxyScopedToken(serverID?: string): Promise<string | n
                     method: 'POST',
                     body: JSON.stringify({ server_id: selectedServerID, device }),
                 });
-                if (requestGeneration === proxyCredentialGeneration && res && res.proxy_token.startsWith('mvpn2.') &&
+                // The regional credential is intentionally opaque to the
+                // extension. Validate only transport bounds and endpoint
+                // binding; token structure and signature belong to Core.
+                if (requestGeneration === proxyCredentialGeneration && res &&
+                    typeof res.proxy_token === 'string' && res.proxy_token.length > 0 &&
+                    res.proxy_token.length <= 8192 &&
                     res.proxy_endpoint?.server_id === selectedServerID && Number.isInteger(res.expires_in) &&
                     res.expires_in > 0 && res.expires_in <= 900) {
                     cachedProxyToken = res.proxy_token;

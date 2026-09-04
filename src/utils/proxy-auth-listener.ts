@@ -1,8 +1,8 @@
 // Chromium does not accept a Promise from an onAuthRequired listener. Its
 // Manifest V3 path must use asyncBlocking and complete through the callback.
 // Firefox/Midori support the WebExtension Promise contract with blocking.
-type AuthResponse = { cancel?: boolean; authCredentials?: { username: string; password: string } };
-type AuthHandler = (details: unknown) => AuthResponse | Promise<AuthResponse>;
+export type AuthResponse = { cancel?: boolean; authCredentials?: { username: string; password: string } };
+export type ProxyAuthHandler = (details: unknown) => AuthResponse | Promise<AuthResponse>;
 type AuthEvent = {
   addListener: (
     listener: (...args: any[]) => AuthResponse | Promise<AuthResponse> | void,
@@ -10,7 +10,7 @@ type AuthEvent = {
     extraInfoSpec: string[],
   ) => void;
 };
-type WebRequestAPI = { onAuthRequired?: AuthEvent };
+export type WebRequestAPI = { onAuthRequired?: AuthEvent };
 
 export function selectProxyWebRequestAPI(
   browserTarget: string,
@@ -31,7 +31,7 @@ type ProxyAuthDependencies = {
 
 const AUTH_ATTEMPT_TTL_MS = 60_000;
 
-export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependencies): AuthHandler {
+export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependencies): ProxyAuthHandler {
   type Attempt = { startedAt: number; response: Promise<AuthResponse>; submitted: boolean };
   const attempts = new Map<string, Attempt>();
   const now = dependencies.now || Date.now;
@@ -90,7 +90,7 @@ export function createProxyAuthenticationHandler(dependencies: ProxyAuthDependen
 
 export function registerProxyAuthentication(
   webRequest: WebRequestAPI | undefined,
-  handler: AuthHandler,
+  handler: ProxyAuthHandler,
   browserTarget: string,
 ): boolean {
   const event = webRequest?.onAuthRequired;

@@ -9,7 +9,7 @@ permissions:
 jobs:
   build-evidence:
     name: Build private browser packages and evidence
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       APP_ENV: production
       API_URL: ${{ secrets.API_URL || vars.API_URL }}

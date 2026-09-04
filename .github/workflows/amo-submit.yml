@@ -14,7 +14,7 @@ permissions:
 jobs:
   submit:
     name: Submit listed Firefox package and reviewer source
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: extension-store-submit
     env:
       APP_ENV: production

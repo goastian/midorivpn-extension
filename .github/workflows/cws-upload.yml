@@ -14,7 +14,7 @@ permissions:
 jobs:
   upload:
     name: Upload Chromium package without publishing
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: extension-store-upload
     env:
       APP_ENV: production

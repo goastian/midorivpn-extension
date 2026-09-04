@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Lint, Test & Build Extension
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
       API_URL: ${{ secrets.API_URL || vars.API_URL }}

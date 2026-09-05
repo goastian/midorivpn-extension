@@ -11,6 +11,13 @@
 - The service-worker runtime is now split into typed OAuth, proxy lifecycle
   and Firefox/Chromium adapter modules. Restart restoration, concurrent OAuth,
   revocation and permission loss are covered by directed tests.
+- Automatic proxy selection now measures three strict HTTPS health probes per
+  eligible Core, chooses the lowest median RTT and switches after three nearby
+  proxy failures. Manual selection remains pinned.
+- Failover phase, effective server and 5/10/20/40/60-second jittered backoff
+  survive service-worker restarts. With no reachable Core, Firefox and
+  Chromium retain a loopback black-hole proxy and retry instead of silently
+  returning to direct traffic.
 - PKCE uses independent, expiring and bounded transactions, so overlapping
   sign-in flows cannot overwrite each other's verifier.
 - Regional proxy credentials remain opaque to the extension and a blocking
@@ -34,7 +41,9 @@
 - Proxy challenges now receive only short-lived `vpn-proxy` credentials, never refreshed OAuth access tokens. Repeated challenges fail closed without clearing the login session or creating an authentication loop.
 - Chromium registers `asyncBlocking` on the native `chrome.webRequest` API; Firefox and Midori use the Promise-capable WebExtension polyfill.
 - Concurrent proxy challenges now share one scoped-credential request and one pending authentication response, preventing duplicate OAuth refreshes and callback races during busy page loads.
-- Chromium restores `fixed_servers` when the browser restarts with VPN enabled; if credentials, permissions, or the selected transport cannot be restored, it resets the browser to direct mode and clears the visible connected state.
+- Chromium restores `fixed_servers` when the browser restarts with VPN enabled;
+  transient credential or edge failures stay fail-closed and retry, while
+  definitive authentication/permission failure disables the visible session.
 - Chromium end-to-end certification covers clean OAuth, authenticated HTTPS CONNECT, direct disconnect, reconnect, and persistence across browser restart.
 - Revoked or invalid extension origins now close the OAuth callback tab and leave a persistent, user-facing explanation in the popup instead of failing silently.
 - **Complete UI/UX Refresh**:
@@ -49,7 +58,8 @@
   - Granular session recovery ensuring uninterrupted connectivity across browser restarts.
 - **High-Performance Proxy Tunneling**:
   - HTTPS CONNECT proxy tunneling selected only from a healthy, enabled `proxy` transport advertised by Core; there is no implicit fallback port.
-  - Dynamic PAC-based traffic routing that automatically routes web browsing while preserving direct local network access.
+  - Firefox request routing and Chromium `fixed_servers` preserve direct access
+    only for the explicit Control, identity and temporary health-probe allowlist.
   - Scoped authentication tokens preventing unauthorized proxy usage and ensuring private communication.
   - Real-time connection health monitoring with automatic reconnection handling.
   - Rejects non-HTTPS proxy schemes and never falls back to a general access token when scoped proxy credentials are unavailable.

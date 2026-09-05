@@ -1,6 +1,12 @@
 import browser from 'webextension-polyfill';
-import badge from '../utils/badge';
-import { handleProxy, debugProxyState, enableProxy, disableProxy } from '../utils/proxy';
+import badge, { disableBadge, enableBadge } from '../utils/badge';
+import {
+  handleProxy,
+  debugProxyState,
+  applyBlockedProxy,
+  currentBypassDomains,
+  setProbeBypassURLs,
+} from '../utils/proxy';
 import {
   clearTokens,
   ensureValidAccessToken,
@@ -16,18 +22,27 @@ import user from '../service/user';
 import { REDIRECT_URI } from '../utils/authentification';
 import log from '../utils/logger';
 import { hasRequiredVpnPermissions } from '../utils/permissions';
-import { resolveProxyServer, type ActiveServer } from '../utils/proxy-routing';
 import { createProxyAuthenticationHandler } from '../utils/proxy-auth-listener';
 import { getMidoriPrivacyStatus, isTrustedMidoriPrivacyRequest } from '../utils/privacy-status';
 import { createBrowserRuntimeAdapter } from '../runtime/browser-adapter';
 import { createOAuthRuntime } from '../runtime/auth-runtime';
 import { createProxyRuntime, type AuthSessionState } from '../runtime/proxy-runtime';
+import {
+  createProxyFailoverRuntime,
+  defaultProxyFailoverState,
+  probeCandidateHTTPS,
+  type ProxyCandidate,
+  type ProxyFailoverState,
+  type ProxySelectionMode,
+} from '../runtime/proxy-failover';
 
 if (process.env.NODE_ENV !== 'production') {
   (globalThis as typeof globalThis & { debugProxy?: typeof debugProxyState }).debugProxy = debugProxyState;
 }
 
 const TOKEN_REFRESH_ALARM = 'auth-token-refresh';
+const PROXY_FAILOVER_ALARM = 'proxy-failover-retry';
+const PROXY_FAILOVER_STORAGE_KEY = 'midori_proxy_failover_v1';
 const browserAdapter = createBrowserRuntimeAdapter(
   process.env.BROWSER,
   chrome,
@@ -92,13 +107,119 @@ async function showFailureBadge(): Promise<void> {
   await chrome.action.setBadgeBackgroundColor({ color: '#E67B7B' });
 }
 
+type StoredProxySelection = {
+  selectionMode?: ProxySelectionMode;
+  manualServerId?: string;
+};
+
+function readStorage(keys: string[]): Promise<Record<string, any>> {
+  return new Promise((resolve) => chrome.storage.local.get(keys, (value) => resolve(value || {})));
+}
+
+function finiteInteger(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  return Number.isInteger(value) ? Math.min(Math.max(value as number, minimum), maximum) : fallback;
+}
+
+function storedProxyCandidate(value: unknown): ProxyCandidate | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<ProxyCandidate>;
+  if (typeof candidate.id !== 'string' || !candidate.id || candidate.protocol !== 'proxy' ||
+      typeof candidate.endpoint !== 'string' || !candidate.endpoint ||
+      !Number.isInteger(candidate.port) || (candidate.port as number) < 1 || (candidate.port as number) > 65535 ||
+      !Array.isArray(candidate.transports)) return null;
+  try {
+    const probe = new URL(candidate.probe_url || '');
+    if (probe.protocol !== 'https:' || probe.pathname !== '/.well-known/midorivpn/edge-health' ||
+        probe.username || probe.password || probe.search || probe.hash) return null;
+  } catch {
+    return null;
+  }
+  return candidate as ProxyCandidate;
+}
+
+async function readProxyFailoverState(): Promise<ProxyFailoverState> {
+  const stored = await readStorage(['store', 'server', PROXY_FAILOVER_STORAGE_KEY]);
+  const defaults = defaultProxyFailoverState();
+  const metadata = stored[PROXY_FAILOVER_STORAGE_KEY] || {};
+  const selection = (stored.server || {}) as StoredProxySelection;
+  const selectionMode = selection.selectionMode === 'manual' ? 'manual' : 'automatic';
+  const phase = ['off', 'connecting', 'connected', 'retrying'].includes(metadata.phase)
+    ? metadata.phase
+    : defaults.phase;
+  const activeServer = Object.hasOwn(metadata, 'activeServer')
+    ? storedProxyCandidate(metadata.activeServer)
+    : null;
+  return {
+    ...defaults,
+    enabled: stored.store?.state === true,
+    selectionMode,
+    manualServerId: selectionMode === 'manual' && typeof selection.manualServerId === 'string'
+      ? selection.manualServerId
+      : '',
+    activeServer,
+    phase,
+    retryAttempt: finiteInteger(metadata.retryAttempt, 0, 0, 5),
+    nextRetryAt: finiteInteger(metadata.nextRetryAt, 0, 0, Number.MAX_SAFE_INTEGER),
+    consecutiveFailures: finiteInteger(metadata.consecutiveFailures, 0, 0, 2),
+    lastFailureAt: finiteInteger(metadata.lastFailureAt, 0, 0, Number.MAX_SAFE_INTEGER),
+    lastError: typeof metadata.lastError === 'string' ? metadata.lastError.slice(0, 128) : '',
+  };
+}
+
+async function writeProxyFailoverState(state: ProxyFailoverState): Promise<void> {
+  const stored = await readStorage(['store', 'server']);
+  await chrome.storage.local.set({
+    store: { ...(stored.store || {}), state: state.enabled },
+    server: {
+      ...(stored.server || {}),
+      active: state.activeServer,
+      selectionMode: state.selectionMode,
+      manualServerId: state.manualServerId,
+    },
+    [PROXY_FAILOVER_STORAGE_KEY]: state,
+  });
+}
+
+const failoverAdapter = createBrowserRuntimeAdapter(
+  process.env.BROWSER,
+  chrome,
+  browser as unknown as Parameters<typeof createBrowserRuntimeAdapter>[2],
+);
+
+const proxyFailover = createProxyFailoverRuntime({
+  readState: readProxyFailoverState,
+  writeState: writeProxyFailoverState,
+  listAutomaticCandidates: () => serverManager.loadProxyCandidates(),
+  getManualCandidate: (serverId) => serverManager.getManualCandidate(serverId),
+  probe: probeCandidateHTTPS,
+  updateProbeBypass: async (candidates) => setProbeBypassURLs(candidates.map((candidate) => candidate.probe_url)),
+  getScopedCredential: getProxyScopedToken,
+  invalidateScopedCredential: invalidateProxyScopedToken,
+  applyProxy: (proxy) => failoverAdapter.applyProxy(proxy, currentBypassDomains()),
+  applyBlockProxy: applyBlockedProxy,
+  resetProxy: () => failoverAdapter.resetProxy(),
+  scheduleRetry: async (when) => {
+    if (chrome.alarms?.create) chrome.alarms.create(PROXY_FAILOVER_ALARM, { when });
+  },
+  cancelRetry: async () => {
+    if (chrome.alarms?.clear) await chrome.alarms.clear(PROXY_FAILOVER_ALARM);
+  },
+  showConnected: enableBadge,
+  showFailure: showFailureBadge,
+  showDisconnected: async () => disableBadge(),
+  now: () => Date.now(),
+  random: () => Math.random(),
+});
+
 const proxyRuntime = createProxyRuntime({
   synchronizeAuthSession,
   isVpnEnabled: async () => (await readLocalStore()).state === true,
-  getScopedCredential: getProxyScopedToken,
   hasRequiredPermissions: hasRequiredVpnPermissions,
-  enableProxy,
-  disableProxy,
+  restoreProxy: proxyFailover.restore,
+  disableProxy: async () => {
+    await proxyFailover.disconnect();
+    return true;
+  },
   persistVpnDisabled,
   showFailureBadge,
 });
@@ -118,21 +239,29 @@ const oauthRuntime = createOAuthRuntime({
 type BackgroundMessage = {
   type?: string;
   serverId?: string;
-  activeServer?: ActiveServer & { id?: string };
+  selectionMode?: ProxySelectionMode;
 };
 
 const handlers: Record<string, (message: BackgroundMessage) => Promise<unknown>> = {
   loadServers: async () => serverManager.loadServers(),
   loadUser: async () => user.loadUser(),
-  provisionConnection: async (message) => {
-    const serverId = message.serverId;
-    const active = message.activeServer;
-    if (!serverId) throw new Error('No server selected');
-    if (!active || active.id !== serverId) throw new Error('Selected server is not active');
-    const proxyEndpoint = resolveProxyServer(active);
-    if (!proxyEndpoint) throw new Error('Selected server does not support browser proxy mode');
+  getProxyFailoverStatus: readProxyFailoverState,
+  connectProxy: async () => {
     if (!(await ensureValidAccessToken())) throw new Error('Login session expired');
-    return { id: null, server_id: serverId, mode: 'proxy', proxy_endpoint: proxyEndpoint };
+    if (!(await hasRequiredVpnPermissions())) throw new Error('Missing browser permissions');
+    await proxyFailover.connect();
+    return readProxyFailoverState();
+  },
+  disconnectProxy: async () => {
+    await proxyFailover.disconnect();
+    return readProxyFailoverState();
+  },
+  setProxySelection: async (message) => {
+    if (message.selectionMode !== 'automatic' && message.selectionMode !== 'manual') {
+      throw new Error('Invalid proxy selection mode');
+    }
+    await proxyFailover.setSelection(message.selectionMode, message.serverId || '');
+    return readProxyFailoverState();
   },
 };
 
@@ -147,9 +276,14 @@ proxyRuntime.restoreProxySession().catch((error) => {
 const proxyAuthHandler = createProxyAuthenticationHandler({
   getToken: getProxyScopedToken,
   invalidateToken: invalidateProxyScopedToken,
-  onUnavailable: proxyRuntime.turnOffVpn,
+  onUnavailable: async () => { await proxyFailover.noteProxyFailure(); },
 });
-const proxyErrorHandler = (error: unknown) => log.error('proxy-error', error);
+const proxyErrorHandler = (error: unknown) => {
+  log.error('proxy-error', error);
+  void proxyFailover.noteProxyFailure().catch((failure) => {
+    log.warn('failover', 'Unable to process proxy failure:', failure?.message || failure);
+  });
+};
 
 let proxyListenersRegistered = false;
 let webRequestListenersRegistered = false;
@@ -225,6 +359,10 @@ chrome.runtime?.onInstalled?.addListener(() => {
 });
 
 chrome.alarms?.onAlarm?.addListener((alarm) => {
+  if (alarm.name === PROXY_FAILOVER_ALARM) {
+    void proxyFailover.recover().catch((error) => log.error('failover', 'Scheduled recovery failed:', error));
+    return;
+  }
   if (alarm.name !== TOKEN_REFRESH_ALARM) return;
   void synchronizeAuthSession(true).then(async (state) => {
     if (state === 'revoked') await proxyRuntime.turnOffVpn();

@@ -6,8 +6,8 @@ const useStore = defineStore('store', {
     }),
 
     actions: {
-        async changeState() {
-            this.state = !this.state;
+        async setState(value) {
+            this.state = value === true;
         }
     },
 

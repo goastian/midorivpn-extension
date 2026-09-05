@@ -93,7 +93,11 @@ export function createBrowserRuntimeAdapter(
       await updateChromiumProxy(nativeChrome, { mode: 'direct' });
     },
     registerProxyRouting(handler, onError) {
-      if (target !== 'firefox') return true;
+      if (target !== 'firefox') {
+        const proxyError = nativeChrome.proxy?.onProxyError;
+        if (proxyError?.addListener) proxyError.addListener(onError);
+        return true;
+      }
       const requestEvent = webExtensionBrowser.proxy?.onRequest;
       const errorEvent = webExtensionBrowser.proxy?.onError;
       if (!requestEvent?.addListener || !errorEvent?.addListener) return false;

@@ -97,17 +97,23 @@ export default {
 
     computed: {
         selectedId() {
-            return this.vpn.active?.id ?? '';
+            return this.vpn.selectionMode === 'automatic' ? '__automatic__' : this.vpn.manualServerId;
         },
 
         allOptions() {
-            return this.vpn.servers.map(s => ({
+            return [{
+                id: '__automatic__',
+                label: this.vpn.active?.name ? `Automatic · ${this.vpn.active.name}` : 'Automatic server',
+                country_code: '',
+                ip: '',
+                _ref: null,
+            }, ...this.vpn.servers.map(s => ({
                 id: s.id,
                 label: s.name || s.country_code || 'Global Server',
                 country_code: s.country_code || (s.name && s.name.length === 2 ? s.name : ''),
                 ip: stripPort(s.endpoint),
                 _ref: s,
-            }));
+            }))];
         },
 
         selected() {
@@ -165,15 +171,23 @@ export default {
             }
         },
 
-        pick(opt) {
+        async pick(opt) {
             log.diag('selector', 'pick', {
                 id: opt?.id || null,
                 label: opt?.label || null,
                 ip: opt?.ip || null,
             });
-            this.vpn.setActive(opt._ref);
-            this.open = false;
-            badge();
+            try {
+                if (opt.id === '__automatic__') {
+                    await this.vpn.setAutomatic();
+                } else {
+                    await this.vpn.setActive(opt._ref);
+                }
+                badge();
+                this.open = false;
+            } catch (error) {
+                log.error('selector', 'Unable to persist server selection:', error);
+            }
         },
     },
 };

@@ -6,18 +6,34 @@ import {
   resolveProxyServer,
   buildBypassDomains,
   type ActiveServer,
-  type ProxyServer,
 } from './proxy-routing';
 
-const bypassDomains = buildBypassDomains({
+const staticBypassDomains = buildBypassDomains({
   apiUrl: process.env.API_URL || '',
   authentikIssuer: process.env.AUTHENTIK_ISSUER || '',
 });
+let probeBypassDomains: string[] = [];
+
+export function setProbeBypassURLs(values: string[]): void {
+  probeBypassDomains = [...new Set(values.flatMap((value) => {
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol !== 'https:' || parsed.pathname !== '/.well-known/midorivpn/edge-health' ||
+          parsed.username || parsed.password || parsed.search || parsed.hash) return [];
+      return [parsed.hostname];
+    } catch {
+      return [];
+    }
+  }))];
+}
+
+export function currentBypassDomains(): string[] {
+  return [...new Set([...staticBypassDomains, ...probeBypassDomains])];
+}
 
 interface ExtensionStorage {
   store?: { state?: boolean };
   server?: { active?: ActiveServer & Record<string, unknown> };
-  connection?: unknown;
   access_token_enc?: unknown;
 }
 
@@ -30,10 +46,6 @@ export interface ProxyDecision {
   proxyAuthorizationHeader?: string;
 }
 
-export type ProxyReadiness =
-  | { ok: true; proxy: ProxyServer }
-  | { ok: false; error: string };
-
 const getLocalStorage = (keys: string[]): Promise<ExtensionStorage> =>
   new Promise((resolve) => {
     chrome.storage.local.get(keys, (storage) => resolve((storage || {}) as ExtensionStorage));
@@ -41,25 +53,10 @@ const getLocalStorage = (keys: string[]): Promise<ExtensionStorage> =>
 
 const blockProxyRequest = (): ProxyDecision => ({ type: 'https', host: '127.0.0.1', port: 1 });
 
-export const validateProxyReady = async (): Promise<ProxyReadiness> => {
-  const storage = await getLocalStorage(['server']);
-  const proxyServer = resolveProxyServer(storage.server?.active);
-  if (!proxyServer) {
-    return { ok: false, error: 'Selected server does not support browser proxy mode' };
-  }
-  if (!(await hasRequiredVpnPermissions())) {
-    return { ok: false, error: 'Missing browser permissions' };
-  }
-  if (!(await getProxyScopedToken())) {
-    return { ok: false, error: 'Proxy credentials are unavailable' };
-  }
-  return { ok: true, proxy: proxyServer };
-};
-
 export const handleProxy = async (details: { url: string }): Promise<ProxyDecision> => {
   try {
     const hostname = new URL(details.url).hostname;
-    if (bypassDomains.includes(hostname)) return { type: 'direct' };
+    if (currentBypassDomains().includes(hostname)) return { type: 'direct' };
 
     const storage = await getLocalStorage(['store', 'server']);
     if (!storage.store?.state) return { type: 'direct' };
@@ -103,39 +100,21 @@ export const handleProxy = async (details: { url: string }): Promise<ProxyDecisi
 };
 
 export const debugProxyState = async (): Promise<Record<string, unknown>> => {
-  const storage = await getLocalStorage(['store', 'server', 'connection', 'access_token_enc']);
+  const storage = await getLocalStorage(['store', 'server', 'access_token_enc']);
   const report = {
     vpnToggle: storage.store?.state === true,
     hasSelectedServer: Boolean(storage.server?.active),
     hasResolvedProxy: Boolean(resolveProxyServer(storage.server?.active)),
     hasAccessToken: Boolean(storage.access_token_enc),
     hasAllRequiredPermissions: await hasRequiredVpnPermissions(),
-    hasConnectionMetadata: storage.connection != null,
   };
   log.warn('proxy', 'debug state', report);
   return report;
 };
 
-export const enableProxy = async (): Promise<boolean> => {
-  const result = await validateProxyReady();
-  if (!result.ok) return false;
-  try {
-    await createBrowserRuntimeAdapter().applyProxy(result.proxy, bypassDomains);
-    return true;
-  } catch (error) {
-    log.warn('proxy', 'Unable to apply browser proxy settings:', (error as Error).message);
-    return false;
-  }
+export const applyBlockedProxy = async (): Promise<void> => {
+  await createBrowserRuntimeAdapter().applyProxy(
+    { scheme: 'https', host: '127.0.0.1', port: 1 },
+    currentBypassDomains(),
+  );
 };
-
-export const disableProxy = async (): Promise<boolean> => {
-  try {
-    await createBrowserRuntimeAdapter().resetProxy();
-    return true;
-  } catch (error) {
-    log.warn('proxy', 'Unable to reset browser proxy settings:', (error as Error).message);
-    return false;
-  }
-};
-
-export { bypassDomains };

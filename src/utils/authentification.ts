@@ -1,7 +1,6 @@
 import { disableBadge } from './badge';
 import { clearTokens } from '../lib/api';
 import { storePkceTransaction } from '../lib/pkce';
-import { disableProxy } from './proxy';
 import log from './logger';
 
 // webpack.config.js rejects the build unless all of these values are present.
@@ -110,7 +109,12 @@ class Auth {
 
   async logout() {
     try {
-      await disableProxy();
+      await new Promise<void>((resolve) => {
+        chrome.runtime.sendMessage({ type: 'disconnectProxy' }, () => {
+          void chrome.runtime.lastError;
+          resolve();
+        });
+      });
     } catch { /* ignore */ }
 
     await clearTokens();

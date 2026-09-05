@@ -5,9 +5,8 @@ function dependencies(session: AuthSessionState = 'ready') {
   return {
     synchronizeAuthSession: vi.fn(async () => session),
     isVpnEnabled: vi.fn(async () => true),
-    getScopedCredential: vi.fn(async () => 'opaque-regional-credential'),
     hasRequiredPermissions: vi.fn(async () => true),
-    enableProxy: vi.fn(async () => true),
+    restoreProxy: vi.fn(async () => true),
     disableProxy: vi.fn(async () => true),
     persistVpnDisabled: vi.fn(async () => undefined),
     showFailureBadge: vi.fn(async () => undefined),
@@ -21,8 +20,7 @@ describe('proxy service-worker lifecycle', () => {
     await createProxyRuntime(deps).restoreProxySession();
 
     expect(deps.synchronizeAuthSession).toHaveBeenCalledTimes(2);
-    expect(deps.getScopedCredential).toHaveBeenCalledTimes(2);
-    expect(deps.enableProxy).toHaveBeenCalledTimes(2);
+    expect(deps.restoreProxy).toHaveBeenCalledTimes(2);
   });
 
   it('deduplicates concurrent restoration inside one worker instance', async () => {
@@ -37,7 +35,7 @@ describe('proxy service-worker lifecycle', () => {
     finish('ready');
     await Promise.all([first, duplicate]);
     expect(deps.synchronizeAuthSession).toHaveBeenCalledOnce();
-    expect(deps.enableProxy).toHaveBeenCalledOnce();
+    expect(deps.restoreProxy).toHaveBeenCalledOnce();
   });
 
   it('turns the VPN off when token revocation makes the session definitive', async () => {
@@ -46,7 +44,7 @@ describe('proxy service-worker lifecycle', () => {
     expect(deps.disableProxy).toHaveBeenCalledOnce();
     expect(deps.persistVpnDisabled).toHaveBeenCalledOnce();
     expect(deps.showFailureBadge).toHaveBeenCalledOnce();
-    expect(deps.enableProxy).not.toHaveBeenCalled();
+    expect(deps.restoreProxy).not.toHaveBeenCalled();
   });
 
   it('does not show a failure on ordinary logged-out startup', async () => {
@@ -69,6 +67,15 @@ describe('proxy service-worker lifecycle', () => {
     const deps = dependencies();
     const runtime = createProxyRuntime(deps);
     await expect(runtime.handlePermissionRemoval({ permissions: ['notifications'] })).resolves.toBe(false);
+    expect(deps.disableProxy).not.toHaveBeenCalled();
+  });
+
+  it('keeps an enabled session fail-closed while failover schedules recovery', async () => {
+    const deps = dependencies();
+    deps.restoreProxy.mockResolvedValue(false);
+    await createProxyRuntime(deps).restoreProxySession();
+    expect(deps.restoreProxy).toHaveBeenCalledOnce();
+    expect(deps.persistVpnDisabled).not.toHaveBeenCalled();
     expect(deps.disableProxy).not.toHaveBeenCalled();
   });
 });

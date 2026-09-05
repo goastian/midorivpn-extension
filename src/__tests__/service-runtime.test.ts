@@ -59,6 +59,57 @@ describe('background service adapters', () => {
         expect(apiGet).toHaveBeenCalledTimes(2);
     });
 
+    it('validates the dedicated failover candidate contract', async () => {
+        apiGet.mockResolvedValue([{
+            id: 'server-1',
+            name: 'Principal',
+            location: 'Santo Domingo',
+            country_code: 'DO',
+            protocol: 'proxy',
+            probe_url: 'https://vpn.example/.well-known/midorivpn/edge-health',
+            endpoint: 'proxy.example',
+            port: 443,
+            priority: 10,
+        }]);
+        const manager = new ServerManager();
+
+        await expect(manager.loadProxyCandidates()).resolves.toEqual([
+            expect.objectContaining({ id: 'server-1', endpoint: 'proxy.example', port: 443 }),
+        ]);
+        expect(apiGet).toHaveBeenCalledWith('/api/v1/control/servers/candidates?protocol=proxy');
+    });
+
+    it('rejects malformed or non-HTTPS failover probes fail-closed', async () => {
+        apiGet.mockResolvedValue([{
+            id: 'server-1', name: 'Principal', protocol: 'proxy',
+            probe_url: 'http://vpn.example/.well-known/midorivpn/edge-health',
+            endpoint: 'proxy.example', port: 443, priority: 10,
+        }]);
+        const manager = new ServerManager();
+        await expect(manager.loadProxyCandidates()).rejects.toThrow('Invalid proxy candidate');
+    });
+
+    it('rejects a candidate endpoint that is a URL instead of a host', async () => {
+        apiGet.mockResolvedValue([{
+            id: 'server-1', name: 'Principal', protocol: 'proxy',
+            probe_url: 'https://vpn.example/.well-known/midorivpn/edge-health',
+            endpoint: 'https://proxy.example/path', port: 443, priority: 10,
+        }]);
+        await expect(new ServerManager().loadProxyCandidates()).rejects.toThrow('Invalid proxy candidate');
+    });
+
+    it('keeps a manual server pinned and requires its explicit probe URL', async () => {
+        apiGet.mockResolvedValue([{
+            id: 'manual', name: 'Manual', probe_url: 'https://vpn.example/.well-known/midorivpn/edge-health',
+            transports: [{ protocol: 'proxy', host: 'proxy.example', port: 443, enabled: true, health_status: 'healthy' }],
+        }]);
+        const manager = new ServerManager();
+        await expect(manager.getManualCandidate('manual')).resolves.toMatchObject({
+            id: 'manual', endpoint: 'proxy.example', port: 443,
+        });
+        await expect(manager.getManualCandidate('different')).resolves.toBeNull();
+    });
+
     it('normalizes and caches the current user payload', async () => {
         apiGet.mockResolvedValue({ data: { id: 'user-1', email: 'user@example.test' } });
         const manager = new UserManager();

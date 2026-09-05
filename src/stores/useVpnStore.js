@@ -29,26 +29,42 @@ const useServerStore = defineStore('server', {
         serversLoading: false,
         serversMeta: null,
         active: null,
-        connectionId: null,
+        selectionMode: 'automatic',
+        manualServerId: '',
+        failoverPhase: 'off',
+        failoverError: '',
     }),
 
     actions: {
         async loadServers() {
             this.serversLoading = true;
+            try {
+                await this.loadFailoverStatus();
+            } catch {
+                // Continue with the persisted selection while the background
+                // worker is being started by the browser.
+            }
             const applyResult = (result) => {
                 if (!result?.servers) return;
                 this.servers = result.servers;
                 this.serversMeta = result.meta || null;
                 // Pick a sensible default active server when none is set or
                 // the previously-active one is no longer in the proxy list.
-                const stillValid = this.active && result.servers.some((s) => s.id === this.active.id);
-                if (!stillValid) {
-                    this.active = result.servers[0] || null;
+                const effective = this.active && result.servers.find((s) => s.id === this.active.id);
+                const pinned = this.selectionMode === 'manual'
+                    ? result.servers.find((s) => s.id === this.manualServerId)
+                    : null;
+                if (pinned) {
+                    this.active = pinned;
+                } else if (effective) {
+                    this.active = effective;
+                } else if (this.selectionMode === 'manual') {
+                    this.active = null;
                 }
                 log.diag('vpn-store', 'loadServers:applied', {
                     receivedServers: result.servers.length,
                     activeId: this.active?.id || null,
-                    stillValid,
+                    stillValid: Boolean(effective || pinned),
                     meta: this.serversMeta,
                 });
             };
@@ -69,53 +85,60 @@ const useServerStore = defineStore('server', {
             }
         },
 
-        setActive(server) {
+        async setActive(server) {
             // Deep-clone to strip Vue reactive Proxy wrappers; otherwise the
             // object cannot be passed to chrome.storage / chrome.runtime
             // (DataCloneError: Proxy object could not be cloned).
             this.active = server ? JSON.parse(JSON.stringify(server)) : null;
+            this.selectionMode = 'manual';
+            this.manualServerId = this.active?.id || '';
             log.diag('vpn-store', 'setActive', {
                 activeId: this.active?.id || null,
                 name: this.active?.name || null,
                 proxyEndpoint: resolveProxyServer(this.active),
             });
-            // Persistence is handled by chromeStoragePlugin via $subscribe.
-        },
-
-        async provisionConnection() {
-            log.diag('vpn-store', 'provisionConnection:start', {
-                activeId: this.active?.id || null,
-                proxyEndpoint: resolveProxyServer(this.active),
+            const status = await sendBackgroundMessage({
+                type: 'setProxySelection',
+                selectionMode: 'manual',
+                serverId: this.manualServerId,
             });
-            if (!this.active) return 'No server selected';
-            if (!resolveProxyServer(this.active)) {
-                return 'Selected server does not support browser proxy mode';
-            }
-
-            try {
-                await sendBackgroundMessage({
-                    type: 'provisionConnection',
-                    serverId: this.active.id,
-                    activeServer: JSON.parse(JSON.stringify(this.active)),
-                });
-
-                this.connectionId = null;
-                log.diag('vpn-store', 'provisionConnection:ok', { activeId: this.active.id });
-                return null; // success
-            } catch (error) {
-                log.error('vpn-store', 'Error provisioning connection:', error);
-                return error.message || 'Failed to create connection';
-            }
+            this.applyFailoverStatus(status);
         },
+
+        async setAutomatic() {
+            this.selectionMode = 'automatic';
+            this.manualServerId = '';
+            const status = await sendBackgroundMessage({
+                type: 'setProxySelection',
+                selectionMode: 'automatic',
+            });
+            this.applyFailoverStatus(status);
+        },
+
+        async loadFailoverStatus() {
+            const status = await sendBackgroundMessage({ type: 'getProxyFailoverStatus' });
+            this.applyFailoverStatus(status);
+            return status;
+        },
+
+        applyFailoverStatus(status) {
+            if (!status) return;
+            this.selectionMode = status.selectionMode === 'manual' ? 'manual' : 'automatic';
+            this.manualServerId = status.manualServerId || '';
+            this.failoverPhase = status.phase || 'off';
+            this.failoverError = status.lastError || '';
+            if (Object.hasOwn(status, 'activeServer')) this.active = status.activeServer;
+        },
+
     },
 
     getters: {
         persistFields() {
             // 'servers' is intentionally excluded: the list must always be
             // re-fetched from the API on popup open so deleted servers never
-            // reappear from stale storage. Only the active selection and
-            // connection id are safe to persist across sessions.
-            return ['connectionId', 'active'];
+            // reappear from stale storage. Only the active and pinned
+            // selection are safe to persist across sessions.
+            return ['active', 'selectionMode', 'manualServerId'];
         },
     },
 });

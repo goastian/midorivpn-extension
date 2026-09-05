@@ -18,9 +18,15 @@ Firefox and Chromium extension that routes browser traffic through an authentica
 - Access/refresh tokens encrypted with AES-GCM using a non-extractable key stored by IndexedDB; no password-derived or cleartext persistence fallback.
 - Production CSP denies every source by default and permits only configured API/identity origins.
 - Proxy routing is available only when the selected server advertises an enabled, healthy normalized `proxy` transport.
+- Automatic mode requests the fail-closed `proxy` candidate contract, requires
+  three successful HTTPS health probes per candidate and chooses the lowest
+  median RTT. Manual mode remains pinned to the selected server.
 - There is no implicit host, scheme or port fallback.
 - Proxy authentication uses a short-lived `vpn-proxy` token; a general OAuth access token is never sent to the proxy.
 - Missing credentials/permissions/configuration fail closed through a loopback black-hole proxy instead of leaking traffic directly while the VPN toggle is on.
+- Three nearby proxy errors start recovery. Retry state and bounded
+  5/10/20/40/60-second backoff survive service-worker restarts; isolated
+  errors do not accumulate indefinitely.
 
 ## Toolchain
 
@@ -76,15 +82,22 @@ normal build never uploads or publishes anything.
 ## Runtime flow
 
 1. The background worker restores the encrypted OAuth session.
-2. `/api/v1/control/servers` is filtered to servers with a healthy `proxy` transport.
-3. The user selects a server and enables browser proxy mode.
+2. `/api/v1/control/servers` supplies manual choices. Automatic mode uses
+   `/api/v1/control/servers/candidates?protocol=proxy` and measures only its
+   validated HTTPS health endpoints.
+3. The user keeps automatic selection or pins a manual server, then enables
+   browser proxy mode.
 4. The extension reuses one private installation UUID and sends it with the
    selected server to `/api/v1/control/proxy-credentials`.
 5. Control returns one opaque regional credential bound to that user,
    installation, server, cluster and the `vpn-proxy` audience. The extension
    never parses or decodes its format.
 6. Browser proxy APIs receive the normalized TLS host/port and authenticate CONNECT requests.
-7. A `407` triggers a throttled scoped-token refresh; definitive auth failure disables the user-visible session.
+7. A `407` triggers a throttled scoped-token refresh. Three consecutive proxy
+   failures trigger automatic recovery; with no reachable edge, browser
+   traffic remains blocked while a durable alarm applies bounded backoff.
+8. Definitive authentication or permission revocation disables the session;
+   explicit disconnect cancels recovery and restores direct mode.
 
 ## License
 

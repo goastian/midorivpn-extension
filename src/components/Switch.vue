@@ -2,7 +2,7 @@
     <div class="container-control">
         <div v-if="storage.state" class="status-pill active row items-center ga-xs">
             <span class="pulse-dot active"></span>
-            <span class="status-text">Connected</span>
+            <span class="status-text">{{ phase === 'connected' ? 'Connected' : 'Reconnecting' }}</span>
         </div>
         <div v-else class="status-pill row items-center ga-xs">
             <span class="pulse-dot"></span>
@@ -38,9 +38,23 @@
 
 <script>
 import useStore from '../stores/useStore';
-import { enableBadge, disableBadge } from '../utils/badge';
-import { disableProxy, enableProxy, validateProxyReady } from '../utils/proxy';
 import { requestRequiredVpnPermissions } from '../utils/permissions';
+
+function sendBackgroundMessage(type) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ type }, (response) => {
+            if (chrome.runtime?.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            if (!response?.success) {
+                reject(new Error(response?.error || 'Background request failed'));
+                return;
+            }
+            resolve(response.data);
+        });
+    });
+}
 
 export default {
     data() {
@@ -48,7 +62,30 @@ export default {
             storage: useStore(),
             permissionError: '',
             connecting: false,
+            phase: 'off',
         }
+    },
+
+    async created() {
+        try {
+            const status = await sendBackgroundMessage('getProxyFailoverStatus');
+            await this.applyStatus(status);
+        } catch {
+            // The persisted Pinia state remains a safe fallback while a fresh
+            // service worker starts.
+        }
+    },
+
+    mounted() {
+        this._failoverListener = (changes, area) => {
+            if (area !== 'local' || !changes.midori_proxy_failover_v1?.newValue) return;
+            void this.applyStatus(changes.midori_proxy_failover_v1.newValue);
+        };
+        chrome.storage.onChanged.addListener(this._failoverListener);
+    },
+
+    beforeUnmount() {
+        if (this._failoverListener) chrome.storage.onChanged.removeListener(this._failoverListener);
     },
 
     methods: {
@@ -58,34 +95,29 @@ export default {
             this.connecting = true;
             try {
                 if (!this.storage.state) {
-                    let ready = await validateProxyReady();
-                    if (!ready.ok && ready.error === 'Missing browser permissions') {
-                        const granted = await requestRequiredVpnPermissions();
-                        if (granted) {
-                            ready = await validateProxyReady();
-                        }
-                    }
-                    if (!ready.ok) {
-                        this.permissionError = ready.error || 'VPN proxy is not ready';
+                    const granted = await requestRequiredVpnPermissions();
+                    if (!granted) {
+                        this.permissionError = 'Missing browser permissions';
                         return;
                     }
-                    const result = await enableProxy();
-                    if (result) {
-                        await this.storage.changeState();
-                        enableBadge();
+                    const status = await sendBackgroundMessage('connectProxy');
+                    await this.applyStatus(status);
+                    if (status.phase !== 'connected') {
+                        this.permissionError = 'No reachable proxy server. Retrying securely.';
                     }
                 } else {
-                    const result = await disableProxy();
-                    if (result) {
-                        await this.storage.changeState();
-                        disableBadge();
-                    }
+                    await this.applyStatus(await sendBackgroundMessage('disconnectProxy'));
                 }
             } catch (err) {
                 this.permissionError = err?.message || 'Connection error';
             } finally {
                 this.connecting = false;
             }
+        },
+
+        async applyStatus(status) {
+            this.phase = status?.phase || 'off';
+            await this.storage.setState(status?.enabled === true);
         },
     }
 }

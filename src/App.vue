@@ -45,8 +45,12 @@ export default {
   mounted() {
     if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
       this._storageListener = (changes, area) => {
-        if (area === 'local' && (changes.access_token_enc || changes.refresh_token_enc || changes.token_expires_at || changes.store || changes.logged_in_at)) {
-          this.checkAuth();
+        if (area !== 'local') return;
+        if (changes.midori_proxy_failover_v1?.newValue) {
+          this.vpn.applyFailoverStatus(changes.midori_proxy_failover_v1.newValue);
+        }
+        if (changes.access_token_enc || changes.refresh_token_enc || changes.token_expires_at || changes.store || changes.logged_in_at) {
+          void this.checkAuth();
         }
       };
       chrome.storage.onChanged.addListener(this._storageListener);

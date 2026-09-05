@@ -5,9 +5,8 @@ export type AuthSessionState = 'anonymous' | 'ready' | 'retrying' | 'revoked';
 interface ProxyRuntimeDependencies {
   synchronizeAuthSession: () => Promise<AuthSessionState>;
   isVpnEnabled: () => Promise<boolean>;
-  getScopedCredential: () => Promise<string | null>;
   hasRequiredPermissions: () => Promise<boolean>;
-  enableProxy: () => Promise<boolean>;
+  restoreProxy: () => Promise<boolean>;
   disableProxy: () => Promise<boolean>;
   persistVpnDisabled: () => Promise<void>;
   showFailureBadge: () => Promise<void>;
@@ -44,16 +43,13 @@ export function createProxyRuntime(dependencies: ProxyRuntimeDependencies) {
         await turnOffVpn();
         return;
       }
-      if (session === 'retrying') return;
-
       if (!(await dependencies.hasRequiredPermissions())) {
         await turnOffVpn();
         return;
       }
-      const credential = await dependencies.getScopedCredential();
-      if (!credential || !(await dependencies.enableProxy())) {
-        await turnOffVpn();
-      }
+      // A failed restoration remains enabled but fail-closed: the failover
+      // runtime installs a blocking route and persists a retry alarm.
+      await dependencies.restoreProxy();
     })().finally(() => {
       restoration = null;
     });

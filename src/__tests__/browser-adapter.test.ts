@@ -4,12 +4,14 @@ import { createBrowserRuntimeAdapter } from '../runtime/browser-adapter';
 function chromeAPI() {
   const set = vi.fn((_details, done) => done());
   const authAddListener = vi.fn();
+  const proxyErrorAddListener = vi.fn();
   return {
     runtime: { lastError: undefined },
-    proxy: { settings: { set } },
+    proxy: { settings: { set }, onProxyError: { addListener: proxyErrorAddListener } },
     webRequest: { onAuthRequired: { addListener: authAddListener } },
     set,
     authAddListener,
+    proxyErrorAddListener,
   };
 }
 
@@ -28,6 +30,14 @@ describe('browser runtime adapters', () => {
       },
       scope: 'regular',
     }, expect.any(Function));
+  });
+
+  it('registers Chromium proxy failures for automatic recovery', () => {
+    const native = chromeAPI();
+    const adapter = createBrowserRuntimeAdapter('chrome', native as any, {});
+    const onError = vi.fn();
+    expect(adapter.registerProxyRouting(vi.fn(), onError)).toBe(true);
+    expect(native.proxyErrorAddListener).toHaveBeenCalledWith(onError);
   });
 
   it('registers Firefox request routing and Promise-based authentication separately', () => {

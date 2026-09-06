@@ -45,8 +45,8 @@ jobs:
       - name: Run ESLint with zero warnings
         run: npm run lint -- --max-warnings=0
 
-      - name: Run Vitest Suite
-        run: npm test
+      - name: Run Vitest Suite with coverage gate
+        run: npm run test:coverage
 
       - name: Build Firefox Extension
         run: npm run build:firefox

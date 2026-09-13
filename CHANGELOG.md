@@ -2,6 +2,10 @@
 
 ## [2.0.0] — Unreleased
 
+- Refresh the compatible development toolchain and force patched `colord`
+  and `svgo` transitive releases after new npm advisories, while retaining the
+  reviewed development-only `image-size` hardening boundary.
+
 ### Features & Enhancements
 
 - Added private vulnerability-reporting and contribution policies, aligned npm

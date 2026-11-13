@@ -1,6 +1,6 @@
 import { disableBadge } from './badge';
-import { clearTokens } from '../lib/api';
-import { storePkceTransaction } from '../lib/pkce';
+import { clearTokens, PROXY_DEVICE_IDENTITY_KEY } from '../lib/api';
+import { clearPkceTransactions, storePkceTransaction } from '../lib/pkce';
 import log from './logger';
 
 // webpack.config.js rejects the build unless all of these values are present.
@@ -118,8 +118,12 @@ class Auth {
     } catch { /* ignore */ }
 
     await clearTokens();
-    if (typeof chrome !== 'undefined' && chrome.storage?.local?.clear) {
-      await chrome.storage.local.clear();
+    await clearPkceTransactions();
+    if (typeof chrome !== 'undefined' && chrome.storage?.local?.remove) {
+      // Logout clears account/session data, never installation identity. Do
+      // not clear then restore: that can race a background credential request.
+      const stored = await chrome.storage.local.get(null);
+      await chrome.storage.local.remove(Object.keys(stored).filter(key => key !== PROXY_DEVICE_IDENTITY_KEY));
     }
     disableBadge();
     if (typeof window !== 'undefined' && window.close) {

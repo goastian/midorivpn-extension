@@ -6,8 +6,38 @@
   and `svgo` transitive releases after new npm advisories, while retaining the
   reviewed development-only `image-size` hardening boundary.
 
+### Security
+
+- Updated `web-ext` to 10.8.0, pulling in `addons-linter` 10.14.0 and a
+  patched `image-size` (2.0.4). The two ICNS/HEIF/JXL infinite-loop advisories
+  (`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`) no longer apply, so the
+  expired development-only exceptions were removed;
+  `security/vulnerability-exceptions.json` is now empty. The disabled-parser
+  hardening boundary remains as defense in depth and is still tested.
+- Updated `@vitest/coverage-v8`/`vitest` to 5.0.5, removing a moderate
+  `@vitest/mocker` code-injection advisory, development-only.
+- Added `glob` (14.0.3) and `minimatch` (11.0.3) overrides for the
+  ESLint/TypeScript-ESLint toolchain, removing a high-severity `source-map-js`
+  event-loop denial-of-service advisory pulled in via `vue`. `multimatch`
+  (used internally by `web-ext lint`) keeps `minimatch` 3.1.4, the newest
+  release compatible with its CommonJS default-export usage. The current
+  audit does not report a remaining minimatch advisory in this locked graph.
+- Refresh transitive `node-forge` to 1.4.3, resolving the remaining moderate
+  development-tooling findings without downgrading `web-ext`.
+- A low-severity `deepmerge` prototype-pollution advisory
+  (`GHSA-gcqx-w48m-w2h4`, pulled in transitively by `addons-linter`) has no
+  upstream fix; it is development-only build-time config merging with no
+  attacker-controlled input, so no tracked exception was added (the audit
+  policy only tracks high/critical findings).
+
 ### Features & Enhancements
 
+- Keep the installation UUID across logout while clearing account state and
+  pending OAuth transactions, including session storage.
+- Allow explicitly configured regional HTTPS probe origins in CSP, without
+  broad HTTPS or wildcard sources; reject malformed origin configuration.
+- Remove GPU/high-entropy platform detection and unverified zero-log/speed
+  claims; clarify that the extension protects browser proxy traffic only.
 - Added private vulnerability-reporting and contribution policies, aligned npm
   licensing with the repository's AGPL-3.0-or-later declaration, documented
   AMO's constrained license slug and separated implemented, certified and

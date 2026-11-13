@@ -8,6 +8,8 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const webpack = require('webpack');
 const { app_env, browser } = require('./config/config.js');
+const { parseProbeOrigins } = require('./config/probe-origins.js');
+const EDGE_PROBE_ORIGINS = parseProbeOrigins(process.env.EDGE_PROBE_ORIGINS);
 
 const requiredEnvironment = [
   'APP_ENV',
@@ -46,7 +48,7 @@ function safeOrigin(value) {
 }
 
 function buildExtensionPagesCsp() {
-  const origins = new Set();
+  const origins = new Set(EDGE_PROBE_ORIGINS);
   [API_URL, ACCOUNT_URL, AUTHENTIK_ISSUER, AUTHENTIK_AUTHORIZATION_URL]
     .map(safeOrigin)
     .filter(Boolean)

@@ -9,7 +9,7 @@
                 <img src="/icons/icon128.png" class="shield-logo" width="88" height="88" alt="Midori VPN" />
             </div>
             <h2 class="title">Secure &amp; Private Browsing</h2>
-            <p class="description">One-click encrypted connection powered by Astian Network.</p>
+            <p class="description">Sign in to use the browser proxy. Other apps require the desktop client.</p>
 
             <p v-if="authError" class="auth-error" role="alert">{{ authError }}</p>
             
@@ -18,13 +18,13 @@
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
-                    <span>Zero-Log</span>
+                    <span>Browser proxy</span>
                 </div>
                 <div class="feature-chip row items-center ga-xs">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                     </svg>
-                    <span>High Speed</span>
+                    <span>Server selection</span>
                 </div>
                 <div class="feature-chip row items-center ga-xs">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

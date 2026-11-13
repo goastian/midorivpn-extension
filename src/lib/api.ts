@@ -534,7 +534,7 @@ const proxyTokenRequests = new Map<string, Promise<string | null>>();
 let cachedProxyServerID: string | null = null;
 let proxyCredentialGeneration = 0;
 
-const PROXY_DEVICE_IDENTITY_KEY = 'midori_proxy_device_identity_v1';
+export const PROXY_DEVICE_IDENTITY_KEY = 'midori_proxy_device_identity_v1';
 let proxyDeviceIdentityRequest: Promise<ProxyDeviceIdentity> | null = null;
 
 interface ProxyDeviceIdentity {

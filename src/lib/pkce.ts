@@ -114,4 +114,12 @@ export async function consumePkceTransaction(state: string): Promise<void> {
   await Promise.allSettled(storageAreas().map((area) => area.remove(keys)));
 }
 
+export async function clearPkceTransactions(): Promise<void> {
+  await Promise.all(storageAreas().map(async (area) => {
+    const stored = await area.get(null);
+    const keys = Object.keys(stored).filter(key => key.startsWith(PKCE_KEY_PREFIX) || LEGACY_KEYS.includes(key));
+    if (keys.length) await area.remove(keys);
+  }));
+}
+
 export { MAX_PKCE_TRANSACTIONS, PKCE_KEY_PREFIX, PKCE_TTL_MS };

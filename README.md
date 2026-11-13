@@ -16,7 +16,14 @@ Firefox and Chromium extension that routes browser traffic through an authentica
   state validation; simultaneous sign-in flows retain independent, bounded
   verifier transactions.
 - Access/refresh tokens encrypted with AES-GCM using a non-extractable key stored by IndexedDB; no password-derived or cleartext persistence fallback.
-- Production CSP denies every source by default and permits only configured API/identity origins.
+- Production CSP denies every source by default and permits configured API,
+  identity and explicit regional health-probe origins. Set `EDGE_PROBE_ORIGINS`
+  to every independent Core origin used by this build, comma separated, HTTPS
+  only and without paths or wildcards. A new regional origin requires a new
+  validated extension build; the API cannot broaden CSP dynamically.
+- Logout clears account data and pending OAuth flows without rotating the
+  installation UUID. Download suggestions do not inspect GPU identifiers or
+  request high-entropy browser client hints.
 - Proxy routing is available only when the selected server advertises an enabled, healthy normalized `proxy` transport.
 - Automatic mode requests the fail-closed `proxy` candidate contract, requires
   three successful HTTPS health probes per candidate and chooses the lowest
@@ -69,7 +76,8 @@ the AMO reviewer source archive, store metadata, SPDX documents, provenance and
 checksums. Firefox is validated with the exact latest compatible `web-ext`
 version in the lockfile. Its current upstream image parser is preloaded with
 ICNS, JXL and HEIF disabled because MidoriVPN store assets are PNG and those
-unused parsers have unresolved denial-of-service advisories. A directed test
+unused parsers were historically affected by denial-of-service advisories. The
+locked version is patched; the restriction remains defense in depth. A directed test
 must pass before linting. Errors and unreviewed warnings fail the build; the
 narrow reviewed allowlist is documented in
 `scripts/lint-firefox-package.sh`.

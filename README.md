@@ -60,6 +60,12 @@ bash "$CORE_REPO/scripts/pod.sh" npm audit --audit-level=high
 The check runs strict type checking, lint with zero warnings, the gate against
 programmatic popup opening, unit tests and both production bundles.
 
+GitHub CI uses reserved `example.test` origins and a test public client ID,
+without deployment Secrets or Variables. It validates production-mode bundles
+for public branches and forks; those bundles are not configured for a live VPN
+and are not release candidates. Release and store workflows remain separate
+and require explicit real build inputs; CI does not supply defaults to them.
+
 Build one browser explicitly:
 
 ```bash

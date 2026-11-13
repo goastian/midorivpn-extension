@@ -8,6 +8,9 @@
 
 ### Security
 
+- Build CI bundles with explicit reserved test origins instead of deployment
+  secrets, so public branches and forks can run the complete suite. Release
+  and store builds still reject missing real inputs; no runtime fallback added.
 - Updated `web-ext` to 10.8.0, pulling in `addons-linter` 10.14.0 and a
   patched `image-size` (2.0.4). The two ICNS/HEIF/JXL infinite-loop advisories
   (`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`) no longer apply, so the

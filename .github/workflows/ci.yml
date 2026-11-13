@@ -10,17 +10,19 @@ jobs:
   test:
     name: Lint, Test & Build Extension
     runs-on: ubuntu-24.04
+    # CI validates production-mode packaging with reserved test origins.
+    # Deployment inputs remain mandatory in the separate release/store jobs.
     env:
-      APP_ENV: ${{ secrets.APP_ENV || vars.APP_ENV }}
-      API_URL: ${{ secrets.API_URL || vars.API_URL }}
-      ACCOUNT_URL: ${{ secrets.ACCOUNT_URL || vars.ACCOUNT_URL }}
-      PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
-      EDGE_PROBE_ORIGINS: ${{ vars.EDGE_PROBE_ORIGINS }}
-      AUTHENTIK_ISSUER: ${{ secrets.AUTHENTIK_ISSUER || vars.AUTHENTIK_ISSUER }}
-      AUTHENTIK_AUTHORIZATION_URL: ${{ secrets.AUTHENTIK_AUTHORIZATION_URL || vars.AUTHENTIK_AUTHORIZATION_URL }}
-      AUTHENTIK_CLIENT_ID: ${{ secrets.AUTHENTIK_CLIENT_ID || vars.AUTHENTIK_CLIENT_ID }}
-      AUTHENTIK_REDIRECT_URI: ${{ secrets.AUTHENTIK_REDIRECT_URI || vars.AUTHENTIK_REDIRECT_URI }}
-      EXTENSION_CALLBACK_PATH: ${{ secrets.EXTENSION_CALLBACK_PATH || vars.EXTENSION_CALLBACK_PATH }}
+      APP_ENV: production
+      API_URL: https://vpn.example.test
+      ACCOUNT_URL: https://vpn.example.test
+      PUBLIC_BASE_URL: https://vpn.example.test
+      EDGE_PROBE_ORIGINS: https://de.vpn.example.test
+      AUTHENTIK_ISSUER: https://accounts.example.test/application/o/vpn/
+      AUTHENTIK_AUTHORIZATION_URL: https://accounts.example.test/application/o/authorize/
+      AUTHENTIK_CLIENT_ID: ci-public-client
+      AUTHENTIK_REDIRECT_URI: https://vpn.example.test/extension/callback
+      EXTENSION_CALLBACK_PATH: /extension/callback
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

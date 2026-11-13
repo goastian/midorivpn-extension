@@ -2,6 +2,12 @@
 
 ## [2.0.0] — Unreleased
 
+- Refresh the compatible Node 24/npm toolchain, Vue/Pinia, Babel/Webpack,
+  Vitest 5.1 and lint/type packages. Move development-only jsdom/dotenv to
+  supported 31/18 APIs; retain explicit quiet environment loading and strict
+  release-input validation. TypeScript 7 remains outside the lint peer range.
+- Refresh verified CI Action pins and Node 24.22.3 store runners without
+  changing permissions, real deployment inputs or store approval gates.
 - Refresh the compatible development toolchain and force patched `colord`
   and `svgo` transitive releases after new npm advisories, while retaining the
   reviewed development-only `image-size` hardening boundary.

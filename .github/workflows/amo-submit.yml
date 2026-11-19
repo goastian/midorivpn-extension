@@ -1,10 +1,10 @@
-name: Submit - Firefox extension to AMO
+name: Sign - unlisted Firefox extension with AMO
 
 on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: Type SUBMIT_MIDORIVPN_2.0.0_TO_AMO
+        description: Type SIGN_MIDORIVPN_2.0.0_UNLISTED_WITH_AMO
         required: true
         type: string
 
@@ -13,8 +13,9 @@ permissions:
 
 jobs:
   submit:
-    name: Submit listed Firefox package and reviewer source
+    name: Sign unlisted Firefox package with reviewer source
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     environment: extension-store-submit
     env:
       APP_ENV: production
@@ -32,13 +33,17 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Require the immutable 2.0.0 release tag
+        env:
+          AMO_CONFIRM_SUBMISSION: ${{ inputs.confirmation }}
         run: |
+          set -Eeuo pipefail
           test "$GITHUB_REF" = refs/tags/v2.0.0
           test "$(git cat-file -t v2.0.0)" = tag
           test "$(git rev-list -n 1 v2.0.0)" = "$GITHUB_SHA"
-          test '${{ inputs.confirmation }}' = SUBMIT_MIDORIVPN_2.0.0_TO_AMO
+          test "$AMO_CONFIRM_SUBMISSION" = SIGN_MIDORIVPN_2.0.0_UNLISTED_WITH_AMO
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -61,3 +66,12 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
         run: bash scripts/submit-amo.sh
+
+      - name: Retain the downloaded unlisted XPI and release evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: midorivpn-extension-2.0.0-amo-unlisted
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+          include-hidden-files: false

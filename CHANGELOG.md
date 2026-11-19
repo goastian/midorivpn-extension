@@ -2,6 +2,12 @@
 
 ## [2.0.0] — Unreleased
 
+- Use explicitly approved AMO unlisted signing for Firefox/Midori, retain the
+  returned XPI with checksums, and reject missing reviewer source or signing
+  output rather than treating submission alone as a signed artifact.
+- Pass store confirmations as quoted environment variables instead of
+  interpolating input into shell source; do not persist checkout credentials.
+
 - Refresh the compatible Node 24/npm toolchain, Vue/Pinia, Babel/Webpack,
   Vitest 5.1 and lint/type packages. Move development-only jsdom/dotenv to
   supported 31/18 APIs; retain explicit quiet environment loading and strict

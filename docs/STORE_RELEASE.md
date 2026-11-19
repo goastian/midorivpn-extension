@@ -32,9 +32,10 @@ produces SPDX, provenance and `SHA256SUMS`.
 
 ## AMO
 
-Mozilla `web-ext sign` uses the add-on submission API v5. A `listed` channel
-submission creates or updates the public listing, so it is treated as a
-publication action rather than a harmless package upload.
+Mozilla `web-ext sign` uses the add-on submission API v5 with the **unlisted**
+channel, for Firefox/Midori self-distribution. It must not create a public AMO
+listing. Signing still uploads the package and reviewer source to Mozilla and
+requires explicit approval; building local ZIPs does not authorize that upload.
 
 Required protected environment: `extension-store-submit`.
 
@@ -44,11 +45,23 @@ immutable build mode, not an environment variable or credential to configure.
 - Secrets: `AMO_API_KEY`, `AMO_API_SECRET`.
 - Approval: required reviewer before deployment.
 - Branch/tag policy: annotated release tag only.
-- Confirmation: `SUBMIT_MIDORIVPN_2.0.0_TO_AMO`.
+- Confirmation: `SIGN_MIDORIVPN_2.0.0_UNLISTED_WITH_AMO`.
 
 The workflow sends `store/amo/metadata.json`, the generated Firefox source and
 the reviewer source archive. No API credentials or reviewer accounts belong in
 the repository.
+
+The workflow waits up to 15 minutes for signing and retains the downloaded XPI,
+checksums and build evidence for 14 days. No returned XPI, missing signature
+entries or a mismatched add-on ID/version fail the job; an unsigned ZIP is not
+renamed to XPI. The local checks rely on `web-ext` and Mozilla's signing API,
+not an independent cryptographic verifier. Acceptance still requires installing
+the returned XPI in Firefox/Midori with signature enforcement enabled.
+
+Do not provision AMO credentials into an environment without its required
+reviewer/tag protections. If the private repository's plan cannot enforce them,
+keep signing blocked or configure an approved protected public environment
+before moving credentials or changing the signing repository.
 
 ## Chrome Web Store
 

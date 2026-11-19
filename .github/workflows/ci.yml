@@ -39,6 +39,9 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Test AMO submission policy without credentials or network
+        run: bash scripts/test-amo-submission.sh
+
       - name: Audit full dependency graph with reviewed tooling exceptions
         run: npm run audit:security
 
